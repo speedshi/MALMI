@@ -10,6 +10,8 @@ Created on Thu Jun 24 16:23:38 2021
 
 from pandas import to_datetime
 import os
+from obspy import read_inventory
+import json
 
 
 def stream2EQTinput(stream, dir_output):
@@ -52,7 +54,7 @@ def stream2EQTinput(stream, dir_output):
     
     
     timeformat = "%Y%m%dT%H%M%SZ"  # NOTE here output until second
-    components = ["E", "N", "Z", "1", "2"]
+    components = ["E", "N", "Z", "1", "2", "3"]
     
     # scan all traces to get the station names
     stations = []
@@ -104,5 +106,81 @@ def stream2EQTinput(stream, dir_output):
     return
 
 
+def stainv2json(file_station, mseed_directory, dir_json):
+    """
+    Parameters
+    ----------
+    file_station : str
+        filename (inclusing path) of the station metadata. 
+        Must be in FDSNWS station text file format: *.txt;
+        or StationXML format: *.xml.
+    mseed_directory : str
+        String specifying the path to the directory containing miniseed files. 
+        Directory must contain subdirectories of station names, which contain miniseed files 
+        in the EQTransformer format. 
+        Each component must be a seperate miniseed file, and the naming
+        convention is GS.CA06.00.HH1__20190901T000000Z__20190902T000000Z.mseed, 
+        or more generally NETWORK.STATION.LOCATION.CHANNEL__STARTTIMESTAMP__ENDTIMESTAMP.mseed
+    dir_json : str
+        String specifying the path to the output json file.
 
+    Returns
+    -------
+    stations_list.json: A dictionary (json file) containing information for the available stations.
+    
+    Example
+    -------
+    file_station = "../data/station/all_stations_inv.xml"
+    mseed_directory = "../data/seismic_data/EQT/mseeds/"
+    dir_json = "../data/seismic_data/EQT/json"
+    stainv2json(file_station, mseed_directory, dir_json)
+    """
+    
+    # read station metadata
+    stafile_suffix = file_station.split('.')[-1]
+    if stafile_suffix == 'xml' or stafile_suffix == 'XML':
+        # input are in StationXML format
+        stainfo = read_inventory(file_station, format="STATIONXML")
+    elif stafile_suffix == 'txt' or stafile_suffix == 'TXT':
+        # input are in FDSNWS station text file format
+        stainfo = read_inventory(file_station, format="STATIONTXT")
+    
+    # get the name of all used stations
+    sta_names = sorted([dname for dname in os.listdir(mseed_directory) if os.path.isdir(os.path.join(mseed_directory, dname))])
+    station_list = {}
+    
+    # loop over each station for config the station jaso file    
+    for network in stainfo:
+        for station in network:
+            if station.code in sta_names:
+                # get the channel list for the current station
+                
+                # try to get the channel information from station inventory file
+                sta_channels = []
+                for channel in station:
+                    sta_channels.append(channel.code)
+                
+                # correct station inventory file should contain channel information
+                # otherwise check the MSEED filename in 'mseed_directory' for "network" and "channels"
+                if not sta_channels:
+                    # the input station inventory file does not contain channel information
+                    # we need to find that information find the filename of the MSEED seismic data
+                    data_dir = os.path.join(mseed_directory, station.code)
+                    seedf_names = sorted([sfname for sfname in os.listdir(data_dir) if os.path.isfile(os.path.join(data_dir, sfname))])
+                    sta_channels = list(set([seedfl.split('.')[3].split('__')[0] for seedfl in seedf_names]))
+                    
+                # add entry to station list for the current station
+                station_list[station.code] = {"network": network.code, 
+                                              "channels": sta_channels, 
+                                              "coords": [station.latitude, station.longitude, station.elevation]}
+       
+    # output station json file    
+    if not os.path.exists(dir_json):
+        os.makedirs(dir_json)
+    jfilename = os.path.join(dir_json, 'station_list.json')
+    with open(jfilename, 'w') as fp:
+        json.dump(station_list, fp)     
+    
+    
+    return
 
