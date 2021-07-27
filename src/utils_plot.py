@@ -99,7 +99,7 @@ def probin_plot(dir_input, dir_output, figsize):
     """
     
     # set internal parameters
-    dyy = 1.0  # the y-axis interval between different station data when plotting
+    dyy = 1.2  # the y-axis interval between different station data when plotting
     
     # load data set
     file_seismicin = sorted([fname for fname in os.listdir(dir_input) if os.path.isfile(os.path.join(dir_input, fname))])
@@ -118,19 +118,38 @@ def probin_plot(dir_input, dir_output, figsize):
     ax = fig.add_subplot(111)
     ydev = [ii*dyy for ii in range(len(staname))]
     for ii in range(len(staname)):
-        tr = stream.select(station=staname[ii], component="P")[0]
-        tt = pd.date_range(tr.stats.starttime.datetime, tr.stats.endtime.datetime, tr.stats.npts)
-        ax.plot(tt, tr.data+ydev[ii], 'r', linewidth=1)
-        tr = stream.select(station=staname[ii], component="S")[0]
-        tt = pd.date_range(tr.stats.starttime.datetime, tr.stats.endtime.datetime, tr.stats.npts)
-        ax.plot(tt, tr.data+ydev[ii], 'k', linewidth=1)
+        # plot P-phase probability
+        tr = stream.select(station=staname[ii], component="P")
+        if tr.count() > 0:
+            tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
+            ax.plot(tt, tr[0].data+ydev[ii], 'r', linewidth=1.2)
+        
+        # plot S-phase probability
+        tr = stream.select(station=staname[ii], component="S")
+        if tr.count() > 0:
+            tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
+            ax.plot(tt, tr[0].data+ydev[ii], 'b', linewidth=1.2)
+        
+        # plot event probability
+        tr = stream.select(station=staname[ii], component="D")
+        if tr.count() > 0:
+            tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
+            ax.plot(tt, tr[0].data+ydev[ii], 'k--', linewidth=1.2)
+        
     ax.set_yticks(ydev)
     ax.set_yticklabels(staname, fontsize=14)
     ax.tick_params(axis='x', labelsize=14)
-    ax.set_title('Input data [{}]'.format(tr.stats.starttime.date), fontsize=16, fontweight ="bold")
+    ax.set_title('Input data [{}]'.format(tr[0].stats.starttime.date), fontsize=16, fontweight ="bold")
     if not os.path.exists(dir_output):
         os.makedirs(dir_output)
     fname = os.path.join(dir_output, 'input_data.png')
     fig.savefig(fname, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    del stream, tr
     
     return
+
+

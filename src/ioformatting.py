@@ -270,9 +270,9 @@ def vector2trace(datainfo, data, dir_output='./'):
     
     # output to file
     if trace.id[0] == '.':
-        nametag = trace.id[1:] + '.' + trace.stats.starttime.datetime.strftime(timeformat)
+        nametag = trace.id[1:] + '.' + trace.stats.starttime.datetime.strftime(timeformat) + '.mseed'
     else:
-        nametag = trace.id + '.' + trace.stats.starttime.datetime.strftime(timeformat)
+        nametag = trace.id + '.' + trace.stats.starttime.datetime.strftime(timeformat) + '.mseed'
     fname = os.path.join(dir_output, nametag)
     trace.write(fname, format="MSEED")
     
