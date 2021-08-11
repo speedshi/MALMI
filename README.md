@@ -8,7 +8,9 @@ Currently **MALMI** utilize EQTransformer as ML engine and loki as migration eng
 
 ### Create and activate a new environment
 ```bash
-conda create -n malmi python=3.7 tensorflow
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+conda create -n malmi python=3.7 obspy=1.2.2
 conda activate malmi
 ```
 
