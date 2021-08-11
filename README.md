@@ -1,2 +1,3 @@
-# MALMI
-## MAchine Learning Migration Imaging
+# MALMI (MAchine Learning Migration Imaging)
+
+## Installation
