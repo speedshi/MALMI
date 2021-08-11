@@ -44,6 +44,10 @@ class MALMI:
         self.dir_migration = dir_output + '/data_loki/' + fd_seismic  # directory for migration outputs
         self.n_processor = n_processor  # number of threads for parallel processing
 
+        self.dir_mseed = self.dir_ML + "/mseeds"  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
+        self.dir_EQTjson = self.dir_ML + "/json"  # directory for outputting station json file for EQT
+        self.dir_lokiprob = self.dir_migration + '/prob_evstream'  # path for probability outputs of different events
+
 
     def format_ML_inputs(self, file_station, channels=["*HE", "*HN", "*HZ"]):
         """
@@ -64,10 +68,9 @@ class MALMI:
         import obspy
         import os
         
-        print('FMALMI starts to format input data set for ML models:')
+        print('MALMI starts to format input data set for ML models:')
         
         # read in continuous seismic data as obspy stream and output to the data format that QET can handle 
-        self.dir_mseed = self.dir_ML + "/mseeds"  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
         file_seismicin = sorted([fname for fname in os.listdir(self.dir_seismic) if os.path.isfile(os.path.join(self.dir_seismic, fname))])
         stream = obspy.Stream()
         for dfile in file_seismicin:
@@ -76,7 +79,6 @@ class MALMI:
         stream2EQTinput(stream, self.dir_mseed, channels)
         
         # create station jason file for EQT------------------------------------
-        self.dir_EQTjson = self.dir_ML + "/json"  # directory for outputting station json file for EQT
         stainv2json(file_station, self.dir_mseed, self.dir_EQTjson)
         print('MALMI_format_ML_inputs complete!')
 
@@ -108,7 +110,7 @@ class MALMI:
         # generate hdf5 files
         preprocessor(preproc_dir=preproc_dir, mseed_dir=self.dir_mseed, 
                      stations_json=stations_json, overlap=overlap, 
-                     n_processor=1)
+                     n_processor=6)
         
         # show data availablity for each station-------------------------------
         file_pkl = preproc_dir + '/time_tracks.pkl'
@@ -156,7 +158,6 @@ class MALMI:
         from event_detection import eqtprob_eventdetect
         
         print('MALMI starts to detect events based on the ML predicted event probabilites and output the corresponding phase probabilites of the detected events:')
-        self.dir_lokiprob = self.dir_migration + '/prob_evstream'  # path for probability outputs of different events
         eqtprob_eventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
         print('MALMI_event_detect_ouput complete!')
 
