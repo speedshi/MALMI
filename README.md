@@ -26,5 +26,7 @@ pip install .
 
 ### Install MALMI
 ```bash
-git clone 
+git clone https://github.com/speedshi/MALMI.git
+cd WHERE_MALMI_IS_STORED
 ```
+Fellow the script: 'run_MALMI.py' to use the code. Good Luck!
