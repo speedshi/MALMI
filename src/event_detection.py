@@ -30,8 +30,8 @@ def eqtprob_eventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nsta
     dir_output : str
         path for data outputs.
     sttd_max : float
-        maximum S-P traveltime difference between different stations for 
-        the imaging area, in second.
+        maximum P-P traveltime difference between different stations for 
+        the whole imaging area, in second.
     twlex : float
         time in second for extending the time window, roughly equal to the 
         width of P- or S-probability envelope. Value ranges from 0.5-2 second.
@@ -74,6 +74,7 @@ def eqtprob_eventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nsta
     data_size_EQT = 6000  # the data segment size in date points, by default the EQT output are 1 minutes long, thus 6000 points
     dt_EQT = 0.01  # time sampling rate of data in second, for EQT probability output, by default is 0.01 s
     data_sglength = (data_size_EQT-1)*dt_EQT  # data segment length in second, equals 'endtime - starttime'
+    N_tit = 1  # number of iteration for settle the starttime and endtime of data segment; should be 1, 2, 3; set 1 for fast calculation, set 2 or 3 if want to obtain better time constrain
     
     datainfo = {}
     datainfo['dt'] = dt_EQT
@@ -140,154 +141,160 @@ def eqtprob_eventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nsta
         if tt2 > dsg_sttmax:
             tt2 = copy.deepcopy(dsg_sttmax)
         
-        tts = None
-        ttd = None
-        
-        tts_sta = {}
-        ttd_sta = {}
-        
-        nsta_trig = 0  # number of stations triggered
-        for sta in stanames:
-            # loop over each station
+        for itit in range(N_tit):
             
-            # flag to indicate if the current station has already been triggered or not
-            station_triggered = False
+            if itit > 0:
+                tt1 = copy.deepcopy(tts)
+                tt2 = copy.deepcopy(ttd)
             
-            # maximum detection probability for the current event in the searched time period
-            prob_det_max = 0.0
+            # initialize parameters
+            tts = None
+            ttd = None
+            tts_sta = {}
+            ttd_sta = {}
+            nsta_trig = 0  # number of stations triggered
             
-            # the midpoint between the starttime and endtime
-            tt_mid = tt1 + (tt2 - tt1)/2
-            
-            # find all data segments which contain the whole searched time period
-            dindx = np.logical_and((db[sta][0] <= tt1), (db[sta][1] >= tt2))  # the index of data segments that include the whole searched time period
-            if dindx.any():
-                for isgindex in np.flatnonzero(dindx):
-                    # loop over each fulfilled data segment, find the earliest 'tts' and the latest 'ttd'
-                    
-                    data_sgindex = copy.deepcopy(isgindex)  # the index of the chosen data segment, is an integer
-                    data_starttime = db[sta][0][data_sgindex]  # starttime of the chosen data segment
-                    data_times = np.array([data_starttime + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point
-                    data_probD = db[sta][2][data_sgindex]  # detection probability of the chosen data segment
-                    
-                    data_pdindex = np.logical_and((data_times >= tt1), (data_times <= tt2))  # the index of probability data point within the detection time range
-                    detecid = (data_probD[data_pdindex] >= d_thrd)  # boolen array to indicate whether there are detections above threshold
-                    
-                    if detecid.any():
-                        # have detetion at the current station and the searched time period
+            for sta in stanames:
+                # loop over each station
+                
+                # flag to indicate if the current station has already been triggered or not
+                station_triggered = False
+                
+                # maximum detection probability for the current event in the searched time period
+                prob_det_max = 0.0
+                
+                # find all data segments which contain the whole searched time period
+                dindx = np.logical_and((db[sta][0] <= tt1), (db[sta][1] >= tt2))  # the index of data segments that include the whole searched time period
+                if dindx.any():
+                    for isgindex in np.flatnonzero(dindx):
+                        # loop over each fulfilled data segment, find the earliest 'tts' and the latest 'ttd'
                         
-                        # determine if this station has been triggered and update the accumulated number
-                        if not station_triggered:
-                            nsta_trig = nsta_trig + 1  
-                            station_triggered = True
-                    
-                        idfirst = np.flatnonzero(data_pdindex)[0]  # the index of the first point in the searched time period
-                        idlast = np.flatnonzero(data_pdindex)[-1]  # the index of the last point in the searched time period
+                        data_sgindex = copy.deepcopy(isgindex)  # the index of the chosen data segment, is an integer
+                        data_starttime = db[sta][0][data_sgindex]  # starttime of the chosen data segment
+                        data_times = np.array([data_starttime + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point
+                        data_probD = db[sta][2][data_sgindex]  # detection probability of the chosen data segment
                         
-                        # set tts, and update tt2
-                        if (data_probD[idfirst] >= d_thrd) and (idfirst > 0) and (data_probD[idfirst-1] >= d_thrd):
-                            # starttime and the data point just before the starttime are both above threshold
-                            ddinx = np.flatnonzero(data_probD[0:idfirst] < d_thrd)  
-                            if ddinx.size > 0:
-                                # get the last occurance for the prior points with a detection value smaller than threshold
-                                tts_temp = data_times[ddinx[-1] + 1] - datetime.timedelta(seconds=twlex)
+                        data_pdindex = np.logical_and((data_times >= tt1), (data_times <= tt2))  # the index of probability data point within the detection time range
+                        detecid = (data_probD[data_pdindex] >= d_thrd)  # boolen array to indicate whether there are detections above threshold
+                        
+                        if detecid.any():
+                            # have detetion at the current station and the searched time period
+                            
+                            # determine if this station has been triggered and update the accumulated number
+                            if not station_triggered:
+                                nsta_trig = nsta_trig + 1  
+                                station_triggered = True
+                        
+                            idfirst = np.flatnonzero(data_pdindex)[0]  # the index of the first point in the searched time period
+                            idlast = np.flatnonzero(data_pdindex)[-1]  # the index of the last point in the searched time period
+                            
+                            # set tts, and update tt2
+                            if (data_probD[idfirst] >= d_thrd) and (idfirst > 0) and (data_probD[idfirst-1] >= d_thrd):
+                                # starttime and the data point just before the starttime are both above threshold
+                                ddinx = np.flatnonzero(data_probD[0:idfirst] < d_thrd)  
+                                if ddinx.size > 0:
+                                    # get the last occurance for the prior points with a detection value smaller than threshold
+                                    tts_temp = data_times[ddinx[-1] + 1] - datetime.timedelta(seconds=twlex)
+                                else:
+                                    # all the prior data points exceed detection threshold
+                                    tts_temp = data_times[0] - datetime.timedelta(seconds=spttdf_ssmax)  # note move the starttime ahead 
+                                    
+                                del ddinx
+                            elif (data_probD[idfirst] >= d_thrd) and (idfirst == 0):
+                                # starttime is above the threshold and also is the first point of this segment
+                                tts_temp = data_times[0] - datetime.timedelta(seconds=spttdf_ssmax)  # note move the starttime ahead
                             else:
-                                # all the prior data points exceed detection threshold
-                                tts_temp = data_times[0] - datetime.timedelta(seconds=spttdf_ssmax)  # note move the starttime ahead 
-                                
-                            del ddinx
-                        elif (data_probD[idfirst] >= d_thrd) and (idfirst == 0):
-                            # starttime is above the threshold and also is the first point of this segment
-                            tts_temp = data_times[0] - datetime.timedelta(seconds=spttdf_ssmax)  # note move the starttime ahead
-                        else:
-                            # the starttime tt1 has detetion probability below threshold
-                            tts_temp = data_times[idfirst + np.argmax(detecid)] - datetime.timedelta(seconds=twlex)
-                        
-                        # set tts_sta for the current station
-                        dprobD_max = max(data_probD[data_pdindex])  # maximum detection probability for the current time segment and station
-                        if (dprobD_max > prob_det_max):
-                            tts_sta[sta] = copy.deepcopy(tts_temp)
-                        # if sta in tts_sta:
-                        #     tts_sta[sta] = min(tts_sta[sta], tts_temp)
-                        # else:
-                        #     tts_sta[sta] = copy.deepcopy(tts_temp)
-                        if tts_sta[sta] < ttd_previous:
-                            tts_sta[sta] = copy.deepcopy(ttd_previous)
-                        
-                        # set tts
-                        if tts:
-                            tts = min(tts, tts_temp)
-                        else:
-                            tts = copy.deepcopy(tts_temp)
-                        # make sure the 'tts' is not earlier than the endtime of the previous data extraction
-                        if tts < ttd_previous:
-                            tts = copy.deepcopy(ttd_previous)
-                        
-                        # set tt2
-                        if tts > tt1:
-                            tt2 = tts + datetime.timedelta(seconds=(sttd_max+twlex))
-                        else:
-                            tt2 = tt1 + datetime.timedelta(seconds=(sttd_max+twlex))
-                        if tt2 > dsg_sttmax:
-                            tt2 = copy.deepcopy(dsg_sttmax)
-                        
-                        del tts_temp
-                        
-                        # set ttd, and update tt2
-                        if (data_probD[idlast] >= d_thrd) and (idlast < data_size_EQT-1) and (data_probD[idlast+1] >= d_thrd):
-                            # endtime and the next point of endtime are both above threshold
-                            ddinx = np.argmax(data_probD[idlast+1:] < d_thrd)  # first occurance for the remaining points with a detection value smaller than threshold
-                            if ddinx > 0:
-                                # the remaining data points have detection value below threshold
-                                ttd_temp = data_times[idlast + ddinx] + datetime.timedelta(seconds=twlex)
+                                # the starttime tt1 has detetion probability below threshold
+                                tts_temp = data_times[idfirst + np.argmax(detecid)] - datetime.timedelta(seconds=twlex)
+                            
+                            # set tts_sta for the current station
+                            dprobD_max = max(data_probD[data_pdindex])  # maximum detection probability for the current time segment and station
+                            if (dprobD_max > prob_det_max):
+                                tts_sta[sta] = copy.deepcopy(tts_temp)
+                            # if sta in tts_sta:
+                            #     tts_sta[sta] = min(tts_sta[sta], tts_temp)
+                            # else:
+                            #     tts_sta[sta] = copy.deepcopy(tts_temp)
+                            if tts_sta[sta] < ttd_previous:
+                                tts_sta[sta] = copy.deepcopy(ttd_previous)
+                            
+                            # set tts
+                            if tts:
+                                tts = min(tts, tts_sta[sta])  # tts = min(tts, tts_temp)
                             else:
-                                # all the remaining data points exceed detection threshold
+                                tts = copy.deepcopy(tts_sta[sta])  # tts = copy.deepcopy(tts_temp)
+                            # make sure the 'tts' is not earlier than the endtime of the previous data extraction
+                            if tts < ttd_previous:
+                                tts = copy.deepcopy(ttd_previous)
+                            
+                            # set tt2
+                            if tts > tt1:
+                                tt2 = tts + datetime.timedelta(seconds=(sttd_max+twlex))
+                            else:
+                                tt2 = tt1 + datetime.timedelta(seconds=(sttd_max+twlex))
+                            if tt2 > dsg_sttmax:
+                                tt2 = copy.deepcopy(dsg_sttmax)
+                            
+                            del tts_temp
+                            
+                            # set ttd, and update tt2
+                            if (data_probD[idlast] >= d_thrd) and (idlast < data_size_EQT-1) and (data_probD[idlast+1] >= d_thrd):
+                                # endtime and the next point of endtime are both above threshold
+                                ddinx = np.argmax(data_probD[idlast+1:] < d_thrd)  # first occurance for the remaining points with a detection value smaller than threshold
+                                if ddinx > 0:
+                                    # the remaining data points have detection value below threshold
+                                    ttd_temp = data_times[idlast + ddinx] + datetime.timedelta(seconds=twlex)
+                                else:
+                                    # all the remaining data points exceed detection threshold
+                                    ttd_temp = data_times[-1] + datetime.timedelta(seconds=spttdf_ssmax)  # note move the endtime after
+                                    
+                                del ddinx
+                            elif (data_probD[idlast] >= d_thrd) and (idlast == data_size_EQT-1):
+                                # endtime is above the threshold and also is the last point of this segment
                                 ttd_temp = data_times[-1] + datetime.timedelta(seconds=spttdf_ssmax)  # note move the endtime after
-                                
-                            del ddinx
-                        elif (data_probD[idlast] >= d_thrd) and (idlast == data_size_EQT-1):
-                            # endtime is above the threshold and also is the last point of this segment
-                            ttd_temp = data_times[-1] + datetime.timedelta(seconds=spttdf_ssmax)  # note move the endtime after
-                        else:
-                            # the next point after endtime is below threshold,
-                            # or just before or at the endtime is below threshold. 
-                            ttd_temp = data_times[idfirst + np.flatnonzero(detecid)[-1]] + datetime.timedelta(seconds=twlex)
-                        
-                        # set ttd_sta for the current station
-                        if (dprobD_max > prob_det_max):
-                            ttd_sta[sta] = copy.deepcopy(ttd_temp)
-                            prob_det_max = copy.deepcopy(dprobD_max)
-                        # if sta in ttd_sta:
-                        #     ttd_sta[sta] = max(ttd_sta[sta], ttd_temp)
-                        # else:
-                        #     ttd_sta[sta] = copy.deepcopy(ttd_temp)
-                        if ttd_sta[sta] > dsg_sttmax:
-                            ttd_sta[sta] = copy.deepcopy(dsg_sttmax)
-                        
-                        # set ttd
-                        if ttd:
-                            ttd = max(ttd, ttd_temp)
-                        else: 
-                            ttd = copy.deepcopy(ttd_temp)
-                        if ttd > dsg_sttmax:
-                            ttd = copy.deepcopy(dsg_sttmax)
-                        
-                        # set tt2
-                        tt2 = max(tt2, ttd_temp)
-                        if tt2 > dsg_sttmax:
-                            tt2 = copy.deepcopy(dsg_sttmax)    
-                        
-                        del idfirst, idlast, ttd_temp, dprobD_max
-                        
-                    # clear memory
-                    del data_sgindex, data_starttime, data_times, data_probD, data_pdindex, detecid
-                del isgindex
-            del tt_mid, dindx, prob_det_max
+                            else:
+                                # the next point after endtime is below threshold,
+                                # or just before or at the endtime is below threshold. 
+                                ttd_temp = data_times[idfirst + np.flatnonzero(detecid)[-1]] + datetime.timedelta(seconds=twlex)
+                            
+                            # set ttd_sta for the current station
+                            if (dprobD_max > prob_det_max):
+                                ttd_sta[sta] = copy.deepcopy(ttd_temp)
+                                prob_det_max = copy.deepcopy(dprobD_max)
+                            # if sta in ttd_sta:
+                            #     ttd_sta[sta] = max(ttd_sta[sta], ttd_temp)
+                            # else:
+                            #     ttd_sta[sta] = copy.deepcopy(ttd_temp)
+                            if ttd_sta[sta] > dsg_sttmax:
+                                ttd_sta[sta] = copy.deepcopy(dsg_sttmax)
+                            
+                            # set ttd
+                            if ttd:
+                                ttd = max(ttd, ttd_sta[sta])  # ttd = max(ttd, ttd_temp)
+                            else: 
+                                ttd = copy.deepcopy(ttd_sta[sta])  # ttd = copy.deepcopy(ttd_temp)
+                            if ttd > dsg_sttmax:
+                                ttd = copy.deepcopy(dsg_sttmax)
+                            
+                            # set tt2
+                            tt2 = max(tt2, ttd)
+                            if tt2 > dsg_sttmax:
+                                tt2 = copy.deepcopy(dsg_sttmax)    
+                            
+                            del idfirst, idlast, ttd_temp, dprobD_max
+                            
+                        # clear memory
+                        del data_sgindex, data_starttime, data_times, data_probD, data_pdindex, detecid
+                    del isgindex
+                del dindx, prob_det_max
+        
+            if (nsta_trig < nsta_thrd):
+                break
         
         # write P- and S-phase probability data for the current searched time period
         # if there are more triggered stations than the threshold (3 stations)
         # output data from time range: 'tts' to 'ttd'
-        if nsta_trig >= nsta_thrd:
+        if (nsta_trig >= nsta_thrd):
             # print info
             print('----------------------------------------------------------')
             print('Detect event at time range:', tts, '-', ttd)
@@ -362,7 +369,7 @@ def eqtprob_eventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nsta
         else:
             tt1 = tt2 + datetime.timedelta(seconds=dt_EQT)
 
-        del tts_sta, ttd_sta, tts, ttd
+        del tts_sta, ttd_sta, tts, ttd, nsta_trig
         
     return    
         

@@ -58,12 +58,18 @@ def maxP2Stt(db_path, hdr_filename, model, precision):
 
     Returns
     -------
-    tt_spmax : float
-        the maximal P to S arrivaltime difference among all stations in second 
-        for all imaging points.
-    tt_spmax_ss: float
-        the maximal P to S arrivaltime difference for a perticular station in second 
-        for all imaging points.
+    tt_psmax : float
+        the maximal arrivaltime difference bewteen S-phase and P-phase among 
+        all stations in second for all imaging points.
+        tt_psmax = max_{all imaging points}(max_{all station}(S_arrt) - min_{all stations}(P_arrt))
+    tt_ppmax: fload
+        the maximal arrivaltime difference bewteen P-phase among all stations 
+        in second for all imaging points.
+        tt_ppmax = max_{all imaging points}(max_{all station}(P_arrt) - min_{all stations}(P_arrt)) 
+    tt_psmax_ss: float
+        the maximal arrivaltime difference between S-phase and P-phase for 
+        a perticular station in second for all imaging points.
+        tt_psmax_ss = max_{all imaging points, all stations}(S_arrt - P_arrt)
     """
     
 
@@ -86,15 +92,17 @@ def maxP2Stt(db_path, hdr_filename, model, precision):
     
     del tp, ts
     
-    tt_spmax_ss = np.amax(ts_mod - tp_mod, axis=None)
+    tt_psmax_ss = np.amax(ts_mod - tp_mod, axis=None)
     
-    tp_redmin = np.amin(tp_mod, axis=1)  # minimal P-wave traveltimes of different stations at each imaging point
-    ts_redmax = np.amax(ts_mod, axis=1)  # maximal S-wave traveltimes of different stations at each imaging point 
+    tp_redmin = np.amin(tp_mod, axis=1)  # minimal P-wave traveltimes over different stations at each imaging point
+    tp_redmax = np.amax(tp_mod, axis=1)  # maximal P-wave traveltimes over different stations at each imaging point
+    ts_redmax = np.amax(ts_mod, axis=1)  # maximal S-wave traveltimes over different stations at each imaging point 
     
     del tp_mod, ts_mod
     
-    tt_spmax = np.amax(ts_redmax - tp_redmin)  # maximal P to S arrivaltime difference in second among all imaging points
-
-    return tt_spmax, tt_spmax_ss
+    tt_psmax = np.amax(ts_redmax - tp_redmin)  # maximal P to S arrivaltime difference over different stations in second among all imaging points
+    tt_ppmax = np.amax(tp_redmax - tp_redmin)  # maximal P to P arrivaltime difference over different stations in second among all imaging points
+    
+    return tt_psmax, tt_ppmax, tt_psmax_ss
 
 

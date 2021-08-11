@@ -162,7 +162,7 @@ def stainv2json(file_station, mseed_directory, dir_json):
         # input are in FDSNWS station text file format
         stainfo = read_inventory(file_station, format="STATIONTXT")
     elif stafile_suffix == 'csv' or stafile_suffix == 'CSV':
-        # SED CSV format, temporary format
+        # SED COSEISMIQ CSV format, temporary format
         stainfo = Inventory(networks=[])
         stadf = pd.read_csv(file_station, delimiter=',', encoding='utf-8', 
                             names=['net','agency','sta code','description','lat','lon','altitude','type','up since','details'])

@@ -78,7 +78,7 @@ def events_magcum(time, magnitude, bins_dt=1, fname='./event_magnitude_cumulativ
     return
 
 
-def probin_plot(dir_input, dir_output, figsize):
+def probin_plot(dir_input, dir_output, figsize, normv=None):
     """
     To plot the input probability data of different stations.
 
@@ -91,6 +91,9 @@ def probin_plot(dir_input, dir_output, figsize):
         prth to the output figure.
     figsize : tuple
         specify the output figure size, e.g (12, 12).
+    normv : float
+        a threshold value, if trace data large than this threshold, then normalize
+        this trace let maximum to be 1. None for no mormalize.
 
     Returns
     -------
@@ -122,19 +125,34 @@ def probin_plot(dir_input, dir_output, figsize):
         tr = stream.select(station=staname[ii], component="P")
         if tr.count() > 0:
             tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            ax.plot(tt, tr[0].data+ydev[ii], 'r', linewidth=1.2)
+            if (normv is not None) and (max(tr[0].data) > normv):
+                vdata = tr[0].data / max(tr[0].data)
+            else:
+                vdata = tr[0].data
+            ax.plot(tt, vdata+ydev[ii], 'r', linewidth=1.2)
+            del vdata, tt
         
         # plot S-phase probability
         tr = stream.select(station=staname[ii], component="S")
         if tr.count() > 0:
             tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            ax.plot(tt, tr[0].data+ydev[ii], 'b', linewidth=1.2)
+            if (normv is not None) and (max(tr[0].data) > normv):
+                vdata = tr[0].data / max(tr[0].data)
+            else:
+                vdata = tr[0].data
+            ax.plot(tt, vdata+ydev[ii], 'b', linewidth=1.2)
+            del vdata, tt
         
         # plot event probability
         tr = stream.select(station=staname[ii], component="D")
         if tr.count() > 0:
             tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            ax.plot(tt, tr[0].data+ydev[ii], 'k--', linewidth=1.2)
+            if (normv is not None) and (max(tr[0].data) > normv):
+                vdata = tr[0].data / max(tr[0].data)
+            else:
+                vdata = tr[0].data
+            ax.plot(tt, vdata+ydev[ii], 'k--', linewidth=1.2)
+            del vdata, tt
         
     ax.set_yticks(ydev)
     ax.set_yticklabels(staname, fontsize=14)
