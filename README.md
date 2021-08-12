@@ -40,6 +40,6 @@ python run_MALMI.py
 ```
 
 ## Reference
-We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you are using MALMI.
+We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you use MALMI.
 
 
