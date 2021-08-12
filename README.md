@@ -2,7 +2,7 @@
 
 ## Installation
 
-We suggest to create and work in a new environment for MALMI. The installation is done via Anaconda. For more information see [conda](https://docs.conda.io/en/latest/).
+We suggest to create and work in a new python environment for MALMI. The installation is done via Anaconda. For more information see [conda](https://docs.conda.io/en/latest/).
 
 Currently **MALMI** utilize EQTransformer as ML engine and loki as migration engine. So the two software should be installed first. We will guide you step by step to install all these packages.
 
