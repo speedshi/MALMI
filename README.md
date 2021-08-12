@@ -43,3 +43,10 @@ python run_MALMI.py
 We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you use MALMI.
 
 
+## License
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+## Contact information
+Copyright(C) 2021 Peidong Shi
+Author: Peidong Shi
+Email: peidong.shi@sed.ethz.ch or speedshi@hotmail.com
