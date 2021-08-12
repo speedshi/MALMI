@@ -10,7 +10,7 @@ Currently **MALMI** utilize EQTransformer as ML engine and loki as migration eng
 ```bash
 conda config --add channels conda-forge
 conda config --set channel_priority strict
-conda create -n malmi python=3.7 obspy=1.2.2
+conda create -n malmi python=3.7 obspy=1.2.2 matplotlib=3.4.2
 conda activate malmi
 ```
 
