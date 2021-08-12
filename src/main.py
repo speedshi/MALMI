@@ -110,7 +110,7 @@ class MALMI:
         # generate hdf5 files
         preprocessor(preproc_dir=preproc_dir, mseed_dir=self.dir_mseed, 
                      stations_json=stations_json, overlap=overlap, 
-                     n_processor=6)
+                     n_processor=1)
         
         # show data availablity for each station-------------------------------
         file_pkl = preproc_dir + '/time_tracks.pkl'
