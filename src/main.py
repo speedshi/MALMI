@@ -40,13 +40,13 @@ class MALMI:
             fd_seismic = self.dir_seismic.split('/')[-1]
             
         self.dir_ML = dir_output + "/data_QET/" + fd_seismic  # directory for ML outputs
-        self.dir_prob = self.dir_ML + '/prob_and_detection'  # output directory for ML probabilities
+        self.dir_prob = self.dir_ML + '/prob_and_detection'  # output directory for ML probability outputs
         self.dir_migration = dir_output + '/data_loki/' + fd_seismic  # directory for migration outputs
         self.n_processor = n_processor  # number of threads for parallel processing
 
         self.dir_mseed = self.dir_ML + "/mseeds"  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
         self.dir_EQTjson = self.dir_ML + "/json"  # directory for outputting station json file for EQT
-        self.dir_lokiprob = self.dir_migration + '/prob_evstream'  # path for probability outputs of different events
+        self.dir_lokiprob = self.dir_migration + '/prob_evstream'  # directory for probability outputs of different events in SEED format
 
 
     def format_ML_inputs(self, file_station, channels=["*HE", "*HN", "*HZ"]):
