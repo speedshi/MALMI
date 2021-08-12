@@ -44,7 +44,7 @@ We are current working on a paper about MALMI. When it is published, we will upd
 
 
 ## License
-This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details. For detail, see the license file.
+This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. For more details, see in the license file.
 
 ## Contact information
 Copyright(C) 2021 Peidong Shi
