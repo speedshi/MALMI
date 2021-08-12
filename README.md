@@ -29,8 +29,17 @@ pip install .
 ### Install MALMI
 ```bash
 git clone https://github.com/speedshi/MALMI.git
-cd WHERE_MALMI_IS_STORED
 ```
-Fellow the script: 'run_MALMI.py' to use the code. 
 
-Good Luck!
+### Usage
+Fellow the example script: 'run_MALMI.py' to use the code. You could copy it anywhere in the system. Open the file to change the input parameters at your preference. Good Luck!
+```bash
+cd WHERE_MALMI_IS_STORED
+cp run_MALMI.py TO_WHERE_YOU_WANT_TO_USE
+python run_MALMI.py
+```
+
+## Reference
+We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you are using MALMI.
+
+
