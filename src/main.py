@@ -11,7 +11,8 @@ MALMI main function - building a whole framework.
 
 
 from ioformatting import stream2EQTinput, stainv2json
-
+import os
+        
 
 class MALMI:
 
@@ -45,6 +46,7 @@ class MALMI:
         self.n_processor = n_processor  # number of threads for parallel processing
 
         self.dir_mseed = self.dir_ML + "/mseeds"  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
+        self.dir_hdf5 = self.dir_mseed + '_processed_hdfs'  # path to the hdf5 and csv files
         self.dir_EQTjson = self.dir_ML + "/json"  # directory for outputting station json file for EQT
         self.dir_lokiprob = self.dir_migration + '/prob_evstream'  # directory for probability outputs of different events in SEED format
 
@@ -66,7 +68,6 @@ class MALMI:
         """
         
         import obspy
-        import os
         
         print('MALMI starts to format input data set for ML models:')
         
@@ -118,8 +119,7 @@ class MALMI:
         plot_data_chart(time_tracks=file_pkl, time_interval=time_interval, dir_output=preproc_dir)
         
         # generate event and phase probabilities-------------------------------
-        dir_hdf5 = self.dir_mseed + '_processed_hdfs'  # path to the hdf5 and csv files
-        predictor(input_dir=dir_hdf5, input_model=input_MLmodel, output_dir=self.dir_prob,
+        predictor(input_dir=self.dir_hdf5, input_model=input_MLmodel, output_dir=self.dir_prob,
                   output_probabilities=True, estimate_uncertainty=False,
                   detection_threshold=0.1, P_threshold=0.1, S_threshold=0.1, 
                   keepPS=False, number_of_cpus=self.n_processor,
@@ -185,7 +185,7 @@ class MALMI:
         
         from loki.loki import Loki
         
-        print('MALMI start to perform migration:')
+        print('MALMI starts to perform migration:')
         dir_lokiout = self.dir_migration + '/result_MLprob'  # path for loki outputs
         tt_hdr_filename = 'header.hdr'  # travetime data set header filename
         
@@ -200,5 +200,22 @@ class MALMI:
         l1 = Loki(self.dir_lokiprob, dir_lokiout, dir_tt, tt_hdr_filename, mode='locator')
         l1.location(extension, comp, precision, **inputs)
         print('MALMI_migration complete!')
+        
+        
+    def clear_interm(self):
+        
+        import shutil
+        import glob
+        
+        print('MALMI starts to clear some intermediate results for saving disk space:')
+        shutil.rmtree(self.dir_mseed)  # remove the mseed directory which are the formateed continuous seismic data set for ML inputs
+        shutil.rmtree(self.dir_hdf5)  # remove the hdf5 directory which are formatted overlapping data segments of seismic data set for ML predictions
+        
+        # remove the generated continuous probability hdf5 files
+        prob_h5files = glob.glob(self.dir_prob + '/**/*.hdf5', recursive=True)
+        for ipf in prob_h5files:
+            os.remove(ipf)
+        
+        print('MALMI_clear_interm complete!')
         
         
