@@ -12,6 +12,7 @@ MALMI main function - building a whole framework.
 
 from ioformatting import stream2EQTinput, stainv2json
 import os
+import gc
         
 
 class MALMI:
@@ -81,6 +82,7 @@ class MALMI:
         
         # create station jason file for EQT------------------------------------
         stainv2json(file_station, self.dir_mseed, self.dir_EQTjson)
+        gc.collect()
         print('MALMI_format_ML_inputs complete!')
 
     
@@ -124,6 +126,7 @@ class MALMI:
                   detection_threshold=0.1, P_threshold=0.1, S_threshold=0.1, 
                   keepPS=False, number_of_cpus=self.n_processor,
                   number_of_plots=100, plot_mode='time_frequency')
+        gc.collect()
         print('MALMI_generate_prob complete!')
 
             
@@ -159,6 +162,7 @@ class MALMI:
         
         print('MALMI starts to detect events based on the ML predicted event probabilites and output the corresponding phase probabilites of the detected events:')
         eqtprob_eventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
+        gc.collect()
         print('MALMI_event_detect_ouput complete!')
 
 
@@ -199,6 +203,7 @@ class MALMI:
         
         l1 = Loki(self.dir_lokiprob, dir_lokiout, dir_tt, tt_hdr_filename, mode='locator')
         l1.location(extension, comp, precision, **inputs)
+        gc.collect()
         print('MALMI_migration complete!')
         
         
@@ -216,6 +221,7 @@ class MALMI:
         for ipf in prob_h5files:
             os.remove(ipf)
         
+        gc.collect()        
         print('MALMI_clear_interm complete!')
         
         

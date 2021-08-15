@@ -91,7 +91,7 @@ def probin_plot(dir_input, dir_output, figsize, normv=None):
         prth to the output figure.
     figsize : tuple
         specify the output figure size, e.g (12, 12).
-    normv : float
+    normv : float, default: None
         a threshold value, if trace data large than this threshold, then normalize
         this trace let maximum to be 1. None for no mormalize.
 
@@ -110,6 +110,9 @@ def probin_plot(dir_input, dir_output, figsize, normv=None):
     for indx, dfile in enumerate(file_seismicin):
         stream += obspy.read(os.path.join(dir_input, dfile))
     
+    # get the date info of data set
+    this_date = stream[0].stats.starttime.date
+    
     # get station names
     staname = []
     for tr in stream:
@@ -125,39 +128,42 @@ def probin_plot(dir_input, dir_output, figsize, normv=None):
         tr = stream.select(station=staname[ii], component="P")
         if tr.count() > 0:
             tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            if (normv is not None) and (max(tr[0].data) > normv):
-                vdata = tr[0].data / max(tr[0].data)
+            if (normv is not None) and (max(abs(tr[0].data)) > normv):
+                vdata = tr[0].data / max(abs(tr[0].data))
             else:
                 vdata = tr[0].data
             ax.plot(tt, vdata+ydev[ii], 'r', linewidth=1.2)
             del vdata, tt
+        del tr
         
         # plot S-phase probability
         tr = stream.select(station=staname[ii], component="S")
         if tr.count() > 0:
             tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            if (normv is not None) and (max(tr[0].data) > normv):
-                vdata = tr[0].data / max(tr[0].data)
+            if (normv is not None) and (max(abs(tr[0].data)) > normv):
+                vdata = tr[0].data / max(abs(tr[0].data))
             else:
                 vdata = tr[0].data
             ax.plot(tt, vdata+ydev[ii], 'b', linewidth=1.2)
             del vdata, tt
+        del tr
         
         # plot event probability
         tr = stream.select(station=staname[ii], component="D")
         if tr.count() > 0:
             tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            if (normv is not None) and (max(tr[0].data) > normv):
-                vdata = tr[0].data / max(tr[0].data)
+            if (normv is not None) and (max(abs(tr[0].data)) > normv):
+                vdata = tr[0].data / max(abs(tr[0].data))
             else:
                 vdata = tr[0].data
             ax.plot(tt, vdata+ydev[ii], 'k--', linewidth=1.2)
             del vdata, tt
+        del tr
         
     ax.set_yticks(ydev)
     ax.set_yticklabels(staname, fontsize=14)
     ax.tick_params(axis='x', labelsize=14)
-    ax.set_title('Input data [{}]'.format(tr[0].stats.starttime.date), fontsize=16, fontweight ="bold")
+    ax.set_title('Input data [{}]'.format(this_date), fontsize=16, fontweight ="bold")
     if not os.path.exists(dir_output):
         os.makedirs(dir_output)
     fname = os.path.join(dir_output, 'input_data.png')
@@ -166,8 +172,88 @@ def probin_plot(dir_input, dir_output, figsize, normv=None):
     fig.clear()
     plt.close(fig)
     
-    del stream, tr
+    del stream
     
     return
 
 
+def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None):
+    """
+    To plot the input seismic data of different stations.
+
+    Parameters
+    ----------
+    dir_input : str
+        path to the input data set, input data should be stored in a format that
+        obspy can read.
+    dir_output : str
+        prth to the output figure.
+    figsize : tuple
+        specify the output figure size, e.g (12, 12).
+    comp : list of str, default: ['Z','N','E']
+        specify to plot which component, each component is plot in one figure.
+    dyy : float, default: 1.8
+        the y-axis interval between different station data when plotting.
+    fband : list of float, default: None
+        the frequency band for filtering input seismic data before plotting,
+        defult value None means no filtering is applied.
+
+    Returns
+    -------
+    Figures in output directory.
+
+    """
+    
+    # load data set
+    file_seismicin = sorted([fname for fname in os.listdir(dir_input) if os.path.isfile(os.path.join(dir_input, fname))])
+    stream = obspy.Stream()
+    for indx, dfile in enumerate(file_seismicin):
+        stream += obspy.read(os.path.join(dir_input, dfile))
+    
+    # get the date info of data set
+    this_date = stream[0].stats.starttime.date
+    
+    # get station names
+    staname = []
+    for tr in stream:
+        if tr.stats.station not in staname:
+            staname.append(tr.stats.station)
+    
+    ydev = [ii*dyy for ii in range(len(staname))]  # set y-axis ticks
+    
+    if not os.path.exists(dir_output):
+        os.makedirs(dir_output)
+    
+    if fband:
+        stream.detrend('simple')
+        stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1])
+        stream.taper(max_percentage=0.05, max_length=2)  # to avoid anormaly at bounday
+    
+    for icomp in comp:
+        # plot data of all stations for each component
+        fig = plt.figure(figsize=figsize, dpi=300)
+        ax = fig.add_subplot(111)
+        
+        for ii in range(len(staname)):
+            # plot input seismic data of one component
+            tr = stream.select(station=staname[ii], component=icomp)
+            if tr.count() > 0:
+                tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
+                vdata = tr[0].data / max(abs(tr[0].data))
+                ax.plot(tt, vdata+ydev[ii], 'k', linewidth=1.2)
+                del vdata, tt
+            del tr
+        
+        ax.set_yticks(ydev)
+        ax.set_yticklabels(staname, fontsize=14)
+        ax.tick_params(axis='x', labelsize=14)
+        ax.set_title('Input data [{}]'.format(this_date), fontsize=16, fontweight ="bold")
+        fname = os.path.join(dir_output, 'input_data_{}.png'.format(icomp))
+        fig.savefig(fname, bbox_inches='tight')
+        plt.cla()
+        fig.clear()
+        plt.close(fig)
+    
+    del stream
+    
+    return
