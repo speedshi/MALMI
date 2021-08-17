@@ -11,6 +11,7 @@ Plot related functions.
 
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
+from matplotlib.ticker import FormatStrFormatter
 import numpy as np
 import os
 import obspy
@@ -74,11 +75,14 @@ def events_magcum(time, magnitude, bins_dt=1, fname='./event_magnitude_cumulativ
     
     # output figure
     fig.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
     
     return
 
 
-def probin_plot(dir_input, dir_output, figsize, normv=None):
+def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None):
     """
     To plot the input probability data of different stations.
 
@@ -94,6 +98,8 @@ def probin_plot(dir_input, dir_output, figsize, normv=None):
     normv : float, default: None
         a threshold value, if trace data large than this threshold, then normalize
         this trace let maximum to be 1. None for no mormalize.
+    ppower : float, default: None
+       compute array element wise power over the input phase probabilities.
 
     Returns
     -------
@@ -132,6 +138,8 @@ def probin_plot(dir_input, dir_output, figsize, normv=None):
                 vdata = tr[0].data / max(abs(tr[0].data))
             else:
                 vdata = tr[0].data
+            if ppower:
+                vdata = vdata**ppower
             ax.plot(tt, vdata+ydev[ii], 'r', linewidth=1.2)
             del vdata, tt
         del tr
@@ -144,6 +152,8 @@ def probin_plot(dir_input, dir_output, figsize, normv=None):
                 vdata = tr[0].data / max(abs(tr[0].data))
             else:
                 vdata = tr[0].data
+            if ppower:
+                vdata = vdata**ppower
             ax.plot(tt, vdata+ydev[ii], 'b', linewidth=1.2)
             del vdata, tt
         del tr
@@ -257,3 +267,229 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     del stream
     
     return
+
+
+def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap='RdBu_r', dir_output=None):
+    """
+    This function is to visualize the migration volume, plot profiles along 
+    X-, Y- and Z-directions, and display the isosurface along contour-value of 
+    migration volume.
+
+    Parameters
+    ----------
+    file_corrmatrix : str
+        filename including path of the migration vloume.
+    dir_tt : str
+        directory to the header file of traveltime date set.
+    hdr_filename : str, optional
+        filename of the header file of traveltime date set. Header file is used
+        to get the coordinate of the migration area. The default is 'header.hdr'.
+    colormap : str, optional
+        colormap name used for plotting. The default is 'RdBu_r'.
+    dir_output : str, optional
+        output directory for the generated figures. The default is None.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    from loki import traveltimes
+    from mayavi import mlab
+    from skimage.measure import marching_cubes
+    from mpl_toolkits.mplot3d import Axes3D
+    
+    # set default output directory
+    if dir_output is None:
+        dir_output = ''
+        for ifd in file_corrmatrix.split('/')[:-1]:
+            dir_output = os.path.join(dir_output, ifd)
+    
+    cmap = plt.cm.get_cmap(colormap)  # set colormap
+    
+    # load migration volume
+    corrmatrix = np.load(file_corrmatrix)
+    
+    # load migration area coordinate info
+    tobj = traveltimes.Traveltimes(dir_tt, hdr_filename)
+    
+    # obtain the maximum projection along one dimension: XY
+    nx, ny, nz = np.shape(corrmatrix)
+    CXY = np.zeros([ny, nx])
+    for i in range(ny):
+        for j in range(nx):
+            CXY[i,j]=np.max(corrmatrix[j,i,:])
+    
+    fig, ax = plt.subplots(dpi=600, subplot_kw={"projection": "3d"})  
+    XX, YY = np.meshgrid(tobj.x, tobj.y)      
+    surf = ax.plot_surface(XX, YY, CXY, rcount=200, ccount=200, cmap=cmap,
+                            linewidth=0, edgecolor='none')  # , antialiased=False, alpha=0.9
+    #cset = ax.contourf(XX, YY, CXY, zdir='z', offset=-1, cmap=cm.coolwarm) 
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+    fig.colorbar(surf, shrink=0.5, aspect=10, pad=0.08, label='Coherence')
+    ax.set_xlim(np.min(tobj.x), np.max(tobj.x))
+    ax.set_ylim(np.min(tobj.y), np.max(tobj.y))
+    ax.set_zlim(0, np.max(CXY))
+    ax.set_xlabel('X (Km)')
+    ax.set_ylabel('Y (Km)')
+    # make the grid lines transparent
+    ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+    ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+    ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+    # make the panes transparent
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.set_title('Coherence matrix X-Y', fontsize=14, fontweight='bold') 
+    fname = os.path.join(dir_output, 'coherence_matrix_xy_surf.png')
+    fig.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    fig = plt.figure(dpi=600)
+    fig.suptitle('Coherence matrix X-Y', fontsize=14, fontweight='bold')
+    ax = fig.gca()
+    cs = plt.contourf(tobj.x, tobj.y, CXY, 20, cmap=cmap, interpolation='bilinear')
+    ax.set_xlabel('X (km)')
+    ax.set_ylabel('Y (km)')
+    cbar = plt.colorbar(cs)
+    ax.set_aspect('equal')
+    fname = os.path.join(dir_output, 'coherence_matrix_xy.png')
+    plt.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    # obtain the maximum projection along one dimension: XZ
+    CXZ = np.zeros([nz, nx])
+    for i in range(nz):
+        for j in range(nx):
+            CXZ[i, j] = np.max(corrmatrix[j,:,i])
+
+    fig, ax = plt.subplots(dpi=600, subplot_kw={"projection": "3d"})  
+    XX, ZZ = np.meshgrid(tobj.x, tobj.z)      
+    surf = ax.plot_surface(XX, ZZ, CXZ, rcount=200, ccount=200, cmap=cmap,
+                            linewidth=0, edgecolor='none')  # , antialiased=False, alpha=0.9
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+    fig.colorbar(surf, shrink=0.5, aspect=10, pad=0.08, label='Coherence')
+    ax.set_xlim(np.min(tobj.x), np.max(tobj.x))
+    ax.set_ylim(np.min(tobj.z), np.max(tobj.z))
+    ax.set_zlim(0, np.max(CXZ))
+    ax.set_xlabel('X (Km)')
+    ax.set_ylabel('Z (Km)')
+    # make the grid lines transparent
+    ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+    ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+    ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+    # make the panes transparent
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.set_title('Coherence matrix X-Z', fontsize=14, fontweight='bold') 
+    # zasp = ((np.max(tobj.z)-np.min(tobj.z)))/ (np.max(tobj.x)-np.min(tobj.x)) 
+    # ax.set_box_aspect((1, zasp, 1))
+    fname = os.path.join(dir_output, 'coherence_matrix_xz_surf.png')
+    fig.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    fig = plt.figure(dpi=600)
+    fig.suptitle('Coherence matrix X-Z', fontsize=14, fontweight='bold')
+    ax = fig.gca()
+    cs = plt.contourf(tobj.x, tobj.z, CXZ, 20, cmap=cmap, interpolation='bilinear')
+    ax.set_xlabel('X (km)')
+    ax.set_ylabel('Z (km)')
+    cbar = plt.colorbar(cs)
+    ax.invert_yaxis()
+    ax.set_aspect('equal')
+    fname = os.path.join(dir_output, 'coherence_matrix_xz.png')
+    plt.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    # obtain the maximum projection along one dimension: YZ
+    CYZ = np.zeros([nz, ny])
+    for i in range(nz):
+        for j in range(ny):
+            CYZ[i, j] = np.max(corrmatrix[:,j,i])
+    
+    fig, ax = plt.subplots(dpi=600, subplot_kw={"projection": "3d"})  
+    YY, ZZ = np.meshgrid(tobj.y, tobj.z)      
+    surf = ax.plot_surface(YY, ZZ, CYZ, rcount=200, ccount=200, cmap=cmap,
+                            linewidth=0, edgecolor='none')  # , antialiased=False, alpha=0.9
+    ax.zaxis.set_major_formatter(FormatStrFormatter('%.02f'))
+    fig.colorbar(surf, shrink=0.5, aspect=10, pad=0.08, label='Coherence')
+    ax.set_xlim(np.min(tobj.y), np.max(tobj.y))
+    ax.set_ylim(np.min(tobj.z), np.max(tobj.z))
+    ax.set_zlim(0, np.max(CYZ))
+    ax.set_xlabel('Y (Km)')
+    ax.set_ylabel('Z (Km)')
+    # make the grid lines transparent
+    ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+    ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+    ax.zaxis._axinfo["grid"]['color'] =  (1,1,1,0)
+    # make the panes transparent
+    ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
+    ax.set_title('Coherence matrix Y-Z', fontsize=14, fontweight='bold') 
+    fname = os.path.join(dir_output, 'coherence_matrix_yz_surf.png')
+    fig.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    fig = plt.figure(dpi=600)
+    fig.suptitle('Coherence matrix Y-Z', fontsize=14, fontweight='bold')
+    ax = fig.gca()
+    cs = plt.contourf(tobj.y, tobj.z, CYZ, 20, cmap=cmap, interpolation='bilinear')
+    ax.set_xlabel('Y (km)')
+    ax.set_ylabel('Z (km)')
+    cbar = plt.colorbar(cs)
+    ax.invert_yaxis()
+    ax.set_aspect('equal')
+    fname = os.path.join(dir_output, 'coherence_matrix_yz.png')
+    plt.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    # plot 3D isosurface of migration volume
+    mlab.options.offscreen = True
+    cmax = np.max(corrmatrix)
+    cmin = np.min(corrmatrix)
+    fig = mlab.figure(size=(2000, 2000))
+    src = mlab.pipeline.scalar_field(corrmatrix)
+    mlab.outline()
+    mlab.pipeline.iso_surface(src, contours=[cmin + 0.5*(cmax-cmin), ], opacity=0.3, figure=fig)
+    mlab.pipeline.iso_surface(src, contours=[cmin + 0.8*(cmax-cmin), ], figure=fig)
+    #mlab.pipeline.volume(src, vmin=0.3*cmax, vmax=0.8*cmax)
+    # plane_orientation = 'z_axes'
+    # cut = mlab.pipeline.scalar_cut_plane(src.children[0], plane_orientation=plane_orientation)
+    # cut.enable_contours = True
+    # cut.contour.number_of_contours = 1
+    fname = os.path.join(dir_output, '3D_isosurf.png')
+    mlab.orientation_axes()
+    #mlab.show()
+    mlab.savefig(fname, size=(2000,2000))
+    
+    # plot 3D isosurface of migration volume
+    iso_val = cmin + 0.8*(cmax-cmin)
+    verts, faces, _, _ = marching_cubes(corrmatrix, iso_val, spacing=(0.01, 0.01, 0.01))  # Use marching cubes to obtain the surface mesh
+    fig = plt.figure(dpi=600, figsize=(10, 10))
+    ax = fig.add_subplot(111, projection='3d')
+    ax.plot_trisurf(verts[:, 0], verts[:,1], faces, verts[:, 2], color='y', lw=1)
+    fname = os.path.join(dir_output, '3D_isosurf2.png')
+    fig.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    return
+
+
+
