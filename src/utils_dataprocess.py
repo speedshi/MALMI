@@ -106,3 +106,24 @@ def maxP2Stt(db_path, hdr_filename, model, precision):
     return tt_psmax, tt_ppmax, tt_psmax_ss
 
 
+def dnormlz(data,n1=0,n2=1,axis=0):
+    """
+    This function is used to linearly normalize the data to the specified range.
+    Input:
+        data: data to be normalized;
+        n1, n2: the specified range;
+        axis: on which axis of the data to perform normalization, None for flatten array;
+    
+    """
+    
+    dmax=np.max(data,axis=axis,keepdims=True)
+    dmin=np.min(data,axis=axis,keepdims=True)
+    
+    k=(n2-n1)/(dmax-dmin)
+    b=(dmax*n1-dmin*n2)/(dmax-dmin)
+    
+    data=k*data+b
+    
+    return data
+
+

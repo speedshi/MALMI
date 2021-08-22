@@ -17,7 +17,6 @@ import obspy
 from obspy import UTCDateTime
 import warnings
 import pandas as pd
-import h5py
 import datetime
 import numpy as np
 
@@ -300,6 +299,7 @@ def EQTprob2trace(dir_probinput, dir_output, ev_otimes):
 
     """
     
+    import h5py
     
     # set internal parameters
     datainfo = {}
@@ -352,5 +352,48 @@ def EQTprob2trace(dir_probinput, dir_output, ev_otimes):
                 warnings.warn('No data segment found around {} for station: {}.'.format(evotime, station_name))
     
     return
+
+
+def read_lokicatalog(file_catalog):
+    """
+    This function is used to read the loki generated catalogue file and returns
+    the event origin time, latitude, longitude and depth information.
+    Parameters
+    ----------
+    file_catalog : str
+        filename including path of the catalog file.
+
+    Returns
+    -------
+    event_times : list of datetime
+        origin time of event.
+    event_longitude : list of float
+        longitude in degree of event.
+    event_latitude : list of float
+        latitude in degree of event.
+    event_depth_km : list of float
+        depth in km of event.
+    event_coherence : list of float
+        coherence of event.
+
+    """
+    
+    # set catalog format
+    format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'cstd', 'cmed', 'cmax']  # indicate the meaning of each colume
+    datetime_format = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the catalog file
+    
+    # read catalog
+    cadf = pd.read_csv(file_catalog, delimiter=' ', header=None, names=format_catalog,
+                       skipinitialspace=True, encoding='utf-8')
+    
+    # format catalog information
+    etimes = list(cadf['time'])
+    event_times = [datetime.datetime.strptime(itime, datetime_format) for itime in etimes]
+    event_longitude = list(cadf['longitude'])
+    event_latitude = list(cadf['latitude'])
+    event_depth_km = list(cadf['depth_km'])
+    event_coherence = list(cadf['cmax'])
+    
+    return event_times, event_longitude, event_latitude, event_depth_km, event_coherence
 
 

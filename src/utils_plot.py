@@ -16,19 +16,26 @@ import numpy as np
 import os
 import obspy
 import pandas as pd
+from utils_dataprocess import dnormlz
 
 
-def events_magcum(time, magnitude, bins_dt=1, fname='./event_magnitude_cumulative_number.png', mgthd = 4.5):
+def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magnitude_cumulative_number.png', ydata_thrd=4.5):
     """
     
     Parameters
     ----------
-    time : nparray, shape (n_events,1);
+    time : nparray, shape (n_events,1)
         the origin times of events, datetime format.
-    data : nparray, shape (n_events,1);
-        the magnitude of events.
-    bins_dt: scalar;
+    ydata : nparray, shape (n_events,1)
+        an attribute of events for plotting on the Y-axis, e.g. magnitude.
+    bins_dt : float
         bin segments (time segment) for cumulative plot, in days.
+    yname : str
+        the title for left Y-axis.
+    fname : str
+        output filename.
+    ydata_thrd : float
+        a threshold of ydata related to plotting;    
 
     Returns
     -------
@@ -36,19 +43,18 @@ def events_magcum(time, magnitude, bins_dt=1, fname='./event_magnitude_cumulativ
 
     """
     
-    import mymod.maths as mymath
     
     fig =  plt.figure(figsize=(12,4))
     ax1 = fig.add_subplot(111) 
     
     time = mdates.date2num(time)
-    size = mymath.dnormlz(magnitude, 6, 120)
+    size = dnormlz(ydata, 6, 120)
     
     # plot detection property vs detection time
-    ax1.scatter(time, magnitude, size, c='r', marker='o', alpha=0.5, linewidths=0)  # c=depth, cmap='Reds_r', vmin=0, vmax=10
+    ax1.scatter(time, ydata, size, c='r', marker='o', alpha=0.5, linewidths=0)  # c=depth, cmap='Reds_r', vmin=0, vmax=10
     ax1.xaxis_date()
     ax1.tick_params(axis='both', which='major', labelsize=12)
-    ax1.set_ylabel('Magnitude',color='k',fontsize=14)
+    ax1.set_ylabel(yname,color='k',fontsize=14)
     ax1.autoscale(enable=True, axis='x', tight=True)
     
     # calculate accumulated numbers
@@ -66,12 +72,13 @@ def events_magcum(time, magnitude, bins_dt=1, fname='./event_magnitude_cumulativ
     ax2.set_ylabel('Cumulative num.',color='b',fontsize=14)
     ax2.tick_params(axis='y', colors='b')
     
-    # plot events larger than a certain magnitude on the cumulative curve
-    eidx = (np.array(magnitude) >= mgthd)
+    # plot events larger than a certain threshold on the cumulative curve
+    eidx = (np.array(ydata) >= ydata_thrd)
     chse_t = time[eidx]
     for ee in chse_t:
         res = next(x for x, val in enumerate(bin_edges) if val > ee)
-        ax2.plot(ee, events_cum[res], marker='*', mew=0, mfc='lime', ms=9)
+        # ax2.plot(ee, events_cum[res], marker='*', mew=0, mfc='lime', ms=9)
+        ax2.plot(bin_edges[0:][res-1], events_cum[res-2], marker='*', mew=0, mfc='lime', ms=9)
     
     # output figure
     fig.savefig(fname, dpi=600, bbox_inches='tight')
@@ -82,7 +89,7 @@ def events_magcum(time, magnitude, bins_dt=1, fname='./event_magnitude_cumulativ
     return
 
 
-def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None):
+def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=None, staname=None):
     """
     To plot the input probability data of different stations.
 
@@ -99,7 +106,11 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None):
         a threshold value, if trace data large than this threshold, then normalize
         this trace let maximum to be 1. None for no mormalize.
     ppower : float, default: None
-       compute array element wise power over the input phase probabilities.
+        compute array element wise power over the input phase probabilities.
+    tag : char, default: None
+        a filename tage for output figures;
+    staname : list of str, default: None
+        specify the stations to show;
 
     Returns
     -------
@@ -120,10 +131,11 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None):
     this_date = stream[0].stats.starttime.date
     
     # get station names
-    staname = []
-    for tr in stream:
-        if tr.stats.station not in staname:
-            staname.append(tr.stats.station)
+    if staname is None:
+        staname = []
+        for tr in stream:
+            if tr.stats.station not in staname:
+                staname.append(tr.stats.station)
     
     # plot data for each station
     fig = plt.figure(figsize=figsize, dpi=300)
@@ -176,7 +188,10 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None):
     ax.set_title('Input data [{}]'.format(this_date), fontsize=16, fontweight ="bold")
     if not os.path.exists(dir_output):
         os.makedirs(dir_output)
-    fname = os.path.join(dir_output, 'input_data.png')
+    if tag:
+        fname = os.path.join(dir_output, 'input_data_{}.png'.format(tag))
+    else:
+        fname = os.path.join(dir_output, 'input_data.png')
     fig.savefig(fname, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -187,7 +202,7 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None):
     return
 
 
-def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None):
+def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, tag=None, staname=None):
     """
     To plot the input seismic data of different stations.
 
@@ -207,6 +222,10 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     fband : list of float, default: None
         the frequency band for filtering input seismic data before plotting,
         defult value None means no filtering is applied.
+    tag : char, default: None
+        a filename tage for output figures;
+    staname : list of str, default: None
+        specify the stations to show;
 
     Returns
     -------
@@ -224,10 +243,11 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     this_date = stream[0].stats.starttime.date
     
     # get station names
-    staname = []
-    for tr in stream:
-        if tr.stats.station not in staname:
-            staname.append(tr.stats.station)
+    if staname is None:
+        staname = []
+        for tr in stream:
+            if tr.stats.station not in staname:
+                staname.append(tr.stats.station)
     
     ydev = [ii*dyy for ii in range(len(staname))]  # set y-axis ticks
     
@@ -258,7 +278,144 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
         ax.set_yticklabels(staname, fontsize=14)
         ax.tick_params(axis='x', labelsize=14)
         ax.set_title('Input data [{}]'.format(this_date), fontsize=16, fontweight ="bold")
-        fname = os.path.join(dir_output, 'input_data_{}.png'.format(icomp))
+        if tag:
+            fname = os.path.join(dir_output, 'input_data_{}_{}.png'.format(icomp, tag))
+        else:
+            fname = os.path.join(dir_output, 'input_data_{}.png'.format(icomp))
+        fig.savefig(fname, bbox_inches='tight')
+        plt.cla()
+        fig.clear()
+        plt.close(fig)
+    
+    del stream
+    
+    return
+
+
+def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None):
+    """
+    To plot the input seismic data of different stations with the characteristic 
+    functions overlayed on the seismogram.
+
+    Parameters
+    ----------
+    dir_seis : str
+        path to the input seismic data set, input data should be stored in a 
+        format that obspy can read.
+    dir_char : str
+        path to the input characteristic functions, input data should be stored 
+        in a format that obspy can read.
+    dir_output : str
+        prth to the output figure.
+    figsize : tuple
+        specify the output figure size, e.g (12, 12).
+    comp : list of str, default: ['Z','N','E']
+        specify to plot which component, each component is plot in one figure.
+    dyy : float, default: 1.8
+        the y-axis interval between different station data when plotting.
+    fband : list of float, default: None
+        the frequency band for filtering input seismic data before plotting,
+        defult value None means no filtering is applied.
+    normv : float, default: None
+        a threshold value, if trace data large than this threshold, then normalize
+        the characteristi function let maximum to be 1. None for no mormalize.
+    ppower : float, default: None
+        compute array element wise power over the input characteristi function.
+    tag : char, default: None
+        a filename tage for output figures;
+    staname : list of str, default: None
+        specify the stations to show;
+
+    Returns
+    -------
+    Figures in output directory.
+
+    """
+    
+    # load seismic data set
+    file_seismicin = sorted([fname for fname in os.listdir(dir_seis) if os.path.isfile(os.path.join(dir_seis, fname))])
+    stream = obspy.Stream()
+    for indx, dfile in enumerate(file_seismicin):
+        stream += obspy.read(os.path.join(dir_seis, dfile))
+    
+    # load characteristic function data set
+    file_charfin = sorted([fname for fname in os.listdir(dir_char) if os.path.isfile(os.path.join(dir_char, fname))])
+    charfs = obspy.Stream()
+    for indx, dfile in enumerate(file_charfin):
+        charfs += obspy.read(os.path.join(dir_char, dfile))
+    
+    # get the date info of data set
+    this_date = stream[0].stats.starttime.date
+    
+    # get station names
+    if staname is None:
+        staname = []
+        for tr in stream:
+            if tr.stats.station not in staname:
+                staname.append(tr.stats.station)
+    
+    ydev = [ii*dyy for ii in range(len(staname))]  # set y-axis ticks
+    
+    if not os.path.exists(dir_output):
+        os.makedirs(dir_output)
+    
+    if fband:
+        stream.detrend('simple')
+        stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1])
+        stream.taper(max_percentage=0.05, max_length=2)  # to avoid anormaly at bounday
+    
+    for icomp in comp:
+        # plot data of all stations for each component
+        fig = plt.figure(figsize=figsize, dpi=300)
+        ax = fig.add_subplot(111)
+        
+        for ii in range(len(staname)):
+            
+            # plot input seismic data of one component
+            tr = stream.select(station=staname[ii], component=icomp)
+            if tr.count() > 0:
+                tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
+                vdata = tr[0].data / max(abs(tr[0].data))
+                ax.plot(tt, vdata+ydev[ii], 'k', linewidth=1.2)
+                del vdata, tt
+            del tr
+            
+            # plot P-phase probability
+            tr = charfs.select(station=staname[ii], component="P")
+            if tr.count() > 0:
+                tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
+                if (normv is not None) and (max(abs(tr[0].data)) > normv):
+                    vdata = tr[0].data / max(abs(tr[0].data))
+                else:
+                    vdata = tr[0].data
+                if ppower:
+                    vdata = vdata**ppower
+                ax.plot(tt, vdata+ydev[ii], 'r', linewidth=1.2)
+                del vdata, tt
+            del tr
+            
+            # plot S-phase probability
+            tr = charfs.select(station=staname[ii], component="S")
+            if tr.count() > 0:
+                tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
+                if (normv is not None) and (max(abs(tr[0].data)) > normv):
+                    vdata = tr[0].data / max(abs(tr[0].data))
+                else:
+                    vdata = tr[0].data
+                if ppower:
+                    vdata = vdata**ppower
+                ax.plot(tt, vdata+ydev[ii], 'b', linewidth=1.2)
+                del vdata, tt
+            del tr
+        
+        ax.set_yticks(ydev)
+        ax.set_yticklabels(staname, fontsize=14)
+        ax.tick_params(axis='x', labelsize=14)
+        ax.set_title('Input data [{}]'.format(this_date), fontsize=16, fontweight ="bold")
+        if tag:
+            fname = os.path.join(dir_output, 'input_data_with_cf_{}_{}.png'.format(icomp, tag))
+        else:
+            fname = os.path.join(dir_output, 'input_data_with_cf_{}.png'.format(icomp))
         fig.savefig(fname, bbox_inches='tight')
         plt.cla()
         fig.clear()
