@@ -649,4 +649,215 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     return
 
 
+def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=True):
+    """
+    To plot the basemap with station and/or a regtangular area.
+    
+    Parameters
+    ----------
+    region : list of float
+        the lat/lon boundary of plotting region, in format of 
+        [lon_min, lon_max, lat_min, lat_max] in degree.
+    sta_inv : obspy invertory format, optional
+        station inventory containing station metadata. The default is None.
+    mkregion : list of float, optional
+        the lat/lon boundary of a marked region for highlighting, in format of 
+        [lon_min, lon_max, lat_min, lat_max] in degree. The default is None, i.e.
+        not plotting the highlighting area.
+    fname : str, optional
+        filename of the output figure. The default is "./basemap.png".
+    plot_stationname : boolen, optional
+        specify whether to plot the station names on the map. Default is yes.
+        
+    Returns
+    -------
+    None.
 
+    """  
+    
+    import pygmt
+           
+    # plot and save map---------------------------------------------------------
+    # load topography dataset
+    grid = pygmt.datasets.load_earth_relief('03s', region=region, registration="gridline")
+    fig = pygmt.Figure()
+    fig.grdimage(region=region, projection="M15c", grid=grid, cmap="grayC", shading="l+d", dpi=600)  # plot topography
+    fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
+              projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
+              water="skyblue",  # Set the color of the land t
+              borders="1/0.5p",  # Display the national borders and set the pen thickness
+              shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
+              frame="a",  # Set the frame to display annotations and gridlines
+              #land="#666666",  # Set the color of the land
+              #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
+              )
+    
+    # plot stations
+    if sta_inv:
+        for net in sta_inv:
+            for sta in net:
+                fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="blue", pen="0.35p,black")  
+                if plot_stationname:
+                    fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', D='0/-0.15c')
+    
+    # highlight a rectangular area
+    if mkregion is not None:
+        fig.plot(data=np.array([[mkregion[0], mkregion[2], mkregion[1], mkregion[3]]]), style='r+s', pen="1p,yellow")
+    
+    # save figure
+    fig.savefig(fname, dpi=600)
+    
+    return
+
+
+def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False):
+    """
+    To plot the basemap with seismic events color-coded using event depth.
+    
+    Parameters
+    ----------
+    region : list of float
+        the lat/lon boundary of plotting region, in format of 
+        [lon_min, lon_max, lat_min, lat_max] in degree.
+    eq_longi : list or numpy.array of float
+        longitude of seismic events in degree.
+    eq_latit : list or numpy.array of float
+        latitude of seismic events in degree.
+    eq_depth : list or numpy.array of float
+        depth of seismic events in km.
+    depth_max : float
+        maximum depth in km for showing. Default is None, i.e. show all depths.    
+    sta_inv : obspy invertory format, optional
+        station inventory containing station metadata. The default is None.
+    mkregion : list of float, optional
+        the lat/lon boundary of a marked region for highlighting, in format of 
+        [lon_min, lon_max, lat_min, lat_max] in degree. The default is None, i.e.
+        not plotting the highlighting area.
+    fname : str, optional
+        filename of the output figure. The default is "./basemap.png".
+    plot_stationname : boolen, optional
+        specify whether to plot the station names on the map. Default is yes.
+        
+    Returns
+    -------
+    None.
+
+    """  
+    
+    import pygmt
+
+    fig = pygmt.Figure()
+    fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
+              projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
+              water="skyblue",  # Set the color of the land t
+              borders="1/0.5p",  # Display the national borders and set the pen thickness
+              shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
+              frame="a",  # Set the frame to display annotations and gridlines
+              land="gray",  # Set the color of the land
+              #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
+              )
+    
+    # plot stations
+    for net in sta_inv:
+        for sta in net:
+            fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="black", pen="0.35p,black") 
+            if plot_stationname:
+                fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', D='0/-0.15c')
+    
+    # highlight a rectangular area on the map
+    if mkregion is not None:
+        fig.plot(data=np.array([[mkregion[0], mkregion[2], mkregion[1], mkregion[3]]]), style='r+s', pen="1p,yellow")
+    
+    # plot events
+    if depth_max:
+        pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), depth_max])
+    else:
+        pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), eq_depth.max()])
+    fig.plot(eq_longi, eq_latit, color=eq_depth, cmap=True, style='c0.2c', pen='0.4p,black')  # , transparency=30
+    fig.colorbar(frame='af+l"Depth (km)"')
+    
+    # show how many events in total
+    fig.text(text='{} events'.format(len(eq_longi)), position='BR', font='14p,Helvetica-Bold,black', justify='BR', offset='-0.4/0.4')
+    
+    # save figure
+    fig.savefig(fname, dpi=600)
+
+    return
+
+
+
+def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False):
+    """
+    To plot the basemap with seismic events color-coded using event origin time.
+    
+    Parameters
+    ----------
+    region : list float
+        the lat/lon boundary of plotting region, in format of 
+        [lon_min, lon_max, lat_min, lat_max] in degree.
+    eq_longi : list or numpy.array of float
+        longitude of seismic events in degree.
+    eq_latit : list or numpy.array of float
+        latitude of seismic events in degree.
+    eq_times : numpy.array of datetime
+        origin times of seismic events in datetime format.
+    time_ref : datetime
+        Reference time for calculate time difference. Default is None, 
+        i.e. maximum origin time of the input event.    
+    sta_inv : obspy invertory format, optional
+        station inventory containing station metadata. The default is None.
+    mkregion : list of float, optional
+        the lat/lon boundary of a marked region for highlighting, in format of 
+        [lon_min, lon_max, lat_min, lat_max] in degree. The default is None, i.e.
+        not plotting the highlighting area.
+    fname : str, optional
+        filename of the output figure. The default is "./basemap.png".
+    plot_stationname : boolen, optional
+        specify whether to plot the station names on the map. Default is yes.
+        
+    Returns
+    -------
+    None.
+
+    """  
+    
+    import pygmt
+
+    fig = pygmt.Figure()
+    fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
+              projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
+              water="skyblue",  # Set the color of the land t
+              borders="1/0.5p",  # Display the national borders and set the pen thickness
+              shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
+              frame="a",  # Set the frame to display annotations and gridlines
+              land="gray",  # Set the color of the land
+              #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
+              )
+    
+    # plot stations
+    for net in sta_inv:
+        for sta in net:
+            fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="black", pen="0.35p,black") 
+            if plot_stationname:
+                fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', D='0/-0.15c')
+    
+    # highlight a rectangular area on the map
+    if mkregion is not None:
+        fig.plot(data=np.array([[mkregion[0], mkregion[2], mkregion[1], mkregion[3]]]), style='r+s', pen="1p,yellow")
+    
+    # plot events
+    if not time_ref:
+        # set the default reference time to be the 
+        time_ref = max(eq_times)
+    eq_tref = mdates.date2num(eq_times) - mdates.date2num(time_ref)
+    pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()])
+    fig.plot(eq_longi, eq_latit, color=eq_tref, cmap=True, style='c0.2c', pen='0.4p,black')  # , transparency=30
+    fig.colorbar(frame='af+l"Days relative to {}"'.format(time_ref))
+    
+    # show how many events in total
+    fig.text(text='{} events'.format(len(eq_longi)), position='BR', font='14p,Helvetica-Bold,black', justify='BR', offset='-0.4/0.4')
+    
+    # save figure
+    fig.savefig(fname, dpi=600)
+
+    return
