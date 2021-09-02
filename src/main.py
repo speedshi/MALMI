@@ -158,10 +158,10 @@ class MALMI:
 
         """
         
-        from event_detection import eqtprob_eventdetect
+        from event_detection import eqt_arrayeventdetect
         
         print('MALMI starts to detect events based on the ML predicted event probabilites and output the corresponding phase probabilites of the detected events:')
-        eqtprob_eventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
+        eqt_arrayeventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
 
