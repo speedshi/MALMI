@@ -17,6 +17,14 @@ import copy
 import gc
 
 
+# define some common parameters that will be used accross different functions
+pbfname_EQT = 'prediction_probabilities.hdf5'  # the common filename of probability file for each station
+dtformat_EQT = '%Y-%m-%dT%H:%M:%S.%fZ'  # the datetime format using in EQT probability hdf5 outputs
+data_size_EQT = 6000  # the data segment size in date points, by default the EQT output are 1 minutes long, thus 6000 points
+dt_EQT = 0.01  # time sampling rate of data in second, for EQT probability output, by default is 0.01 s
+data_sglength_EQT = (data_size_EQT-1)*dt_EQT  # data segment length in second, equals 'endtime - starttime'
+
+
 def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nsta_thrd=3, spttdf_ssmax=None):
     """
     This function is used to detect potential locatable events using the probabilities 
@@ -68,19 +76,13 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
     if spttdf_ssmax is None:
         spttdf_ssmax = 0.5*sttd_max
 
-
     # internal parameters
-    pbfname = 'prediction_probabilities.hdf5'  # the common filename of probability file for each station
-    dtformat_EQT = '%Y-%m-%dT%H:%M:%S.%fZ'  # the datetime format using in EQT probability hdf5 outputs
-    data_size_EQT = 6000  # the data segment size in date points, by default the EQT output are 1 minutes long, thus 6000 points
-    dt_EQT = 0.01  # time sampling rate of data in second, for EQT probability output, by default is 0.01 s
-    data_sglength = (data_size_EQT-1)*dt_EQT  # data segment length in second, equals 'endtime - starttime'
     N_tit = 1  # number of iteration for settle the starttime and endtime of data segment; should be 1, 2, 3; set 1 for fast calculation, set 2 or 3 if want to obtain better time constrain
     
     datainfo = {}
     datainfo['dt'] = dt_EQT
     
-    
+
     # load timing info and the detection probability
     # obtain the folder name for the results of each station, each folder contain the probability data of one station
     db = {}  # for storing the whole data set: timestamp info + detection probability
@@ -91,13 +93,13 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
     for sfdname in dirnames:
         # loop over each station folder, read data set for each station
         station_name = sfdname.split('_')[0]  # the current station name
-        pbfile = os.path.join(dir_probinput, sfdname, pbfname)  # the filename of picking probability for the current station
+        pbfile = os.path.join(dir_probinput, sfdname, pbfname_EQT)  # the filename of picking probability for the current station
         
         # load probability data set
         pbdf = h5py.File(pbfile, 'r')
         dsg_name = list(pbdf['probabilities'].keys())  # get the name of each probability data segment 
         dsg_starttime = np.array([datetime.datetime.strptime(idsgnm.split('_')[-1], dtformat_EQT) for idsgnm in dsg_name])  # get the starttime of each probability data segment 
-        dsg_endtime = np.array([iitime + datetime.timedelta(seconds=data_sglength) for iitime in dsg_starttime])  # get the endtime of each probability data segment 
+        dsg_endtime = np.array([iitime + datetime.timedelta(seconds=data_sglength_EQT) for iitime in dsg_starttime])  # get the endtime of each probability data segment 
     
         # find the minimal starttime and maximum endtime of all data segments over all stations
         if dsg_sttmin:
@@ -321,7 +323,7 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
                 if dindx.any():
                     # have data segments that fulfill the requirements
                     # find the data segment where the searched time period is mostly around the center
-                    mdtimesdf = np.array([ttdfc.total_seconds() for ttdfc in db[sta][0][dindx] + datetime.timedelta(seconds=0.5*data_sglength) - tt_mid])  # time difference in second between the midpoint of the fulfilled data segments time range and the searched time period
+                    mdtimesdf = np.array([ttdfc.total_seconds() for ttdfc in db[sta][0][dindx] + datetime.timedelta(seconds=0.5*data_sglength_EQT) - tt_mid])  # time difference in second between the midpoint of the fulfilled data segments time range and the searched time period
                     data_sgindex = np.flatnonzero(dindx)[np.argmin(abs(mdtimesdf))]  # the index of the chosen data segment, is an integer
                     data_sgname = db[sta][3][data_sgindex]  # the segment name of the chosen data segment
                     data_starttime = db[sta][0][data_sgindex]  # starttime of the chosen data segment
@@ -334,7 +336,7 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
                     datainfo['starttime'] = odata_time[0]  # the starttime of the output data
                     
                     # load data set: Detetion, P and S probability
-                    pbfile = os.path.join(dir_probinput, sta+'_outputs', pbfname)  # the filename of picking probability for the current station
+                    pbfile = os.path.join(dir_probinput, sta+'_outputs', pbfname_EQT)  # the filename of picking probability for the current station
                     pbdf = h5py.File(pbfile, 'r')
                     pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
                     pbdf['probabilities'][data_sgname].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
@@ -439,13 +441,6 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
                                              data segment name for extracting maxprob; 
 
     """
-
-    # internal parameters for EQT
-    pbfname = 'prediction_probabilities.hdf5'  # the common filename of probability file for each station
-    dtformat_EQT = '%Y-%m-%dT%H:%M:%S.%fZ'  # the datetime format using in EQT probability hdf5 outputs
-    data_size_EQT = 6000  # the data segment size in date points, by default the EQT output are 1 minutes long, thus 6000 points
-    dt_EQT = 0.01  # time sampling rate of data in second, for EQT probability output, by default is 0.01 s
-    data_sglength = (data_size_EQT-1)*dt_EQT  # data segment length in second, equals 'endtime - starttime' 
     
     event_info = {}  # initialize
     
@@ -454,7 +449,7 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
     for sfdname in dirnames:
         # loop over each station folder, read data set for each station
         station_name = sfdname.split('_')[0]  # the current station name
-        pbfile = os.path.join(dir_probinput, sfdname, pbfname)  # the filename of picking probability for the current station
+        pbfile = os.path.join(dir_probinput, sfdname, pbfname_EQT)  # the filename of picking probability for the current station
         
         # initialize
         event_info[station_name] = {}
@@ -476,7 +471,7 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
         pbdf = h5py.File(pbfile, 'r')
         dsg_name = list(pbdf['probabilities'].keys())  # get the names of all probability data segments 
         dsg_starttime = np.array([datetime.datetime.strptime(idsgnm.split('_')[-1], dtformat_EQT) for idsgnm in dsg_name])  # get the starttimes of all probability data segments 
-        dsg_endtime = np.array([iitime + datetime.timedelta(seconds=data_sglength) for iitime in dsg_starttime])  # get the endtimes of all probability data segments
+        dsg_endtime = np.array([iitime + datetime.timedelta(seconds=data_sglength_EQT) for iitime in dsg_starttime])  # get the endtimes of all probability data segments
         
         for ii, idsg in enumerate(dsg_name):
             # loop over each data segment
@@ -763,7 +758,7 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
     return event_info
 
 
-def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3):
+def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output='./MAILMI_events/'):
     """
     This function is used to detect locatable event accross the whole arrary.
     Parameters
@@ -795,17 +790,26 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3):
 
     """
     
+    datainfo = {}
+    datainfo['dt'] = copy.deepcopy(dt_EQT)
+    
     stations = list(event_info.keys())  # get all station names
-    N_stations = len(event_info)  # total number of stations
     
     # get the earliest starttime and the latest endtime of all detections for each station
     etime_sta = []  # the earliest starttime of all detections for each station
     ltime_sta = []  # the latest endtime of all detections for each station
     for sta in stations:
-        etime_sta.append(copy.deepcopy(min(min(event_info[sta]['P']['starttime']), min(event_info[sta]['S']['starttime']))))
-        ltime_sta.append(copy.deepcopy(max(max(event_info[sta]['P']['endtime']), max(event_info[sta]['S']['endtime']))))    
-    assert(len(etime_sta) == N_stations)
-    assert(len(ltime_sta) == N_stations)
+        # some stations may not have any detections, need to check
+        if (len(event_info[sta]['P']['starttime']) > 0) and (len(event_info[sta]['S']['starttime']) > 0):
+            etime_sta.append(copy.deepcopy(min(min(event_info[sta]['P']['starttime']), min(event_info[sta]['S']['starttime']))))
+            ltime_sta.append(copy.deepcopy(max(max(event_info[sta]['P']['endtime']), max(event_info[sta]['S']['endtime']))))    
+        elif (len(event_info[sta]['P']['starttime']) > 0) and (len(event_info[sta]['S']['starttime']) == 0):
+            etime_sta.append(copy.deepcopy(min(event_info[sta]['P']['starttime'])))
+            ltime_sta.append(copy.deepcopy(max(event_info[sta]['P']['endtime'])))
+        elif (len(event_info[sta]['P']['starttime']) == 0) and (len(event_info[sta]['S']['starttime']) > 0):
+            etime_sta.append(copy.deepcopy(min(event_info[sta]['S']['starttime'])))
+            ltime_sta.append(copy.deepcopy(max(event_info[sta]['S']['endtime'])))       
+            
     time_min = copy.deepcopy(min(etime_sta))  # the earliest starttime of all events, used to set the start point of the searched time range
     time_max = copy.deepcopy(max(ltime_sta))  # the latest endtime of all events, used to limit the searched time range
     del etime_sta, ltime_sta
@@ -817,9 +821,15 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3):
         
         # initialize parameters
         nsta_trig = 0  # total number of stations triggered
-        etime_sta = []  # for storing the earliest starttime of all the remaining detections after the previous round of searching
+        etime_sta = []  # for storing the earliest starttime of all the remaining detections after the current round of searching
+        output_info = {}  # for storing the output data set information
+        etime_amax = None  # the maximum endtime of all detections during the current searched time range
         
         for ista in stations:
+            output_info[ista] = {}
+            output_info[ista]['P'] = {} 
+            output_info[ista]['S'] = {} 
+            
             # loop over each station to search for events
             Pevidx = np.flatnonzero((np.array(event_info[ista]['P']['mxptime']) >= srchtime_start) & (np.array(event_info[ista]['P']['mxptime']) <= srchtime_end))  # index for P detections that are in the current searched time range
             Sevidx = np.flatnonzero((np.array(event_info[ista]['S']['mxptime']) >= srchtime_start) & (np.array(event_info[ista]['S']['mxptime']) <= srchtime_end))  # index for S detections that are in the current searched time range
@@ -827,26 +837,148 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3):
             if (len(Pevidx) > 0) and (len(Sevidx) > 0):
                 # have both P and S detection in this time range
                 nsta_trig = nsta_trig + 1  # update total number of stations triggered
-                mxpeid = np.argmax(np.array(event_info[ista]['P']['maxprob'])[Pevidx])
                 
+                mxpeid = np.argmax(np.array(event_info[ista]['P']['maxprob'])[Pevidx])
+                output_info[ista]['P']['sgname'] = copy.deepcopy(event_info[ista]['P']['sgname'][Pevidx[mxpeid]])  # the segment name 
+                mxseid = np.argmax(np.array(event_info[ista]['S']['maxprob'])[Sevidx])
+                output_info[ista]['S']['sgname'] = copy.deepcopy(event_info[ista]['S']['sgname'][Sevidx[mxseid]])  # the segment name 
+                
+                if etime_amax is None:
+                    etime_amax = copy.deepcopy(max(np.max(np.array(event_info[ista]['P']['endtime'])[Pevidx]), np.max(np.array(event_info[ista]['S']['endtime'])[Sevidx])))
+                else:
+                    etime_amax = copy.deepcopy(max(etime_amax, max(np.max(np.array(event_info[ista]['P']['endtime'])[Pevidx]), np.max(np.array(event_info[ista]['S']['endtime'])[Sevidx]))))
                 
             elif (len(Pevidx) > 0) and (len(Sevidx) == 0):
                 # only have P detection in this time range
                 nsta_trig = nsta_trig + 1  # update total number of stations triggered
                 
+                mxpeid = np.argmax(np.array(event_info[ista]['P']['maxprob'])[Pevidx])
+                output_info[ista]['P']['sgname'] = copy.deepcopy(event_info[ista]['P']['sgname'][Pevidx[mxpeid]])  # the segment name 
+                output_info[ista]['S']['sgname'] = copy.deepcopy(output_info[ista]['P']['sgname'])
+                
+                if etime_amax is None:
+                    etime_amax = copy.deepcopy(np.max(np.array(event_info[ista]['P']['endtime'])[Pevidx]))
+                else:
+                    etime_amax = copy.deepcopy(max(etime_amax, np.max(np.array(event_info[ista]['P']['endtime'])[Pevidx])))
+                
             elif (len(Pevidx) == 0) and (len(Sevidx) > 0):
                 # only have S detection in this time range
                 nsta_trig = nsta_trig + 1  # update total number of stations triggered
+
+                mxseid = np.argmax(np.array(event_info[ista]['S']['maxprob'])[Sevidx])
+                output_info[ista]['S']['sgname'] = copy.deepcopy(event_info[ista]['S']['sgname'][Sevidx[mxseid]])  # the segment name 
+                output_info[ista]['P']['sgname'] = copy.deepcopy(output_info[ista]['S']['sgname'])
                 
- 
-        if (nsta_trig >= nsta_thrd):
-            # have enough triggered stations
+                if etime_amax is None:
+                    etime_amax = copy.deepcopy(np.max(np.array(event_info[ista]['S']['endtime'])[Sevidx]))
+                else:
+                    etime_amax = copy.deepcopy(max(etime_amax, np.max(np.array(event_info[ista]['S']['endtime'])[Sevidx])))
+                
+            else:
+                # no P and S detection in this time range
+                assert((len(Pevidx) == 0) and (len(Sevidx) == 0))
+                output_info[ista]['P']['sgname'] = None
+                output_info[ista]['S']['sgname'] = None
             
-    
-    
-        srchtime_start =  # update the start of the searched time range
-        del nsta_trig, srchtime_start
+            del Pevidx, Sevidx
         
+        # determine the earliest starttime of all the remaining detections
+        for ista in stations:
+            temp_pt = np.array(event_info[sta]['P']['starttime'])[np.array(event_info[sta]['P']['starttime']) > etime_amax]
+            temp_st = np.array(event_info[sta]['S']['starttime'])[np.array(event_info[sta]['S']['starttime']) > etime_amax]
+            if (len(temp_pt) > 0) and (len(temp_st) > 0):
+                etime_sta.append(copy.deepcopy(min(min(temp_pt), min(temp_st))))
+            elif (len(temp_pt) > 0) and (len(temp_st) == 0):
+                etime_sta.append(copy.deepcopy(min(temp_pt)))
+            elif (len(temp_pt) == 0) and (len(temp_st) > 0):
+                etime_sta.append(copy.deepcopy(min(temp_st)))
+                
+            del temp_pt, temp_st
+ 
+        # determine if the event is locatable, i.e. detected by many stations
+        if (nsta_trig >= nsta_thrd):
+            # have enough triggered stations, output data set
+            
+            if twlex is None:
+                twlex_a = twind_srch - (etime_amax - srchtime_start).total_seconds()
+            else:
+                twlex_a = copy.deepcopy(twlex)
+            if twlex_a < 0:
+                twlex_a = 0
+                
+            tt1 = srchtime_start - datetime.timedelta(seconds=twlex_a)  # the starttime of data extraction
+            tt2 = etime_amax + datetime.timedelta(seconds=twlex_a)  # the endtime of data extraction
+            
+            # print info
+            print('----------------------------------------------------------')
+            print('Detect event at time range:', tt1, '-', tt2)
+            print(nsta_trig, 'stations are triggered.')
+            print('Start to output data in this time range.')
+                        
+            dir_output_ev = dir_output + '/' + tt1.strftime(dtformat_EQT)  # output directory for the current event/time_range
+            
+            for ista in stations:
+                datainfo['station_name'] = copy.deepcopy(ista)
+                
+                # load probability data set for the current station
+                pbdf = h5py.File(event_info[ista]['filename'], 'r')
+                dsg_name = list(pbdf['probabilities'].keys())  # get the names of all probability data segments 
+                dsg_starttime = np.array([datetime.datetime.strptime(idsgnm.split('_')[-1], dtformat_EQT) for idsgnm in dsg_name])  # get the starttimes of all probability data segments 
+                dsg_endtime = np.array([iitime + datetime.timedelta(seconds=data_sglength_EQT) for iitime in dsg_starttime])  # get the endtimes of all probability data segments
+
+                if output_info[ista]['P']['sgname'] is not None:
+                    # segment name of output data are already assigned
+                    pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                    pbdf['probabilities'][output_info[ista]['P']['sgname']].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                    
+                    
+                    oprob_P = pbdata[:,1]  # P-phase picking probability
+                      
+                    del pbdata, oprob_P
+                else:
+                    # segment name not assigned, determine according to 'tt1' and 'tt2' 
+                    dindx = np.logical_and((dsg_starttime <= tt1), (dsg_endtime >= tt2))  # the index of data segments that include the whole event time period: tt1 - tt2
+                    if dindx.any():
+                        # have data segments that fulfill the requirements
+                        # find the data segment where the event time period is mostly around the center
+                        tt_mid =  tt1 + (tt2 - tt1)/2  # the midpoint between the starttime and endtime of data extraction
+                        mdtimesdf = np.array([ttdfc.total_seconds() for ttdfc in (dsg_starttime[dindx] + datetime.timedelta(seconds=0.5*data_sglength_EQT) - tt_mid)])  # time difference in second between the midpoint of the fulfilled data segments time range and the event time period
+                        data_sgindex = np.flatnonzero(dindx)[np.argmin(abs(mdtimesdf))]  # the index of the chosen data segment (closest to the middle time), is an integer
+                        data_sgname = dsg_name[data_sgindex]  # the segment name of the chosen data segment
+                        data_starttime = dsg_starttime[data_sgindex]  # the starttime of the chosen data segment
+                        data_times = np.array([data_starttime + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                        data_pdindex = np.logical_and((data_times >= tt1), (data_times <= tt2))  # the index of probability data point within the detection time range
+                        odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                        datainfo['starttime'] = copy.deepcopy(odata_time[0])  # the starttime of the output data
+                        
+                        pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                        pbdf['probabilities'][data_sgname].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                        oprob_P = pbdata[data_pdindex,1]  # P-phase picking probability
+                        oprob_S = pbdata[data_pdindex,2]  # S-phase picking probability
+                        
+                        # output P-phase picking probability
+                        datainfo['channel_name'] = 'PBP'  # note maximum three characters, the last one must be 'P'
+                        vector2trace(datainfo, oprob_P, dir_output_ev)
+                        
+                        # output S-phase picking probability
+                        datainfo['channel_name'] = 'PBS'  # note maximum three characters, the last one must be 'S'
+                        vector2trace(datainfo, oprob_S, dir_output_ev)
+                        
+                        del tt_mid, mdtimesdf, data_sgindex, data_sgname, data_starttime, data_times 
+                        del data_pdindex, odata_time, pbdata, oprob_P, oprob_S
+                    del dindx
+                    
+    
+                del pbdf, dsg_name, dsg_starttime, dsg_endtime
+                
+        if (len(etime_sta) > 0):
+            srchtime_start = copy.deepcopy(min(etime_sta)) # update the start of the searched time range
+        else:
+            break
+        
+        del srchtime_end, nsta_trig, etime_sta, output_info, etime_amax
+    
+    gc.collect()    
     return
 
 
