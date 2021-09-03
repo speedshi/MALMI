@@ -758,9 +758,15 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
     return event_info
 
 
-def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output='./MAILMI_events/'):
+def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, npha_thrd=4, dir_output='./MAILMI_events/'):
     """
     This function is used to detect locatable event accross the whole arrary.
+    If there are more triggered stations than the threshold (>=nsta_thrd) 
+    and more phase detected than the threshold (>=npha_thrd), the algrithem
+    determines there is an event in the current searched time period, then
+    it will start to ouput probapility data of different stations to the 
+    defined output directory. Each event will have a unique folder name 
+    according to the starttime of its data segment.
     Parameters
     ----------
     event_info : dict
@@ -776,13 +782,11 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
         usually set to be 1-2 second. If None, then determine automatically 
         according to 'twind_srch'.
     nsta_thrd : int, optional
-        minimal number of stations triggered during the specified time period ('twind_srch'), 
-        If there are more triggered stations than this threshold, the algrithem
-        determines there is an event in the current searched time period, then
-        it will start to ouput probapility data of different stations to the 
-        defined output directory. Each event will have a unique folder name 
-        according to the starttime of its data segment.
+        minimal number of stations triggered during the specified event time period.
         The default is 3.
+    npha_thrd : int, optional
+        minimal number of phases triggered during the specified event time period.
+        The default is 4.
 
     Returns
     -------
@@ -812,7 +816,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
             
     time_min = copy.deepcopy(min(etime_sta))  # the earliest starttime of all events, used to set the start point of the searched time range
     time_max = copy.deepcopy(max(ltime_sta))  # the latest endtime of all events, used to limit the searched time range
-    del etime_sta, ltime_sta
+    del etime_sta, ltime_sta, sta
         
     # scan the whole array for locatable events
     srchtime_start = copy.deepcopy(time_min)  # use the earliest starttime of all events as the start time for searching
@@ -821,22 +825,25 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
         
         # initialize parameters
         nsta_trig = 0  # total number of stations triggered
+        npha_trig = 0  # total number of phases triggered
         etime_sta = []  # for storing the earliest starttime of all the remaining detections after the current round of searching
         output_info = {}  # for storing the output data set information
         etime_amax = None  # the maximum endtime of all detections during the current searched time range
         
+        # determin how many stations are triggered in the current searched time range and choose segment name according to event probabilities
         for ista in stations:
             output_info[ista] = {}
             output_info[ista]['P'] = {} 
             output_info[ista]['S'] = {} 
             
             # loop over each station to search for events
-            Pevidx = np.flatnonzero((np.array(event_info[ista]['P']['starttime']) >= srchtime_start) & (np.array(event_info[ista]['P']['starttime']) <= srchtime_end))  # index for P detections that are in the current searched time range
-            Sevidx = np.flatnonzero((np.array(event_info[ista]['S']['starttime']) >= srchtime_start) & (np.array(event_info[ista]['S']['starttime']) <= srchtime_end))  # index for S detections that are in the current searched time range
+            Pevidx = np.flatnonzero((np.array(event_info[ista]['P']['endtime']) >= srchtime_start) & (np.array(event_info[ista]['P']['starttime']) <= srchtime_end))  # index for P detections that are in the current searched time range
+            Sevidx = np.flatnonzero((np.array(event_info[ista]['S']['endtime']) >= srchtime_start) & (np.array(event_info[ista]['S']['starttime']) <= srchtime_end))  # index for S detections that are in the current searched time range
             
             if (len(Pevidx) > 0) and (len(Sevidx) > 0):
                 # have both P and S detection in this time range
                 nsta_trig = nsta_trig + 1  # update total number of stations triggered
+                npha_trig = npha_trig + 2  # update total number of phases triggered
                 
                 mxpeid = np.argmax(np.array(event_info[ista]['P']['maxprob'])[Pevidx])
                 output_info[ista]['P']['sgname'] = copy.deepcopy(event_info[ista]['P']['sgname'][Pevidx[mxpeid]])  # the segment name 
@@ -853,6 +860,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
             elif (len(Pevidx) > 0) and (len(Sevidx) == 0):
                 # only have P detection in this time range
                 nsta_trig = nsta_trig + 1  # update total number of stations triggered
+                npha_trig = npha_trig + 1  # update total number of phases triggered
                 
                 mxpeid = np.argmax(np.array(event_info[ista]['P']['maxprob'])[Pevidx])
                 output_info[ista]['P']['sgname'] = copy.deepcopy(event_info[ista]['P']['sgname'][Pevidx[mxpeid]])  # the segment name 
@@ -868,6 +876,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
             elif (len(Pevidx) == 0) and (len(Sevidx) > 0):
                 # only have S detection in this time range
                 nsta_trig = nsta_trig + 1  # update total number of stations triggered
+                npha_trig = npha_trig + 1  # update total number of phases triggered
 
                 mxseid = np.argmax(np.array(event_info[ista]['S']['maxprob'])[Sevidx])
                 output_info[ista]['S']['sgname'] = copy.deepcopy(event_info[ista]['S']['sgname'][Sevidx[mxseid]])  # the segment name 
@@ -887,11 +896,12 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
                 output_info[ista]['S']['sgname'] = None
             
             del Pevidx, Sevidx
+        del ista
         
         # determine the earliest starttime of all the remaining detections
         for ista in stations:
-            temp_pt = np.array(event_info[sta]['P']['starttime'])[np.array(event_info[sta]['P']['starttime']) > etime_amax]
-            temp_st = np.array(event_info[sta]['S']['starttime'])[np.array(event_info[sta]['S']['starttime']) > etime_amax]
+            temp_pt = np.array(event_info[ista]['P']['starttime'])[np.array(event_info[ista]['P']['starttime']) > etime_amax]
+            temp_st = np.array(event_info[ista]['S']['starttime'])[np.array(event_info[ista]['S']['starttime']) > etime_amax]
             if (len(temp_pt) > 0) and (len(temp_st) > 0):
                 etime_sta.append(copy.deepcopy(min(min(temp_pt), min(temp_st))))
             elif (len(temp_pt) > 0) and (len(temp_st) == 0):
@@ -900,9 +910,11 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
                 etime_sta.append(copy.deepcopy(min(temp_st)))
                 
             del temp_pt, temp_st
- 
-        # determine if the event is locatable, i.e. detected by many stations
-        if (nsta_trig >= nsta_thrd):
+        del ista
+        
+        # determine if the event is locatable, 
+        # i.e. detected by many stations (>= nsta_thrd), have enough phases (>= npha_thrd)
+        if (nsta_trig >= nsta_thrd) and (npha_trig >= npha_thrd):
             # have enough triggered stations, output data set
             
             if twlex is None:
@@ -919,10 +931,12 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
             print('----------------------------------------------------------')
             print('Detect event at time range:', tt1, '-', tt2)
             print(nsta_trig, 'stations are triggered.')
+            print(npha_trig, 'phases are detected.')
             print('Start to output data in this time range.')
                         
             dir_output_ev = dir_output + '/' + tt1.strftime(dtformat_EQT)  # output directory for the current event/time_range
             
+            # loop over each station and ouput data
             for ista in stations:
                 datainfo['station_name'] = copy.deepcopy(ista)
                 
@@ -1185,14 +1199,14 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
                     
     
                 del pbdf, dsg_name, dsg_starttime, dsg_endtime
-            del twlex_a, tt1, tt2, dir_output_ev
+            del twlex_a, tt1, tt2, dir_output_ev, ista
                 
         if (len(etime_sta) > 0):
             srchtime_start = copy.deepcopy(min(etime_sta)) # update the start of the searched time range
         else:
             break
         
-        del srchtime_end, nsta_trig, etime_sta, output_info, etime_amax
+        del srchtime_end, nsta_trig, npha_trig, etime_sta, output_info, etime_amax
     
     gc.collect()    
     return
