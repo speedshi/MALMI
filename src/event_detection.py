@@ -799,6 +799,12 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, npha_thrd=
     
     stations = list(event_info.keys())  # get all station names
     
+    # make sure output directory exist
+    if not os.path.exists(dir_output):
+        os.makedirs(dir_output)
+    fepinfo = open(dir_output+'/'+'event_station_phase_info.txt', 'a')  # file to record the event trigger and phase information
+    fepinfo.write('#    station    phase    \n')  # title line
+    
     # get the earliest starttime and the latest endtime of all detections for each station
     etime_sta = []  # the earliest starttime of all detections for each station
     ltime_sta = []  # the latest endtime of all detections for each station
@@ -927,12 +933,14 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, npha_thrd=
             tt1 = srchtime_start - datetime.timedelta(seconds=twlex_a)  # the starttime of data extraction
             tt2 = etime_amax + datetime.timedelta(seconds=twlex_a)  # the endtime of data extraction
             
-            # print info
+            # print info and output to file
             print('----------------------------------------------------------')
             print('Detect event at time range:', tt1, '-', tt2)
             print(nsta_trig, 'stations are triggered.')
             print(npha_trig, 'phases are detected.')
             print('Start to output data in this time range.')
+            fepinfo.write(tt1.isoformat() + '    '+str(nsta_trig) + '    ' + str(npha_trig) + '\n')
+            fepinfo.flush()
                         
             dir_output_ev = dir_output + '/' + tt1.strftime(dtformat_EQT)  # output directory for the current event/time_range
             
@@ -1208,6 +1216,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, npha_thrd=
         
         del srchtime_end, nsta_trig, npha_trig, etime_sta, output_info, etime_amax
     
+    fepinfo.close()
     gc.collect()    
     return
 
