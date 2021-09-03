@@ -329,7 +329,7 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
                     data_starttime = db[sta][0][data_sgindex]  # starttime of the chosen data segment
                     data_times = np.array([data_starttime + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
                     data_pdindex = np.logical_and((data_times >= tts), (data_times <= ttd))  # the index of probability data point within the detection time range
-                    odata_time = data_times[data_pdindex]  # the timestampe of outout data
+                    odata_time = data_times[data_pdindex]  # the timestampe of output data
                     
                     # set data info               
                     datainfo['station_name'] = sta
@@ -831,8 +831,8 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
             output_info[ista]['S'] = {} 
             
             # loop over each station to search for events
-            Pevidx = np.flatnonzero((np.array(event_info[ista]['P']['mxptime']) >= srchtime_start) & (np.array(event_info[ista]['P']['mxptime']) <= srchtime_end))  # index for P detections that are in the current searched time range
-            Sevidx = np.flatnonzero((np.array(event_info[ista]['S']['mxptime']) >= srchtime_start) & (np.array(event_info[ista]['S']['mxptime']) <= srchtime_end))  # index for S detections that are in the current searched time range
+            Pevidx = np.flatnonzero((np.array(event_info[ista]['P']['starttime']) >= srchtime_start) & (np.array(event_info[ista]['P']['starttime']) <= srchtime_end))  # index for P detections that are in the current searched time range
+            Sevidx = np.flatnonzero((np.array(event_info[ista]['S']['starttime']) >= srchtime_start) & (np.array(event_info[ista]['S']['starttime']) <= srchtime_end))  # index for S detections that are in the current searched time range
             
             if (len(Pevidx) > 0) and (len(Sevidx) > 0):
                 # have both P and S detection in this time range
@@ -848,6 +848,8 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
                 else:
                     etime_amax = copy.deepcopy(max(etime_amax, max(np.max(np.array(event_info[ista]['P']['endtime'])[Pevidx]), np.max(np.array(event_info[ista]['S']['endtime'])[Sevidx]))))
                 
+                del mxpeid, mxseid
+                
             elif (len(Pevidx) > 0) and (len(Sevidx) == 0):
                 # only have P detection in this time range
                 nsta_trig = nsta_trig + 1  # update total number of stations triggered
@@ -861,6 +863,8 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
                 else:
                     etime_amax = copy.deepcopy(max(etime_amax, np.max(np.array(event_info[ista]['P']['endtime'])[Pevidx])))
                 
+                del mxpeid
+                
             elif (len(Pevidx) == 0) and (len(Sevidx) > 0):
                 # only have S detection in this time range
                 nsta_trig = nsta_trig + 1  # update total number of stations triggered
@@ -873,6 +877,8 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
                     etime_amax = copy.deepcopy(np.max(np.array(event_info[ista]['S']['endtime'])[Sevidx]))
                 else:
                     etime_amax = copy.deepcopy(max(etime_amax, np.max(np.array(event_info[ista]['S']['endtime'])[Sevidx])))
+                
+                del mxseid
                 
             else:
                 # no P and S detection in this time range
@@ -904,7 +910,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
             else:
                 twlex_a = copy.deepcopy(twlex)
             if twlex_a < 0:
-                twlex_a = 0
+                twlex_a = 0.5
                 
             tt1 = srchtime_start - datetime.timedelta(seconds=twlex_a)  # the starttime of data extraction
             tt2 = etime_amax + datetime.timedelta(seconds=twlex_a)  # the endtime of data extraction
@@ -928,15 +934,224 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
 
                 if output_info[ista]['P']['sgname'] is not None:
                     # segment name of output data are already assigned
-                    pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
-                    pbdf['probabilities'][output_info[ista]['P']['sgname']].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
                     
+                    # output for P probabilities
+                    csg_indx = copy.deepcopy(dsg_name.index(output_info[ista]['P']['sgname']))  # the index of the chosen data segment for P
+                    assert(output_info[ista]['P']['sgname'] == dsg_name[csg_indx])
+                    if (dsg_starttime[csg_indx] - datetime.timedelta(seconds=dt_EQT) < tt1) and (dsg_endtime[csg_indx] + datetime.timedelta(seconds=dt_EQT) > tt2):
+                        # the event data set is within one data segment
+                        data_times = np.array([dsg_starttime[csg_indx] + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                        data_pdindex = np.logical_and((data_times >= tt1), (data_times <= tt2))  # the index of probability data point within the detection time range
+                        odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                        datainfo['starttime'] = copy.deepcopy(odata_time[0])  # the starttime of the output data
+                        
+                        pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                        pbdf['probabilities'][dsg_name[csg_indx]].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                        oprob = copy.deepcopy(pbdata[data_pdindex,1])  # P-phase picking probability
+                        
+                        # output P-phase picking probability
+                        datainfo['channel_name'] = 'PBP'  # note maximum three characters, the last one must be 'P'
+                        vector2trace(datainfo, oprob, dir_output_ev)
+                        del data_times, data_pdindex, odata_time, pbdata, oprob
                     
-                    oprob_P = pbdata[:,1]  # P-phase picking probability
-                      
-                    del pbdata, oprob_P
+                    elif (dsg_starttime[csg_indx] - datetime.timedelta(seconds=dt_EQT) >= tt1) and (dsg_endtime[csg_indx] + datetime.timedelta(seconds=dt_EQT) > tt2):  
+                        # starttime of event time range is earlier than the starttime of the chosen data segment
+                        assert(dsg_starttime[csg_indx] <= tt2)
+                        
+                        # current segment
+                        pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                        pbdf['probabilities'][dsg_name[csg_indx]].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                        data_times = np.array([dsg_starttime[csg_indx] + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                        data_pdindex = np.logical_and((data_times >= tt1), (data_times <= tt2))  # the index of probability data point within the detection time range
+                        odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                        oprob_P = copy.deepcopy(pbdata[data_pdindex,1])  # P-phase picking probability
+                        del pbdata, data_times, data_pdindex
+                        assert(odata_time[0] >= tt1)
+                        assert(odata_time[-1] <= tt2)
+                        
+                        # previous segment
+                        if csg_indx > 0:
+                            pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                            pbdf['probabilities'][dsg_name[csg_indx-1]].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                            data_times = np.array([dsg_starttime[csg_indx-1] + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                            data_pdindex = np.logical_and((data_times >= tt1), (data_times < dsg_starttime[csg_indx]))  # the index of probability data point within the detection time range
+                            odata_time_a = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                            oprob_P_a = copy.deepcopy(pbdata[data_pdindex,1])  # P-phase picking probability
+                            del pbdata, data_times, data_pdindex
+                            assert(odata_time_a[0] >= tt1)
+                            assert(odata_time_a[-1] <= tt2)
+                            assert((odata_time[0] - odata_time_a[-1]).total_seconds() == dt_EQT)
+                            
+                            oprob = copy.deepcopy(np.concatenate((oprob_P_a, oprob_P)))
+                            datainfo['starttime'] = copy.deepcopy(odata_time_a[0])
+                            del odata_time_a, oprob_P_a, oprob_P, odata_time
+                            
+                        else:
+                            # csg_indx = 0, first segment, no previous one
+                            oprob = copy.deepcopy(oprob_P)
+                            datainfo['starttime'] = copy.deepcopy(odata_time[0])
+                            del odata_time, oprob_P
+                        
+                        # output phase probability
+                        datainfo['channel_name'] = 'PBP'  # note maximum three characters, the last one must be 'P'
+                        vector2trace(datainfo, oprob, dir_output_ev)
+                        del oprob
+                    
+                    elif (dsg_starttime[csg_indx] - datetime.timedelta(seconds=dt_EQT) < tt1) and (dsg_endtime[csg_indx] + datetime.timedelta(seconds=dt_EQT) <= tt2):
+                        # endtime of event time range is later than the endtime of the chosen data segment
+                        assert(dsg_endtime[csg_indx] >= tt1)
+                        
+                        # current segment
+                        pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                        pbdf['probabilities'][dsg_name[csg_indx]].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                        data_times = np.array([dsg_starttime[csg_indx] + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                        data_pdindex = np.logical_and((data_times >= tt1), (data_times <= tt2))  # the index of probability data point within the detection time range
+                        odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                        oprob_P = copy.deepcopy(pbdata[data_pdindex,1])  # P-phase picking probability
+                        del pbdata, data_times, data_pdindex
+                        assert(odata_time[0] >= tt1)
+                        assert(odata_time[-1] <= tt2)
+                        
+                        # after segment
+                        if (csg_indx < len(dsg_name)-1):
+                            pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                            pbdf['probabilities'][dsg_name[csg_indx+1]].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                            data_times = np.array([dsg_starttime[csg_indx+1] + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                            data_pdindex = np.logical_and((data_times > dsg_endtime[csg_indx]), (data_times <= tt2))  # the index of probability data point within the detection time range
+                            odata_time_a = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                            oprob_P_a = copy.deepcopy(pbdata[data_pdindex,1])  # P-phase picking probability
+                            del pbdata, data_times, data_pdindex
+                            assert(odata_time_a[0] >= tt1)
+                            assert(odata_time_a[-1] <= tt2)
+                            assert((odata_time_a[0] - odata_time[-1]).total_seconds() == dt_EQT)
+                            
+                            oprob = copy.deepcopy(np.concatenate((oprob_P, oprob_P_a)))
+                            datainfo['starttime'] = copy.deepcopy(odata_time[0])
+                            del odata_time_a, oprob_P_a, oprob_P, odata_time
+                            
+                        else:
+                            # csg_indx = len(dsg_name)-1, last segment, no after one
+                            oprob = copy.deepcopy(oprob_P)
+                            datainfo['starttime'] = copy.deepcopy(odata_time[0])
+                            del odata_time, oprob_P
+                        
+                        # output phase probability
+                        datainfo['channel_name'] = 'PBP'  # note maximum three characters, the last one must be 'P'
+                        vector2trace(datainfo, oprob, dir_output_ev)
+                        del oprob   
+                    
+                    del csg_indx
+                    
+                    # output for S probabilities
+                    csg_indx = dsg_name.index(output_info[ista]['S']['sgname'])  # the index of the chosen data segment for S
+                    assert(output_info[ista]['S']['sgname'] == dsg_name[csg_indx])
+                    if (dsg_starttime[csg_indx] - datetime.timedelta(seconds=dt_EQT) < tt1) and (dsg_endtime[csg_indx] + datetime.timedelta(seconds=dt_EQT) > tt2):
+                        # the event data set is within one data segment
+                        data_times = np.array([dsg_starttime[csg_indx] + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                        data_pdindex = np.logical_and((data_times >= tt1), (data_times <= tt2))  # the index of probability data point within the detection time range
+                        odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                        datainfo['starttime'] = copy.deepcopy(odata_time[0])  # the starttime of the output data
+                        
+                        pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                        pbdf['probabilities'][dsg_name[csg_indx]].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                        oprob = copy.deepcopy(pbdata[data_pdindex,2])  # S-phase picking probability
+                        
+                        # output S-phase picking probability
+                        datainfo['channel_name'] = 'PBS'  # note maximum three characters, the last one must be 'S'
+                        vector2trace(datainfo, oprob, dir_output_ev)
+                        del data_times, data_pdindex, odata_time, pbdata, oprob
+                    
+                    elif (dsg_starttime[csg_indx] - datetime.timedelta(seconds=dt_EQT) >= tt1) and (dsg_endtime[csg_indx] + datetime.timedelta(seconds=dt_EQT) > tt2):  
+                        # starttime of event time range is earlier than the starttime of the chosen data segment
+                        assert(dsg_starttime[csg_indx] <= tt2)
+                        
+                        # current segment
+                        pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                        pbdf['probabilities'][dsg_name[csg_indx]].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                        data_times = np.array([dsg_starttime[csg_indx] + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                        data_pdindex = np.logical_and((data_times >= tt1), (data_times <= tt2))  # the index of probability data point within the detection time range
+                        odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                        oprob_S = copy.deepcopy(pbdata[data_pdindex,2])  # S-phase picking probability
+                        del pbdata, data_times, data_pdindex
+                        assert(odata_time[0] >= tt1)
+                        assert(odata_time[-1] <= tt2)
+                        
+                        # previous segment
+                        if csg_indx > 0:
+                            pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                            pbdf['probabilities'][dsg_name[csg_indx-1]].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                            data_times = np.array([dsg_starttime[csg_indx-1] + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                            data_pdindex = np.logical_and((data_times >= tt1), (data_times < dsg_starttime[csg_indx]))  # the index of probability data point within the detection time range
+                            odata_time_a = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                            oprob_S_a = copy.deepcopy(pbdata[data_pdindex,2])  # S-phase picking probability
+                            del pbdata, data_times, data_pdindex
+                            assert(odata_time_a[0] >= tt1)
+                            assert(odata_time_a[-1] <= tt2)
+                            assert((odata_time[0] - odata_time_a[-1]).total_seconds() == dt_EQT)
+                            
+                            oprob = copy.deepcopy(np.concatenate((oprob_S_a, oprob_S)))
+                            datainfo['starttime'] = copy.deepcopy(odata_time_a[0])
+                            del odata_time_a, oprob_S_a, oprob_S, odata_time
+                            
+                        else:
+                            # csg_indx = 0, first segment, no previous one
+                            oprob = copy.deepcopy(oprob_S)
+                            datainfo['starttime'] = copy.deepcopy(odata_time[0])
+                            del odata_time, oprob_S
+                        
+                        # output phase probability
+                        datainfo['channel_name'] = 'PBS'  # note maximum three characters, the last one must be 'S'
+                        vector2trace(datainfo, oprob, dir_output_ev)
+                        del oprob
+                    
+                    elif (dsg_starttime[csg_indx] - datetime.timedelta(seconds=dt_EQT) < tt1) and (dsg_endtime[csg_indx] + datetime.timedelta(seconds=dt_EQT) <= tt2):
+                        # endtime of event time range is later than the endtime of the chosen data segment
+                        assert(dsg_endtime[csg_indx] >= tt1)
+                        
+                        # current segment
+                        pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                        pbdf['probabilities'][dsg_name[csg_indx]].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                        data_times = np.array([dsg_starttime[csg_indx] + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                        data_pdindex = np.logical_and((data_times >= tt1), (data_times <= tt2))  # the index of probability data point within the detection time range
+                        odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                        oprob_S = copy.deepcopy(pbdata[data_pdindex,2])  # S-phase picking probability
+                        del pbdata, data_times, data_pdindex
+                        assert(odata_time[0] >= tt1)
+                        assert(odata_time[-1] <= tt2)
+                        
+                        # after segment
+                        if (csg_indx < len(dsg_name)-1):
+                            pbdata = np.zeros((data_size_EQT, 3), dtype=np.float32)  # initialize array for load prob data set
+                            pbdf['probabilities'][dsg_name[csg_indx+1]].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
+                            data_times = np.array([dsg_starttime[csg_indx+1] + datetime.timedelta(seconds=iitp*dt_EQT) for iitp in range(data_size_EQT)])  # timestampe of each data point for the chosen data segment
+                            data_pdindex = np.logical_and((data_times > dsg_endtime[csg_indx]), (data_times <= tt2))  # the index of probability data point within the detection time range
+                            odata_time_a = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
+                            oprob_S_a = copy.deepcopy(pbdata[data_pdindex,2])  # S-phase picking probability
+                            del pbdata, data_times, data_pdindex
+                            assert(odata_time_a[0] >= tt1)
+                            assert(odata_time_a[-1] <= tt2)
+                            assert((odata_time_a[0] - odata_time[-1]).total_seconds() == dt_EQT)
+                            
+                            oprob = copy.deepcopy(np.concatenate((oprob_S, oprob_S_a)))
+                            datainfo['starttime'] = copy.deepcopy(odata_time[0])
+                            del odata_time_a, oprob_S_a, oprob_S, odata_time
+                            
+                        else:
+                            # csg_indx = len(dsg_name)-1, last segment, no after one
+                            oprob = copy.deepcopy(oprob_S)
+                            datainfo['starttime'] = copy.deepcopy(odata_time[0])
+                            del odata_time, oprob_S
+                        
+                        # output phase probability
+                        datainfo['channel_name'] = 'PBS'  # note maximum three characters, the last one must be 'S'
+                        vector2trace(datainfo, oprob, dir_output_ev)
+                        del oprob   
+                    
+                    del csg_indx
+                    
                 else:
                     # segment name not assigned, determine according to 'tt1' and 'tt2' 
+                    assert((output_info[ista]['P']['sgname'] is None) and (output_info[ista]['S']['sgname'] is None))
                     dindx = np.logical_and((dsg_starttime <= tt1), (dsg_endtime >= tt2))  # the index of data segments that include the whole event time period: tt1 - tt2
                     if dindx.any():
                         # have data segments that fulfill the requirements
@@ -970,6 +1185,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, dir_output
                     
     
                 del pbdf, dsg_name, dsg_starttime, dsg_endtime
+            del twlex_a, tt1, tt2, dir_output_ev
                 
         if (len(etime_sta) > 0):
             srchtime_start = copy.deepcopy(min(etime_sta)) # update the start of the searched time range
