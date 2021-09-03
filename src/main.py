@@ -130,27 +130,33 @@ class MALMI:
         print('MALMI_generate_prob complete!')
 
             
-    def event_detect_ouput(self, sttd_max, spttdf_ssmax, twlex=2, d_thrd=0.1, nsta_thrd=3):
+    def event_detect_ouput(self, twind_srch, twlex=2, P_thrd=0.1, S_thrd=0.1, nsta_thrd=3, npha_thrd=4):
         """
         event detection based on the ML predicted event probabilites
         and output the corresponding phase probabilites of the detected events.
         Parameters
         ----------
-        sttd_max : float
-            maximum P-P traveltime difference between different stations for 
-            the whole imaging area, in second.
-        spttdf_ssmax : float
-            the maximal P to S arrivaltime difference for a perticular station 
-            in second for the whole imaging area, no need to be very accurate.
+        twind_srch : float
+            time window length in second where events will be searched in this range.
+            How to determine this parameter:
+            Conservative estimation: maximum P-S traveltime difference between 
+            different stations for the whole imaging area.
         twlex : float, optional
-            time in second for extend the time window, roughly equal to 
-            the width of P- or S-probability envelope. The default is 2.
-        d_thrd : float, optional
-            detection threshold for detect events from the ML predicted event 
-            probabilities. The default is 0.1.
+            time window length in second for extending the output time range, 
+            usually set to be 1-2 second. If None, then determine automatically 
+            according to 'twind_srch'.
+        P_thrd : float, optional
+            probability threshold for detecting P-phases/events from the ML-predicted 
+            phase probabilities. The default is 0.1.
+        S_thrd : float, optional
+            probability threshold for detecting S-phases/events from the ML-predicted 
+            phase probabilities. The default is 0.1.
         nsta_thrd : int, optional
-            minimal number of stations triggered during a specified time period.
+            minimal number of stations triggered during the specified event time period.
             The default is 3.
+        npha_thrd : int, optional
+            minimal number of phases triggered during the specified event time period.
+            The default is 4.
 
         Returns
         -------
@@ -158,10 +164,13 @@ class MALMI:
 
         """
         
-        from event_detection import eqt_arrayeventdetect
+        # from event_detection import eqt_arrayeventdetect
+        from event_detection import eqt_eventdetectfprob, arrayeventdetect
         
-        print('MALMI starts to detect events based on the ML predicted event probabilites and output the corresponding phase probabilites of the detected events:')
-        eqt_arrayeventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
+        print('MALMI starts to detect events based on the ML predicted phase probabilites and output the corresponding phase probabilites of the detected events:')
+        # eqt_arrayeventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
+        event_info = eqt_eventdetectfprob(self.dir_prob, P_thrd, S_thrd)
+        arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob)
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
 
