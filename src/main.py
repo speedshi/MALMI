@@ -121,6 +121,7 @@ class MALMI:
         file_pkl = preproc_dir + '/time_tracks.pkl'
         time_interval = 1  # Time interval in hours for tick spaces in xaxes
         plot_data_chart(time_tracks=file_pkl, time_interval=time_interval, dir_output=preproc_dir)
+        gc.collect()
         
         # generate event and phase probabilities-------------------------------
         predictor(input_dir=self.dir_hdf5, input_model=input_MLmodel, output_dir=self.dir_prob,
