@@ -146,7 +146,7 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
         tr = stream.select(station=staname[ii], component="P")
         if tr.count() > 0:
             tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            if (normv is not None) and (max(abs(tr[0].data)) > normv):
+            if (normv is not None) and (max(abs(tr[0].data)) >= normv):
                 vdata = tr[0].data / max(abs(tr[0].data))
             else:
                 vdata = tr[0].data
@@ -160,7 +160,7 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
         tr = stream.select(station=staname[ii], component="S")
         if tr.count() > 0:
             tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            if (normv is not None) and (max(abs(tr[0].data)) > normv):
+            if (normv is not None) and (max(abs(tr[0].data)) >= normv):
                 vdata = tr[0].data / max(abs(tr[0].data))
             else:
                 vdata = tr[0].data
@@ -174,7 +174,7 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
         tr = stream.select(station=staname[ii], component="D")
         if tr.count() > 0:
             tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            if (normv is not None) and (max(abs(tr[0].data)) > normv):
+            if (normv is not None) and (max(abs(tr[0].data)) >= normv):
                 vdata = tr[0].data / max(abs(tr[0].data))
             else:
                 vdata = tr[0].data
@@ -380,11 +380,11 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
                 del vdata, tt
             del tr
             
-            # plot P-phase probability
+            # plot P-phase characteristic function
             tr = charfs.select(station=staname[ii], component="P")
             if tr.count() > 0:
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                if (normv is not None) and (max(abs(tr[0].data)) > normv):
+                if (normv is not None) and (max(abs(tr[0].data)) >= normv):
                     vdata = tr[0].data / max(abs(tr[0].data))
                 else:
                     vdata = tr[0].data
@@ -394,11 +394,11 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
                 del vdata, tt
             del tr
             
-            # plot S-phase probability
+            # plot S-phase characteristic function
             tr = charfs.select(station=staname[ii], component="S")
             if tr.count() > 0:
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                if (normv is not None) and (max(abs(tr[0].data)) > normv):
+                if (normv is not None) and (max(abs(tr[0].data)) >= normv):
                     vdata = tr[0].data / max(abs(tr[0].data))
                 else:
                     vdata = tr[0].data
