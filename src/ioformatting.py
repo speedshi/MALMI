@@ -19,6 +19,7 @@ import warnings
 import pandas as pd
 import datetime
 import numpy as np
+import gc
 
 
 def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*H2", "*H3"]):
@@ -73,6 +74,7 @@ def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*
             if tr.stats.channel not in channels:
                 channels.append(tr.stats.channel)
         del tr
+        gc.collect()
     
     # scan all traces to get the station names
     stations = []
@@ -81,6 +83,7 @@ def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*
         if sname not in stations:
             stations.append(sname)
     del tr
+    gc.collect()
     
     # for a particular station, first check starttime and endtime, then output data
     for ista in stations:
@@ -98,6 +101,7 @@ def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*
                         endtime = max(endtime, tr.stats.endtime)
                     dcount += 1
             del stdata
+            gc.collect()
     
         # round datetime to the nearest second, and convert to the setted string format
         starttime_str = to_datetime(starttime.datetime).round('1s').strftime(timeformat)
@@ -118,7 +122,10 @@ def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*
             if stdata.count() > 0:
                 OfileName = stdata[0].id + '__' + starttime_str + '__' + endtime_str + '.mseed'
                 stdata.write(os.path.join(dir_output_sta, OfileName), format="MSEED")
-                    
+            del stdata
+            gc.collect()
+    
+    gc.collect()                
     return
 
 
@@ -213,6 +220,7 @@ def stainv2json(file_station, mseed_directory, dir_json):
     with open(jfilename, 'w') as fp:
         json.dump(station_list, fp)     
     
+    gc.collect()
     return
 
 
@@ -276,6 +284,7 @@ def vector2trace(datainfo, data, dir_output='./'):
     trace.write(fname, format="MSEED")
     
     del trace
+    gc.collect()
     
     return
 
@@ -347,10 +356,15 @@ def EQTprob2trace(dir_probinput, dir_output, ev_otimes):
                 # output S-phase picking probability
                 datainfo['channel_name'] = 'PBS'  # note maximum three characters, the last one must be 'S'
                 vector2trace(datainfo, prob_S, dir_output_ev)
+                
+                del pbdata, prob_D, prob_P, prob_S
+                gc.collect()
+                
             else:
                 # input event time outside the selceted time range -> no output, generate warning
                 warnings.warn('No data segment found around {} for station: {}.'.format(evotime, station_name))
     
+    gc.collect()
     return
 
 
@@ -394,6 +408,8 @@ def read_lokicatalog(file_catalog):
     event_depth_km = list(cadf['depth_km'])
     event_coherence = list(cadf['cmax'])
     
+    del cadf, etimes
+    gc.collect()
     return event_times, event_longitude, event_latitude, event_depth_km, event_coherence
 
 

@@ -79,6 +79,7 @@ class MALMI:
             stream += obspy.read(os.path.join(self.dir_seismic, dfile))
         
         stream2EQTinput(stream, self.dir_mseed, channels)
+        gc.collect()
         
         # create station jason file for EQT------------------------------------
         stainv2json(file_station, self.dir_mseed, self.dir_EQTjson)
@@ -114,6 +115,7 @@ class MALMI:
         preprocessor(preproc_dir=preproc_dir, mseed_dir=self.dir_mseed, 
                      stations_json=stations_json, overlap=overlap, 
                      n_processor=1)
+        gc.collect()
         
         # show data availablity for each station-------------------------------
         file_pkl = preproc_dir + '/time_tracks.pkl'
@@ -170,6 +172,7 @@ class MALMI:
         print('MALMI starts to detect events based on the ML predicted phase probabilites and output the corresponding phase probabilites of the detected events:')
         # eqt_arrayeventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
         event_info = eqt_eventdetectfprob(self.dir_prob, P_thrd, S_thrd)
+        gc.collect()
         arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob)
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
