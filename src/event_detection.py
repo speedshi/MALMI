@@ -785,7 +785,7 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
     return event_info
 
 
-def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, npha_thrd=4, dir_output='./MAILMI_events/'):
+def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4, dir_output='./MAILMI_events/'):
     """
     This function is used to detect locatable event accross the whole arrary.
     If there are more triggered stations than the threshold (>=nsta_thrd) 
@@ -806,8 +806,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, npha_thrd=
         different stations for the whole imaging area.
     twlex : float, optional
         time window length in second for extending the output time range, 
-        usually set to be 1-2 second. If None, then determine automatically 
-        according to 'twind_srch'.
+        usually set to be 0.5-2 second. The default is 0.0.
     nsta_thrd : int, optional
         minimal number of stations triggered during the specified event time period.
         The default is 3.
@@ -958,12 +957,12 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, npha_thrd=
         if (nsta_trig >= nsta_thrd) and (npha_trig >= npha_thrd):
             # have enough triggered stations, output data set
             
-            if twlex is None:
-                twlex_a = twind_srch - (etime_amax - srchtime_start).total_seconds()
+            # determine the extending time window length
+            twl_evres = twind_srch - (etime_amax - srchtime_start).total_seconds()  
+            if twl_evres > 0:
+                twlex_a = twl_evres + twlex
             else:
                 twlex_a = copy.deepcopy(twlex)
-            if twlex_a < 0:
-                twlex_a = 0.5
                 
             tt1 = srchtime_start - datetime.timedelta(seconds=twlex_a)  # the starttime of data extraction
             tt2 = etime_amax + datetime.timedelta(seconds=twlex_a)  # the endtime of data extraction
@@ -1269,7 +1268,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=None, nsta_thrd=3, npha_thrd=
     
                 del pbdf, dsg_name, dsg_starttime, dsg_endtime
                 # gc.collect()
-            del twlex_a, tt1, tt2, dir_output_ev, ista
+            del twl_evres, twlex_a, tt1, tt2, dir_output_ev, ista
             # gc.collect()
                 
         if (len(etime_sta) > 0):

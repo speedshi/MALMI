@@ -13,11 +13,12 @@ MALMI main function - building a whole framework.
 from ioformatting import stream2EQTinput, stainv2json
 import os
 import gc
+import copy
         
 
 class MALMI:
 
-    def __init__(self, dir_seismic, dir_output, n_processor=1):
+    def __init__(self, dir_seismic, dir_output, dir_tt, tt_ftage='layer', n_processor=1):
         """
         Initilize global input and output paramaters, configure MALMI.
         Parameters
@@ -26,6 +27,10 @@ class MALMI:
             path to raw continuous seismic data.
         dir_output : str
             path for outputs.
+        dir_tt : str
+            path to travetime data set.
+        tt_ftage : str, optional
+            traveltime data set filename tage. The default is 'layer'.
         n_processor : int, default: 1
             number of CPU processors for parallel processing.
         Returns
@@ -33,7 +38,8 @@ class MALMI:
         None.
 
         """
-        self.dir_seismic = dir_seismic
+        
+        self.dir_seismic = copy.deepcopy(dir_seismic)
         
         # get the foldername of the input seismic data, used as the identifer of the input data set
         if self.dir_seismic[-1] == '/':
@@ -44,13 +50,18 @@ class MALMI:
         self.dir_ML = dir_output + "/data_QET/" + fd_seismic  # directory for ML outputs
         self.dir_prob = self.dir_ML + '/prob_and_detection'  # output directory for ML probability outputs
         self.dir_migration = dir_output + '/data_loki/' + fd_seismic  # directory for migration outputs
-        self.n_processor = n_processor  # number of threads for parallel processing
+        self.n_processor = copy.deepcopy(n_processor)  # number of threads for parallel processing
 
         self.dir_mseed = self.dir_ML + "/mseeds"  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
         self.dir_hdf5 = self.dir_mseed + '_processed_hdfs'  # path to the hdf5 and csv files
         self.dir_EQTjson = self.dir_ML + "/json"  # directory for outputting station json file for EQT
         self.dir_lokiprob = self.dir_migration + '/prob_evstream'  # directory for probability outputs of different events in SEED format
 
+        self.dir_tt = copy.deepcopy(dir_tt)  # path to travetime data set
+        self.tt_precision = 'single'  # persicion for traveltime data set, 'single' or 'double'
+        self.tt_hdr_filename = 'header.hdr'  # travetime data set header filename
+        self.tt_ftage = copy.deepcopy(tt_ftage)  # traveltime data set filename tage
+        
 
     def format_ML_inputs(self, file_station, channels=["*HE", "*HN", "*HZ"]):
         """
@@ -133,21 +144,21 @@ class MALMI:
         print('MALMI_generate_prob complete!')
 
             
-    def event_detect_ouput(self, twind_srch, twlex=2, P_thrd=0.1, S_thrd=0.1, nsta_thrd=3, npha_thrd=4):
+    def event_detect_ouput(self, twind_srch=None, twlex=1.0, P_thrd=0.1, S_thrd=0.1, nsta_thrd=3, npha_thrd=4):
         """
         event detection based on the ML predicted event probabilites
         and output the corresponding phase probabilites of the detected events.
         Parameters
         ----------
-        twind_srch : float
+        twind_srch : float, optional
             time window length in second where events will be searched in this range.
             How to determine this parameter:
             Conservative estimation: maximum P-S traveltime difference between 
             different stations for the whole imaging area.
+            If None, then automatically determine it from traveltime table.
         twlex : float, optional
             time window length in second for extending the output time range, 
-            usually set to be 1-2 second. If None, then determine automatically 
-            according to 'twind_srch'.
+            usually set to be 1-2 second. The default is 1.0 second.
         P_thrd : float, optional
             probability threshold for detecting P-phases/events from the ML-predicted 
             phase probabilities. The default is 0.1.
@@ -169,26 +180,25 @@ class MALMI:
         
         # from event_detection import eqt_arrayeventdetect
         from event_detection import eqt_eventdetectfprob, arrayeventdetect
+        from utils_dataprocess import maxP2Stt
         
         print('MALMI starts to detect events based on the ML predicted phase probabilites and output the corresponding phase probabilites of the detected events:')
         # eqt_arrayeventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
         event_info = eqt_eventdetectfprob(self.dir_prob, P_thrd, S_thrd)
         gc.collect()
+        if twind_srch is None:
+            twind_srch, _, _ = maxP2Stt(self.dir_tt, self.tt_hdr_filename, self.tt_ftage, self.tt_precision)
         arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob)
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
 
 
-    def migration(self, dir_tt, tt_ftage='layer', probthrd=0.001):
+    def migration(self, probthrd=0.001):
         """
         Perform migration based on input phase probabilites
 
         Parameters
         ----------
-        dir_tt : str
-            path to travetime data set.
-        tt_ftage : str, optional
-            traveltime data set filename tage. The default is 'layer'.
         probthrd : float, optional
             probability normalization threshold. If maximum value of the input 
             phase probabilites is larger than this threshold, the input trace 
@@ -204,19 +214,17 @@ class MALMI:
         
         print('MALMI starts to perform migration:')
         dir_lokiout = self.dir_migration + '/result_MLprob'  # path for loki outputs
-        tt_hdr_filename = 'header.hdr'  # travetime data set header filename
         
         inputs = {}
-        inputs['model'] = tt_ftage  # traveltime data set filename tage
+        inputs['model'] = self.tt_ftage  # traveltime data set filename tage
         inputs['npr'] = self.n_processor  # number of cores to run
         inputs['normthrd'] = probthrd  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
         inputs['ppower'] = 4  # compute array element wise power over the input probabilities before stacking
         comp = ['P','S']  # when input data are probabilities of P- and S-picks, comp must be ['P', 'S']
-        precision = 'single'  # persicion for traveltime data set, 'single' or 'double'
         extension = '*'  # seismic data filename for loading, accept wildcard input, for all data use '*'
         
-        l1 = Loki(self.dir_lokiprob, dir_lokiout, dir_tt, tt_hdr_filename, mode='locator')
-        l1.location(extension, comp, precision, **inputs)
+        l1 = Loki(self.dir_lokiprob, dir_lokiout, self.dir_tt, self.tt_hdr_filename, mode='locator')
+        l1.location(extension, comp, self.tt_precision, **inputs)
         gc.collect()
         print('MALMI_migration complete!')
         

@@ -11,9 +11,10 @@ import sys
 sys.path.append('/home/peidong/xresearch/code/MALMI/src')
 from main import MALMI
 import gc
+import sys
 
 
-dir_seismic = "../data/seismic_data_raw/seismic_raw_20181206"  # path to raw continuous seismic data 
+dir_seismic = sys.argv[1]  # path to raw continuous seismic data 
 dir_output = "../data"  # path for outputs
 dir_tt = '../data/traveltime/tt_loki'  # path to travetime data set
 tt_ftage = 'layer'  # traveltime data set filename tage
