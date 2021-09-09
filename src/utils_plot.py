@@ -89,7 +89,7 @@ def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magn
     return
 
 
-def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=None, staname=None):
+def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=None, staname=None, arrvtt=None):
     """
     To plot the input probability data of different stations.
 
@@ -111,6 +111,10 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
         a filename tage for output figures;
     staname : list of str, default: None
         specify the stations to show;
+    arrvtt : dic, default: None
+        the arrivaltimes of P- and S-waves at different stations.
+        arrvtt['station']['P'] : P-wave arrivaltime;
+        arrvtt['station']['S'] : S-wave arrivaltime.
 
     Returns
     -------
@@ -181,6 +185,16 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
             ax.plot(tt, vdata+ydev[ii], 'k--', linewidth=1.2)
             del vdata, tt
         del tr
+        
+        # plot phase arrivaltimes
+        if arrvtt is not None:
+            if staname[ii] in arrvtt:
+                if 'P' in arrvtt[staname[ii]]:
+                    # plot P arrivaltimes
+                    ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.9, colors='g', linewidth=0.8, alpha=0.7, zorder=3)
+                if 'S' in arrvtt[staname[ii]]:
+                    # plot S arrivaltimes
+                    ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.9, colors='g', linewidth=0.8, alpha=0.7, zorder=3)
         
     ax.set_yticks(ydev)
     ax.set_yticklabels(staname, fontsize=14)

@@ -413,3 +413,39 @@ def read_lokicatalog(file_catalog):
     return event_times, event_longitude, event_latitude, event_depth_km, event_coherence
 
 
+def read_arrivaltimes(file_arrvt):
+    """
+    This function is used to load the arrivaltimes of different stations.
+
+    Parameters
+    ----------
+    file_arrvt : str
+        the filename including path of the arrivaltime file in text format.
+
+    Returns
+    -------
+    arrvtt : dic
+        dictionary contains P- and S-wave arrivaltime information of different
+        stations.
+        arrvtt['station']['P'] : P-wave arrivaltime;
+        arrvtt['station']['S'] : S-wave arrivaltime.
+
+    """
+    
+    # set arrivaltime file input format
+    format_arrvt = ['station', 'Pt', 'St']  # indicate the meaning of each colume
+    datetime_format = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
+    
+    # read arrivaltime file
+    arvtdf = pd.read_csv(file_arrvt, delimiter=' ', header=None, names=format_arrvt,
+                       skipinitialspace=True, encoding='utf-8', comment='#')
+    
+    arrvtt = {}
+    for ii in range(len(arvtdf)):
+        arrvtt[arvtdf.loc[ii, 'station']] = {}
+        arrvtt[arvtdf.loc[ii, 'station']]['P'] = datetime.datetime.strptime(arvtdf.loc[ii, 'Pt'], datetime_format)
+        arrvtt[arvtdf.loc[ii, 'station']]['S'] = datetime.datetime.strptime(arvtdf.loc[ii, 'St'], datetime_format)
+    
+    return arrvtt
+
+
