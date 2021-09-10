@@ -142,7 +142,7 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
                 staname.append(tr.stats.station)
     
     # plot data for each station
-    fig = plt.figure(figsize=figsize, dpi=300)
+    fig = plt.figure(figsize=figsize, dpi=600)
     ax = fig.add_subplot(111)
     ydev = [ii*dyy for ii in range(len(staname))]
     for ii in range(len(staname)):
@@ -191,10 +191,10 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
             if staname[ii] in arrvtt:
                 if 'P' in arrvtt[staname[ii]]:
                     # plot P arrivaltimes
-                    ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.9, colors='g', linewidth=0.8, alpha=0.7, zorder=3)
+                    ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
                 if 'S' in arrvtt[staname[ii]]:
                     # plot S arrivaltimes
-                    ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.9, colors='g', linewidth=0.8, alpha=0.7, zorder=3)
+                    ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
         
     ax.set_yticks(ydev)
     ax.set_yticklabels(staname, fontsize=14)
@@ -206,7 +206,7 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
         fname = os.path.join(dir_output, 'input_data_{}.png'.format(tag))
     else:
         fname = os.path.join(dir_output, 'input_data.png')
-    fig.savefig(fname, bbox_inches='tight')
+    fig.savefig(fname, bbox_inches='tight', dpi=600)
     plt.cla()
     fig.clear()
     plt.close(fig)
