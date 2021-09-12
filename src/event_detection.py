@@ -12,7 +12,7 @@ import os
 import h5py
 import datetime
 import numpy as np
-from ioformatting import vector2trace
+from ioformatting import vector2trace, output_seissegment
 import copy
 import gc
 
@@ -785,7 +785,7 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
     return event_info
 
 
-def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4, dir_output='./MAILMI_events/'):
+def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4, dir_output='./MAILMI_events_prob/', dir_output_seis='./MAILMI_events_seis/', dir_seismic=None):
     """
     This function is used to detect locatable event accross the whole arrary.
     If there are more triggered stations than the threshold (>=nsta_thrd) 
@@ -813,10 +813,17 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
     npha_thrd : int, optional
         minimal number of phases triggered during the specified event time period.
         The default is 4.
-
+    dir_output : str, optional
+        the output directory for probabilities of each detected event.
+    dir_output_seis : str, optional
+        the output directory for raw seismic data of each detected event.
+    dir_seismic : str, optional
+        path to the folder where all seismic data are saved. Default is None.
+        None means do not output raw seismic data segments.
     Returns
     -------
-    Obspy trace data outputted in MSEED format in the defined output directory.
+    Obspy trace data outputted in MSEED format in the defined output directory
+    for each detected event.
 
     """
     
@@ -976,7 +983,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
             fepinfo.write(tt1.isoformat() + '       '+str(nsta_trig) + '         ' + str(npha_trig) + '\n')
             fepinfo.flush()
                         
-            dir_output_ev = dir_output + '/' + tt1.strftime(dtformat_EQT)  # output directory for the current event/time_range
+            dir_output_ev = dir_output + '/' + tt1.strftime(dtformat_EQT)  # output directory of probability data for the current event/time_range
             
             # loop over each station and ouput data
             for ista in stations:
@@ -1268,6 +1275,13 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
     
                 del pbdf, dsg_name, dsg_starttime, dsg_endtime
                 # gc.collect()
+            
+            # check if need to output raw seismic data segments as well
+            if dir_seismic is not None:
+                # output raw seismic data segment for the detected event
+                dir_output_seis_ev = dir_output_seis + '/' + tt1.strftime(dtformat_EQT)  # output directory of seismic data for the current event/time_range
+                output_seissegment(dir_seismic, dir_output_seis_ev, tt1, tt2)
+                
             del twl_evres, twlex_a, tt1, tt2, dir_output_ev, ista
             # gc.collect()
                 

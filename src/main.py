@@ -10,10 +10,11 @@ MALMI main function - building a whole framework.
 """
 
 
-from ioformatting import stream2EQTinput, stainv2json
 import os
 import gc
 import copy
+import shutil
+import glob
         
 
 class MALMI:
@@ -56,6 +57,8 @@ class MALMI:
         self.dir_hdf5 = self.dir_mseed + '_processed_hdfs'  # path to the hdf5 and csv files
         self.dir_EQTjson = self.dir_ML + "/json"  # directory for outputting station json file for EQT
         self.dir_lokiprob = self.dir_migration + '/prob_evstream'  # directory for probability outputs of different events in SEED format
+        self.dir_lokiseis = self.dir_migration + '/seis_evstream'  # directory for raw seismic outputs of different events in SEED format
+        self.dir_lokiout = self.dir_migration + '/result_MLprob'  # path for loki final outputs
 
         self.dir_tt = copy.deepcopy(dir_tt)  # path to travetime data set
         self.tt_precision = 'single'  # persicion for traveltime data set, 'single' or 'double'
@@ -79,17 +82,16 @@ class MALMI:
 
         """
         
-        import obspy
+        from ioformatting import read_seismic_fromfd, stream2EQTinput, stainv2json
         
         print('MALMI starts to format input data set for ML models:')
         
-        # read in continuous seismic data as obspy stream and output to the data format that QET can handle 
-        file_seismicin = sorted([fname for fname in os.listdir(self.dir_seismic) if os.path.isfile(os.path.join(self.dir_seismic, fname))])
-        stream = obspy.Stream()
-        for dfile in file_seismicin:
-            stream += obspy.read(os.path.join(self.dir_seismic, dfile))
+        # read in all continuous seismic data in the input folder as an obspy stream
+        stream = read_seismic_fromfd(self.dir_seismic)
         
+        # output to the seismic data format that QET can handle 
         stream2EQTinput(stream, self.dir_mseed, channels)
+        del stream
         gc.collect()
         
         # create station jason file for EQT------------------------------------
@@ -188,7 +190,7 @@ class MALMI:
         gc.collect()
         if twind_srch is None:
             twind_srch, _, _ = maxP2Stt(self.dir_tt, self.tt_hdr_filename, self.tt_ftage, self.tt_precision)
-        arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob)
+        arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob, self.dir_lokiseis, self.dir_seismic)
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
 
@@ -213,26 +215,63 @@ class MALMI:
         from loki.loki import Loki
         
         print('MALMI starts to perform migration:')
-        dir_lokiout = self.dir_migration + '/result_MLprob'  # path for loki outputs
+        
+        self.probthrd = copy.deepcopy(probthrd)
+        self.ppower = 4
         
         inputs = {}
         inputs['model'] = self.tt_ftage  # traveltime data set filename tage
         inputs['npr'] = self.n_processor  # number of cores to run
-        inputs['normthrd'] = probthrd  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
-        inputs['ppower'] = 4  # compute array element wise power over the input probabilities before stacking
+        inputs['normthrd'] = self.probthrd  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
+        inputs['ppower'] = self.ppower  # compute array element wise power over the input probabilities before stacking
         comp = ['P','S']  # when input data are probabilities of P- and S-picks, comp must be ['P', 'S']
         extension = '*'  # seismic data filename for loading, accept wildcard input, for all data use '*'
         
-        l1 = Loki(self.dir_lokiprob, dir_lokiout, self.dir_tt, self.tt_hdr_filename, mode='locator')
+        l1 = Loki(self.dir_lokiprob, self.dir_lokiout, self.dir_tt, self.tt_hdr_filename, mode='locator')
         l1.location(extension, comp, self.tt_precision, **inputs)
         gc.collect()
         print('MALMI_migration complete!')
+    
         
+    def rsview(self):
+        """
+        Visualize some results.
+
+        Returns
+        -------
+        None.
+
+        """
         
+        from ioformatting import read_arrivaltimes
+        from utils_plot import seischar_plot
+        
+        print('MALMI starts to visualize and output results:')
+    
+        # obtain the data folder name of each event, each folder contain the results for a particular event
+        evdir = sorted([fdname for fdname in os.listdir(self.dir_lokiout) if os.path.isdir(os.path.join(self.dir_lokiout, fdname))])
+    
+        # loop over each event, plot the data
+        for iefd in evdir:
+            # get the input and output foldername for each event
+            dir_seis_ev = os.path.join(self.dir_lokiseis, iefd)  # seismic data folder of the current event
+            dir_prob_ev = os.path.join(self.dir_lokiprob, iefd)  # ML probability folder of the current event
+            dir_output_ev = os.path.join(self.dir_lokiout, iefd)  # results folder of the current event
+            file_arrvt_list = glob.glob(dir_output_ev+'/*.phs')
+            if len(file_arrvt_list) == 1:
+                file_arrvt = file_arrvt_list[0]
+                arrvtt = read_arrivaltimes(file_arrvt)
+            else:
+                arrvtt = None
+            seischar_plot(dir_seis_ev, dir_prob_ev, dir_output_ev, figsize=(12, 12), 
+                          comp=['Z','N','E'], dyy=1.8, fband=[2, 30], normv=self.probthrd, 
+                          ppower=self.ppower, tag=None, staname=None, arrvtt=arrvtt)
+    
+        gc.collect()
+        print('MALMI_rsview complete!')
+
+    
     def clear_interm(self):
-        
-        import shutil
-        import glob
         
         print('MALMI starts to clear some intermediate results for saving disk space:')
         shutil.rmtree(self.dir_mseed)  # remove the mseed directory which are the formateed continuous seismic data set for ML inputs

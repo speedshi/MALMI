@@ -48,6 +48,8 @@ probthrd = 0.01  # if maximum value of the input phase probabilites is larger th
 coseismiq.migration(probthrd)
 gc.collect()
 
+coseismiq.rsview()
+gc.collect()
 
 coseismiq.clear_interm()
 gc.collect()

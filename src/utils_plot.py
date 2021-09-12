@@ -216,7 +216,7 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
     return
 
 
-def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, tag=None, staname=None):
+def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, tag=None, staname=None, arrvtt=None):
     """
     To plot the input seismic data of different stations.
 
@@ -240,6 +240,10 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
         a filename tage for output figures;
     staname : list of str, default: None
         specify the stations to show;
+    arrvtt : dic, default: None
+        the arrivaltimes of P- and S-waves at different stations.
+        arrvtt['station']['P'] : P-wave arrivaltime;
+        arrvtt['station']['S'] : S-wave arrivaltime.
 
     Returns
     -------
@@ -287,6 +291,16 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
                 ax.plot(tt, vdata+ydev[ii], 'k', linewidth=1.2)
                 del vdata, tt
             del tr
+            
+            # plot phase arrivaltimes
+            if arrvtt is not None:
+                if staname[ii] in arrvtt:
+                    if 'P' in arrvtt[staname[ii]]:
+                        # plot P arrivaltimes
+                        ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
+                    if 'S' in arrvtt[staname[ii]]:
+                        # plot S arrivaltimes
+                        ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
         
         ax.set_yticks(ydev)
         ax.set_yticklabels(staname, fontsize=14)
@@ -306,7 +320,7 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     return
 
 
-def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None):
+def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None):
     """
     To plot the input seismic data of different stations with the characteristic 
     functions overlayed on the seismogram.
@@ -339,6 +353,10 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
         a filename tage for output figures;
     staname : list of str, default: None
         specify the stations to show;
+    arrvtt : dic, default: None
+        the arrivaltimes of P- and S-waves at different stations.
+        arrvtt['station']['P'] : P-wave arrivaltime;
+        arrvtt['station']['S'] : S-wave arrivaltime.
 
     Returns
     -------
@@ -421,6 +439,16 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
                 ax.plot(tt, vdata+ydev[ii], 'b', linewidth=1.2)
                 del vdata, tt
             del tr
+            
+            # plot phase arrivaltimes
+            if arrvtt is not None:
+                if staname[ii] in arrvtt:
+                    if 'P' in arrvtt[staname[ii]]:
+                        # plot P arrivaltimes
+                        ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
+                    if 'S' in arrvtt[staname[ii]]:
+                        # plot S arrivaltimes
+                        ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
         
         ax.set_yticks(ydev)
         ax.set_yticklabels(staname, fontsize=14)

@@ -22,6 +22,102 @@ import numpy as np
 import gc
 
 
+def read_seismic_fromfd(dir_seismic):
+    """
+    read in continuous seismic data as obspy stream from a specified folder.
+
+    Parameters
+    ----------
+    dir_seismic : str
+        path to the folder where all seismic data are saved.
+
+    Returns
+    -------
+    stream : obspy stream
+        containing all seismic data.
+
+    """
+    
+    # obtain the filename of each seismic data file 
+    file_seismicin = sorted([fname for fname in os.listdir(dir_seismic) if os.path.isfile(os.path.join(dir_seismic, fname))])
+    
+    # read in seismic data
+    stream = obspy.Stream()
+    for dfile in file_seismicin:
+        stream += obspy.read(os.path.join(dir_seismic, dfile))
+    
+    return stream
+
+
+def output_seissegment(dir_seismic, dir_output, starttime, endtime, sampling_rate=100):
+    """
+    This function is used to output seismic data segment accroding to input time
+    range.
+
+    Parameters
+    ----------
+    dir_seismic : str
+        path to the input directory where seismic data is stored.
+    dir_output : str
+        path to the output directory.
+    starttime : datetime
+        starttime of data segment.
+    endtime : datetime
+        endtime of data segment.
+    sampling_rate : float, optional
+        sampling rate in Hz for outout data. The default is 100.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    from utils_dataprocess import stream_resampling
+    
+    # load all seismic data from the specified data folder
+    stream = read_seismic_fromfd(dir_seismic)
+    
+    # check if need to resample the seismic data
+    stream = stream_resampling(stream, sampling_rate)
+    
+    # get station names
+    # scan all traces to get the station names
+    stations = []
+    for tr in stream:
+        sname = tr.stats.station
+        if sname not in stations:
+            stations.append(sname)
+    del tr
+    
+    # get channel names
+    # search for all available channels in the input stream data
+    channels = []
+    for tr in stream:
+        if tr.stats.channel not in channels:
+            channels.append(tr.stats.channel)
+    del tr
+    
+    # output data for each station and channel
+    timeformat = "%Y%m%dT%H%M%SZ"
+    for ista in stations:
+        for ichan in channels:
+            stdata = stream.select(station=ista, channel=ichan)
+            if stdata.count() > 0:
+                stdata.merge(fill_value=0)
+                stdata.trim(UTCDateTime(starttime), UTCDateTime(endtime), pad=True, fill_value=0)
+                starttime_str = starttime.strftime(timeformat)
+                endtime_str = endtime.strftime(timeformat)
+                ofname = os.path.join(dir_output, stdata[0].id + '__' + starttime_str + '__' + endtime_str + '.sac')
+                stdata.write(ofname, format="SAC")
+                
+                del stdata
+    
+    del stream
+    gc.collect()
+    return
+
+
 def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*H2", "*H3"]):
     """
     This function is used to format the input obspy stream into the EQ-Transformer 
