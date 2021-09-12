@@ -98,6 +98,10 @@ def output_seissegment(dir_seismic, dir_output, starttime, endtime, sampling_rat
             channels.append(tr.stats.channel)
     del tr
     
+    # make sure the output directory exist
+    if not os.path.exists(dir_output):
+        os.makedirs(dir_output)
+    
     # output data for each station and channel
     timeformat = "%Y%m%dT%H%M%SZ"
     for ista in stations:
