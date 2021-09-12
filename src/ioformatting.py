@@ -49,37 +49,27 @@ def read_seismic_fromfd(dir_seismic):
     return stream
 
 
-def output_seissegment(dir_seismic, dir_output, starttime, endtime, sampling_rate=100):
+def output_seissegment(stream, dir_output, starttime, endtime):
     """
     This function is used to output seismic data segment accroding to input time
     range.
 
     Parameters
     ----------
-    dir_seismic : str
-        path to the input directory where seismic data is stored.
+    stream : obspy stream
+        obspy stream data containing all seismic traces.
     dir_output : str
         path to the output directory.
     starttime : datetime
         starttime of data segment.
     endtime : datetime
         endtime of data segment.
-    sampling_rate : float, optional
-        sampling rate in Hz for outout data. The default is 100.
 
     Returns
     -------
     None.
 
     """
-    
-    from utils_dataprocess import stream_resampling
-    
-    # load all seismic data from the specified data folder
-    stream = read_seismic_fromfd(dir_seismic)
-    
-    # check if need to resample the seismic data
-    stream = stream_resampling(stream, sampling_rate)
     
     # get station names
     # scan all traces to get the station names
@@ -108,7 +98,6 @@ def output_seissegment(dir_seismic, dir_output, starttime, endtime, sampling_rat
         for ichan in channels:
             stdata = stream.select(station=ista, channel=ichan)
             if stdata.count() > 0:
-                stdata.merge(fill_value=0)
                 stdata.trim(UTCDateTime(starttime), UTCDateTime(endtime), pad=True, fill_value=0)
                 starttime_str = starttime.strftime(timeformat)
                 endtime_str = endtime.strftime(timeformat)

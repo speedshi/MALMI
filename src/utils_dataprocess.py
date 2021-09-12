@@ -11,7 +11,7 @@ import numpy as np
 import gc
 
 
-def stream_resampling(stream, sampling_rate):
+def stream_resampling(stream, sampling_rate=100.0):
     """
     To resample the input seismic data.
     Parameters
@@ -19,7 +19,7 @@ def stream_resampling(stream, sampling_rate):
     stream : obspy stream
         input seismic data.
     sampling_rate : float
-        required sampling rate in Hz.
+        required sampling rate in Hz, default is 100 Hz.
 
     Returns
     -------

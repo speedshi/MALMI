@@ -827,6 +827,18 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
 
     """
     
+    from ioformatting import read_seismic_fromfd
+    from utils_dataprocess import stream_resampling
+    
+    # check if need to output raw seismic data segments as well
+    if dir_seismic is not None:
+        # load all seismic data from the specified data folder first
+        stream = read_seismic_fromfd(dir_seismic)
+        
+        # check if need to resample the seismic data
+        stream = stream_resampling(stream, sampling_rate=100.0)
+        stream.merge(fill_value=0)
+    
     datainfo = {}
     datainfo['dt'] = copy.deepcopy(dt_EQT)
     
@@ -1280,7 +1292,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
             if dir_seismic is not None:
                 # output raw seismic data segment for the detected event
                 dir_output_seis_ev = dir_output_seis + '/' + tt1.strftime(dtformat_EQT)  # output directory of seismic data for the current event/time_range
-                output_seissegment(dir_seismic, dir_output_seis_ev, tt1, tt2)
+                output_seissegment(stream, dir_output_seis_ev, tt1, tt2)
                 
             del twl_evres, twlex_a, tt1, tt2, dir_output_ev, ista
             # gc.collect()
@@ -1294,6 +1306,8 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
         # gc.collect()
     
     fepinfo.close()
+    if dir_seismic is not None:
+        del stream
     gc.collect()    
     return
 
