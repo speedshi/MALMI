@@ -287,7 +287,7 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
             tr = stream.select(station=staname[ii], component=icomp)
             if tr.count() > 0:
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                if (max(abs(tr[0].data)) > np.finfo(np.float32).eps):
+                if (max(abs(tr[0].data)) > 0):
                     vdata = tr[0].data / max(abs(tr[0].data))
                 else:
                     vdata = tr[0].data
@@ -410,7 +410,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
             tr = stream.select(station=staname[ii], component=icomp)
             if tr.count() > 0:
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                if (max(abs(tr[0].data)) > np.finfo(np.float32).eps):
+                if (max(abs(tr[0].data)) > 0):
                     vdata = tr[0].data / max(abs(tr[0].data))
                 else:
                     vdata = tr[0].data
