@@ -191,10 +191,10 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
             if staname[ii] in arrvtt:
                 if 'P' in arrvtt[staname[ii]]:
                     # plot P arrivaltimes
-                    ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
+                    ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
                 if 'S' in arrvtt[staname[ii]]:
                     # plot S arrivaltimes
-                    ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
+                    ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
         
     ax.set_yticks(ydev)
     ax.set_yticklabels(staname, fontsize=14)
@@ -287,7 +287,10 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
             tr = stream.select(station=staname[ii], component=icomp)
             if tr.count() > 0:
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                vdata = tr[0].data / max(abs(tr[0].data))
+                if (max(abs(tr[0].data)) > np.finfo(np.float32).eps):
+                    vdata = tr[0].data / max(abs(tr[0].data))
+                else:
+                    vdata = tr[0].data
                 ax.plot(tt, vdata+ydev[ii], 'k', linewidth=1.2)
                 del vdata, tt
             del tr
@@ -297,10 +300,10 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
                 if staname[ii] in arrvtt:
                     if 'P' in arrvtt[staname[ii]]:
                         # plot P arrivaltimes
-                        ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
+                        ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
                     if 'S' in arrvtt[staname[ii]]:
                         # plot S arrivaltimes
-                        ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
+                        ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
         
         ax.set_yticks(ydev)
         ax.set_yticklabels(staname, fontsize=14)
@@ -407,7 +410,10 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
             tr = stream.select(station=staname[ii], component=icomp)
             if tr.count() > 0:
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                vdata = tr[0].data / max(abs(tr[0].data))
+                if (max(abs(tr[0].data)) > np.finfo(np.float32).eps):
+                    vdata = tr[0].data / max(abs(tr[0].data))
+                else:
+                    vdata = tr[0].data
                 ax.plot(tt, vdata+ydev[ii], 'k', linewidth=1.2)
                 del vdata, tt
             del tr
@@ -445,10 +451,10 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
                 if staname[ii] in arrvtt:
                     if 'P' in arrvtt[staname[ii]]:
                         # plot P arrivaltimes
-                        ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
+                        ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
                     if 'S' in arrvtt[staname[ii]]:
                         # plot S arrivaltimes
-                        ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.9, colors='lime', linewidth=0.8, alpha=0.9, zorder=3)
+                        ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
         
         ax.set_yticks(ydev)
         ax.set_yticklabels(staname, fontsize=14)
