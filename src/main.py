@@ -221,7 +221,8 @@ class MALMI:
         
         inputs = {}
         inputs['model'] = self.tt_ftage  # traveltime data set filename tage
-        inputs['npr'] = self.n_processor  # number of cores to run
+        # inputs['npr'] = self.n_processor  # number of cores to run
+        inputs['npr'] = (os.cpu_count()-2)  # number of cores to run
         inputs['normthrd'] = self.probthrd  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
         inputs['ppower'] = self.ppower  # compute array element wise power over the input probabilities before stacking
         comp = ['P','S']  # when input data are probabilities of P- and S-picks, comp must be ['P', 'S']

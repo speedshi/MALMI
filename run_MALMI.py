@@ -34,8 +34,8 @@ coseismiq.generate_prob(input_MLmodel, overlap)
 gc.collect()
 
 
-twind_srch = 20  # time window length in second where events will be searched in this range
-twlex = 0.5  # time in second for extend the time window, roughly equal to the width of P- or S-probability envelope
+twind_srch = None  # time window length in second where events will be searched in this range
+twlex = 1.0  # time in second for extend the time window, roughly equal to the width of P- or S-probability envelope
 P_thrd = 0.05  # probability threshold for detecting P-phases/events from the ML-predicted phase probabilities
 S_thrd = 0.05  # probability threshold for detecting S-phases/events from the ML-predicted phase probabilities
 nsta_thrd = 3  # minimal number of stations triggered during the specified event time period
@@ -48,8 +48,10 @@ probthrd = 0.01  # if maximum value of the input phase probabilites is larger th
 coseismiq.migration(probthrd)
 gc.collect()
 
+
 coseismiq.rsview()
 gc.collect()
+
 
 coseismiq.clear_interm()
 gc.collect()
