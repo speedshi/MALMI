@@ -106,7 +106,7 @@ def output_seissegment(stream, dir_output, starttime, endtime):
                 
                 del stdata
     
-    del stream
+    # del stream
     gc.collect()
     return
 
