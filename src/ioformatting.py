@@ -468,38 +468,118 @@ def read_lokicatalog(file_catalog):
 
     Returns
     -------
-    event_times : list of datetime
-        origin time of event.
-    event_longitude : list of float
-        longitude in degree of event.
-    event_latitude : list of float
-        latitude in degree of event.
-    event_depth_km : list of float
-        depth in km of event.
-    event_coherence : list of float
-        coherence of event.
+    catalog : dic
+         contains the catalog information.
+        catalog['time'] : list of datetime
+            origin time of catalog events.
+        catalog['latitude'] : list of float
+            longitude in degree of catalog events.
+        catalog['longitude'] : list of float
+            latitude in degree of catalog events.
+        catalog['depth_km'] : list of float
+            depth in km of catalog events.
+        catalog['coherence_max'] : list of float
+            coherence of catalog events.
+        catalog['coherence_std'] : list of float
+            standard deviation of migration volume.
+        catalog['coherence_med'] : list of float
+            median coherence of migration volume.
 
     """
     
     # set catalog format
     format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'cstd', 'cmed', 'cmax']  # indicate the meaning of each colume
-    datetime_format = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the catalog file
+    datetime_format_26 = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
+    datetime_format_19 = '%Y-%m-%dT%H:%M:%S'  # datetime format in the input file
     
     # read catalog
     cadf = pd.read_csv(file_catalog, delimiter=' ', header=None, names=format_catalog,
                        skipinitialspace=True, encoding='utf-8')
     
     # format catalog information
+    catalog = {}
     etimes = list(cadf['time'])
-    event_times = [datetime.datetime.strptime(itime, datetime_format) for itime in etimes]
-    event_longitude = list(cadf['longitude'])
-    event_latitude = list(cadf['latitude'])
-    event_depth_km = list(cadf['depth_km'])
-    event_coherence = list(cadf['cmax'])
+    catalog['time'] = []
+    for itime in etimes:
+        if len(itime) == 19:
+            catalog['time'].append(datetime.datetime.strptime(itime, datetime_format_19))  # origin time
+        elif len(itime) == 26:
+            catalog['time'].append(datetime.datetime.strptime(itime, datetime_format_26))  # origin time
+        else:
+            raise ValueError('Error! Input datetime format not recoginzed!')
+    catalog['latitude'] = list(cadf['latitude'])  # latitude in degree
+    catalog['longitude'] = list(cadf['longitude'])  # logitude in degree
+    catalog['depth_km'] = list(cadf['depth_km'])  # depth in km
+    catalog['coherence_max'] = list(cadf['cmax'])  # maximum coherence of migration volume
+    catalog['coherence_std'] = list(cadf['cstd'])  # standard deviation of migration volume
+    catalog['coherence_med'] = list(cadf['cmed'])  # median coherence of migration volume
     
     del cadf, etimes
     gc.collect()
-    return event_times, event_longitude, event_latitude, event_depth_km, event_coherence
+    return catalog
+
+
+def read_malmipsdetect(file_detect):
+    """
+    This function is used to read the MALMI detection file which contains detection
+    information, that is for each detected event how many stations are triggered,
+    how many phases are triggered. Those information can be used for quality control.
+
+    Parameters
+    ----------
+    file_detect : str
+        The filename including path of the input file.
+
+    Raises
+    ------
+    ValueError
+        datetime format is not consistent with defined one.
+
+    Returns
+    -------
+    detect_info : dic
+        detect_info['starttime'] : list of datetime
+            starttime and folder name of the detected event;
+        detect_info['endtime'] : list of datetime
+            endtime of the detected event;
+        detect_info['station'] : list of float
+            number of stations triggered of the detected event;
+        detect_info['phase'] : list of float
+            number of phase triggered of the detected event;
+
+    """
+    
+    format_f = ['starttime', 'endtime', 'station', 'phase']
+    datetime_format_26 = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
+    datetime_format_19 = '%Y-%m-%dT%H:%M:%S'  # datetime format in the input file
+    
+    # read file
+    df = pd.read_csv(file_detect, delimiter=' ', header=None, names=format_f,
+                       skipinitialspace=True, encoding='utf-8', comment='#')
+    
+    # format output data
+    detect_info = {}
+    detect_info['starttime'] = []
+    detect_info['endtime'] = []
+    for ii in range(len(df)):
+        if len(df.loc[ii,'starttime']) == 19:
+            detect_info['starttime'].append(datetime.datetime.strptime(df.loc[ii,'starttime'], datetime_format_19))  # origin time
+        elif len(df.loc[ii,'starttime']) == 26:
+            detect_info['starttime'].append(datetime.datetime.strptime(df.loc[ii,'starttime'], datetime_format_26))  # origin time
+        else:
+            raise ValueError('Error! Input datetime format not recoginzed!')
+        
+        if len(df.loc[ii,'endtime']) == 19:
+            detect_info['endtime'].append(datetime.datetime.strptime(df.loc[ii,'endtime'], datetime_format_19))  # origin time
+        elif len(df.loc[ii,'endtime']) == 26:
+            detect_info['endtime'].append(datetime.datetime.strptime(df.loc[ii,'endtime'], datetime_format_26))  # origin time
+        else:
+            raise ValueError('Error! Input datetime format not recoginzed!')
+            
+    detect_info['station'] = list(df['station'])
+    detect_info['phase'] = list(df['phase'])
+    
+    return detect_info
 
 
 def read_arrivaltimes(file_arrvt):
@@ -523,18 +603,55 @@ def read_arrivaltimes(file_arrvt):
     
     # set arrivaltime file input format
     format_arrvt = ['station', 'Pt', 'St']  # indicate the meaning of each colume
-    datetime_format = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
+    datetime_format_26 = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
+    datetime_format_19 = '%Y-%m-%dT%H:%M:%S'  # datetime format in the input file
     
     # read arrivaltime file
     arvtdf = pd.read_csv(file_arrvt, delimiter=' ', header=None, names=format_arrvt,
-                       skipinitialspace=True, encoding='utf-8', comment='#')
+                         skipinitialspace=True, encoding='utf-8', comment='#')
     
     arrvtt = {}
     for ii in range(len(arvtdf)):
         arrvtt[arvtdf.loc[ii, 'station']] = {}
-        arrvtt[arvtdf.loc[ii, 'station']]['P'] = datetime.datetime.strptime(arvtdf.loc[ii, 'Pt'], datetime_format)
-        arrvtt[arvtdf.loc[ii, 'station']]['S'] = datetime.datetime.strptime(arvtdf.loc[ii, 'St'], datetime_format)
+        if len(arvtdf.loc[ii, 'Pt']) == 26:
+            arrvtt[arvtdf.loc[ii, 'station']]['P'] = datetime.datetime.strptime(arvtdf.loc[ii, 'Pt'], datetime_format_26)
+        elif len(arvtdf.loc[ii, 'Pt']) == 19:
+            arrvtt[arvtdf.loc[ii, 'station']]['P'] = datetime.datetime.strptime(arvtdf.loc[ii, 'Pt'], datetime_format_19)
+        else:
+            raise ValueError('Error! Input datetime format not recoginzed!')
+            
+        if len(arvtdf.loc[ii, 'St']) == 26:
+            arrvtt[arvtdf.loc[ii, 'station']]['S'] = datetime.datetime.strptime(arvtdf.loc[ii, 'St'], datetime_format_26)
+        elif len(arvtdf.loc[ii, 'St']) == 19:
+            arrvtt[arvtdf.loc[ii, 'station']]['S'] = datetime.datetime.strptime(arvtdf.loc[ii, 'St'], datetime_format_19)
+        else:
+            raise ValueError('Error! Input datetime format not recoginzed!')
     
     return arrvtt
+
+
+def write_rtddstation(dir_tt, hdr_filename='header.hdr', dir_output='./', filename=None):
+    
+    
+    from loki import traveltimes
+    
+    # load station metadata from traveltime table data set
+    tobj = traveltimes.Traveltimes(dir_tt, hdr_filename)
+    station_name = []  # station name
+    station_lon = []  # station longitude in degree
+    station_lat = []  # station latitude in degree
+    station_ele = []  # station elevation in km
+    for staname in tobj.db_stations:
+        station_name.append(staname)
+        station_lat.append(tobj.stations_coordinates[staname][0])
+        station_lon.append(tobj.stations_coordinates[staname][1])
+        station_ele.append(tobj.stations_coordinates[staname][2])
+    
+    ####### To be continue....
+    
+    
+    return
+
+
 
 

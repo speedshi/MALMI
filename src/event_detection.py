@@ -314,7 +314,7 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
             print('Start to output data in this time range.')
             
             # after the previous loop over all stations, the 'tt1', 'tt2', 'tts', 'ttd', 'tts_sta', 'ttd_sta' are now fixed
-            dir_output_ev = dir_output + '/' + tts.strftime(dtformat_EQT)  # output directory for the current event/time_range
+            dir_output_ev = dir_output + '/' + tts.isoformat()  # output directory for the current event/time_range
             
             for sta in stanames:
                 # loop over each station, check data, and load P S probability, and output avaliable data set
@@ -848,7 +848,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
     if not os.path.exists(dir_output):
         os.makedirs(dir_output)
     fepinfo = open(dir_output+'/'+'event_station_phase_info.txt', 'a')  # file to record the event trigger and phase information
-    fepinfo.write('#    time                     station    phase    \n')  # title line
+    fepinfo.write('# starttime            endtime            station    phase    \n')  # title line
     
     # get the earliest starttime and the latest endtime of all detections for each station
     etime_sta = []  # the earliest starttime of all detections for each station
@@ -992,10 +992,10 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
             print(nsta_trig, 'stations are triggered.')
             print(npha_trig, 'phases are detected.')
             print('Start to output data in this time range.')
-            fepinfo.write(tt1.isoformat() + '       '+str(nsta_trig) + '         ' + str(npha_trig) + '\n')
+            fepinfo.write(tt1.isoformat() + '    ' + tt2.isoformat() + '    ' + str(nsta_trig) + '    ' + str(npha_trig) + '\n')
             fepinfo.flush()
                         
-            dir_output_ev = dir_output + '/' + tt1.strftime(dtformat_EQT)  # output directory of probability data for the current event/time_range
+            dir_output_ev = dir_output + '/' + tt1.isoformat()  # output directory of probability data for the current event/time_range
             
             # loop over each station and ouput data
             for ista in stations:
@@ -1291,7 +1291,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
             # check if need to output raw seismic data segments as well
             if dir_seismic is not None:
                 # output raw seismic data segment for the detected event
-                dir_output_seis_ev = dir_output_seis + '/' + tt1.strftime(dtformat_EQT)  # output directory of seismic data for the current event/time_range
+                dir_output_seis_ev = dir_output_seis + '/' + tt1.isoformat()  # output directory of seismic data for the current event/time_range
                 output_seissegment(stream, dir_output_seis_ev, tt1, tt2)
                 
             del twl_evres, twlex_a, tt1, tt2, dir_output_ev, ista
