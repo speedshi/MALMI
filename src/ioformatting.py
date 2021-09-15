@@ -20,6 +20,7 @@ import pandas as pd
 import datetime
 import numpy as np
 import gc
+import glob
 
 
 def read_seismic_fromfd(dir_seismic):
@@ -96,7 +97,7 @@ def output_seissegment(stream, dir_output, starttime, endtime):
     timeformat = "%Y%m%dT%H%M%SZ"
     for ista in stations:
         for ichan in channels:
-            stdata = stream.select(station=ista, channel=ichan)
+            stdata = (stream.select(station=ista, channel=ichan)).copy()
             if stdata.count() > 0:
                 stdata.trim(UTCDateTime(starttime), UTCDateTime(endtime), pad=True, fill_value=0)
                 starttime_str = starttime.strftime(timeformat)
@@ -628,6 +629,102 @@ def read_arrivaltimes(file_arrvt):
             raise ValueError('Error! Input datetime format not recoginzed!')
     
     return arrvtt
+
+
+def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt'):
+    """
+    This function is used to concatenate the catalogs together from the data base.
+
+    Parameters
+    ----------
+    dir_dateset : str
+        Path the catalog data set.
+    cata_ftag : str, optional
+        Catalog filename. The default is 'catalogue'.
+    dete_ftag : str, optional
+        Detection filename. The default is 'event_station_phase_info.txt'.
+
+    Returns
+    -------
+    mcatalog : dic
+        The final obtained catalog which concatenates all the catalog files.
+        mcatalog['id'] : id of the event;
+        mcatalog['time'] : origin time;
+        mcatalog['latitude'] : latitude in degree;
+        mcatalog['longitude'] : logitude in degree;
+        mcatalog['depth_km'] : depth in km;
+        mcatalog['coherence_max'] : maximum coherence of migration volume;
+        mcatalog['coherence_std'] : standard deviation of migration volume;
+        mcatalog['coherence_med'] : median coherence of migration volume;
+        mcatalog['starttime'] : detected starttime of the event;
+        mcatalog['endtime'] : detected endtime of the event;
+        mcatalog['station_num'] : total number of stations triggered of the event;
+        mcatalog['phase_num'] : total number of phases triggered of the event;
+        mcatalog['dir'] : directory of the migration results of the event.
+    """
+    
+    
+    file_cata = sorted(glob.glob(dir_dateset + '/**/{}'.format(cata_ftag)))  # file list of catalogue file
+    file_dete = sorted(glob.glob(dir_dateset + '/**/{}'.format(dete_ftag)))  # file list of detection file
+    
+    assert(len(file_cata) == len(file_dete))  # should correspond
+    
+    # initialize the final catalog
+    mcatalog = {}
+    mcatalog['id'] = []  # id of the event
+    mcatalog['time'] = []  # origin time
+    mcatalog['latitude'] = []  # latitude in degree
+    mcatalog['longitude'] = []  # logitude in degree
+    mcatalog['depth_km'] = []  # depth in km
+    mcatalog['coherence_max'] = []  # maximum coherence of migration volume
+    mcatalog['coherence_std'] = []  # standard deviation of migration volume
+    mcatalog['coherence_med'] = []  # median coherence of migration volume
+    mcatalog['starttime'] = []  # detected starttime of the event
+    mcatalog['endtime'] = []  # detected endtime of the event
+    mcatalog['station_num'] = []  # total number of stations triggered of the event
+    mcatalog['phase_num'] = []  # total number of phases triggered of the event
+    mcatalog['dir'] = []  # directory of the migration results of the event
+    
+    eid = 0
+    # loop over each catalog/detection file and concatenate them together to make the final version
+    for ii in range(len(file_cata)):
+        assert(file_cata[ii].split('/')[-3] == file_dete[ii].split('/')[-3])  # they should share the common parent path
+    
+        # load catalog file
+        ctemp = read_lokicatalog(file_cata[ii])
+        
+        # load detection file
+        dtemp = read_malmipsdetect(file_dete[ii])
+        
+        assert(len(ctemp['time']) == len(dtemp['phase']))  # event number should be the same
+        for iev in range(len(ctemp['time'])):
+            assert(ctemp['time'][iev] >= dtemp['starttime'][iev])
+            assert(ctemp['time'][iev] <= dtemp['endtime'][iev])
+            
+            eid = eid + 1
+            mcatalog['id'].append(eid)  # event id
+            mcatalog['time'].append(ctemp['time'][iev])  # origin time
+            mcatalog['latitude'].append(ctemp['latitude'][iev])  # latitude in degree
+            mcatalog['longitude'].append(ctemp['longitude'][iev])  # logitude in degree
+            mcatalog['depth_km'].append(ctemp['depth_km'][iev])  # depth in km
+            mcatalog['coherence_max'].append(ctemp['coherence_max'][iev])  # maximum coherence of migration volume
+            mcatalog['coherence_std'].append(ctemp['coherence_std'][iev])  # standard deviation of migration volume
+            mcatalog['coherence_med'].append(ctemp['coherence_med'][iev])  # median coherence of migration volume
+            mcatalog['starttime'].append(dtemp['starttime'][iev])  # starttime of the event
+            mcatalog['endtime'].append(dtemp['endtime'][iev])  # endtime of the event
+            mcatalog['station_num'].append[dtemp['station'][iev]]  # total number of stations triggered
+            mcatalog['phase_num'].append(dtemp['phase_num'][iev])  # total number of phases triggered
+            dir_ers = ''
+            sss = file_cata[ii].split('/')
+            for pstr in sss[:-1]:
+                dir_ers = os.path.join(dir_ers, pstr)
+            dir_ers =  os.path.join(dir_ers, dtemp['starttime'][iev].isoformat())
+            assert(os.path.exists(dir_ers))
+            mcatalog['dir'].append(dir_ers)  # migration result direcotry of the event
+            
+        del ctemp, dtemp
+    
+    return mcatalog
 
 
 def write_rtddstation(dir_tt, hdr_filename='header.hdr', dir_output='./', filename=None):
