@@ -6,4 +6,4 @@ do
     echo "Proceed to data: ${FPATH}"
     python run_MALMI_multiple.py "${FPATH}"
 
-done
+done || exit 1
