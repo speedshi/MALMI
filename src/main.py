@@ -258,7 +258,7 @@ class MALMI:
             dir_seis_ev = os.path.join(self.dir_lokiseis, iefd)  # seismic data folder of the current event
             dir_prob_ev = os.path.join(self.dir_lokiprob, iefd)  # ML probability folder of the current event
             dir_output_ev = os.path.join(self.dir_lokiout, iefd)  # migration results folder of the current event
-            file_arrvt_list = glob.glob(dir_output_ev+'/*.phs')
+            file_arrvt_list = glob.glob(dir_output_ev+'/*.phs', recursive=True)
             if len(file_arrvt_list) == 1:
                 file_arrvt = file_arrvt_list[0]
                 arrvtt = read_arrivaltimes(file_arrvt)
