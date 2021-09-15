@@ -30,14 +30,18 @@ def stream_resampling(stream, sampling_rate=100.0):
     
     for tr in stream:
         if tr.stats.sampling_rate != sampling_rate:
-            # perform resampling
-            try:
-                if tr.stats.sampling_rate > sampling_rate:
-                    # need lowpass filter before resampling
-                    tr.filter('lowpass',freq=0.5*sampling_rate,zerophase=True)
-                tr.resample(sampling_rate=sampling_rate)    
-            except Exception:
-                tr.interpolate(sampling_rate, method="linear")
+            if (len(tr.data) > 3):
+                # perform resampling
+                try:
+                    if tr.stats.sampling_rate > sampling_rate:
+                        # need lowpass filter before resampling
+                        tr.filter('lowpass',freq=0.5*sampling_rate,zerophase=True)
+                    tr.resample(sampling_rate=sampling_rate)    
+                except Exception:
+                    tr.interpolate(sampling_rate, method="linear")
+            else:
+                # remove the trave if it only contains too few data points
+                stream.remove(tr)
     
     return stream
 
