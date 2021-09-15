@@ -663,6 +663,7 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
         mcatalog['dir'] : directory of the migration results of the event.
     """
     
+    assert(os.path.exists(dir_dateset))
     
     file_cata = sorted(glob.glob(dir_dateset + '/**/{}'.format(cata_ftag)))  # file list of catalogue file
     file_dete = sorted(glob.glob(dir_dateset + '/**/{}'.format(dete_ftag)))  # file list of detection file
