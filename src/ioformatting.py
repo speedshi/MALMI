@@ -665,8 +665,8 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
     
     assert(os.path.exists(dir_dateset))
     
-    file_cata = sorted(glob.glob(dir_dateset + '/**/{}'.format(cata_ftag)))  # file list of catalogue file
-    file_dete = sorted(glob.glob(dir_dateset + '/**/{}'.format(dete_ftag)))  # file list of detection file
+    file_cata = sorted(glob.glob(dir_dateset + '/**/{}'.format(cata_ftag), recursive = True))  # file list of catalogue file
+    file_dete = sorted(glob.glob(dir_dateset + '/**/{}'.format(dete_ftag), recursive = True))  # file list of detection file
     
     assert(len(file_cata) == len(file_dete))  # should correspond
     
