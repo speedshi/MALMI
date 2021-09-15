@@ -30,13 +30,14 @@ def stream_resampling(stream, sampling_rate=100.0):
     
     for tr in stream:
         if tr.stats.sampling_rate != sampling_rate:
-            # need to do resampling
-            if tr.stats.sampling_rate > sampling_rate:
-                # need lowpass filter before resampling
-                tr.filter('lowpass',freq=0.5*sampling_rate,zerophase=True)
-            
             # perform resampling
-            tr.resample(sampling_rate=sampling_rate)
+            try:
+                if tr.stats.sampling_rate > sampling_rate:
+                    # need lowpass filter before resampling
+                    tr.filter('lowpass',freq=0.5*sampling_rate,zerophase=True)
+                tr.resample(sampling_rate=sampling_rate)    
+            except Exception:
+                tr.interpolate(sampling_rate, method="linear")
     
     return stream
 
