@@ -48,7 +48,7 @@ class MALMI:
         else:
             fd_seismic = self.dir_seismic.split('/')[-1]
             
-        self.dir_ML = dir_output + "/data_QET/" + fd_seismic  # directory for ML outputs
+        self.dir_ML = dir_output + "/data_EQT/" + fd_seismic  # directory for ML outputs
         self.dir_prob = self.dir_ML + '/prob_and_detection'  # output directory for ML probability outputs
         self.dir_migration = dir_output + '/data_loki/' + fd_seismic  # directory for migration outputs
         self.n_processor = copy.deepcopy(n_processor)  # number of threads for parallel processing
