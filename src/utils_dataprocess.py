@@ -37,7 +37,7 @@ def stream_resampling(stream, sampling_rate=100.0):
                         # need lowpass filter before resampling
                         tr.filter('lowpass',freq=0.5*sampling_rate,zerophase=True)
                     tr.resample(sampling_rate=sampling_rate)    
-                except Exception:
+                except:
                     tr.interpolate(sampling_rate, method="linear")
             else:
                 # remove the trave if it only contains too few data points
