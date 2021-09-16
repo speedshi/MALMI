@@ -52,18 +52,22 @@ class MALMI:
         self.dir_prob = self.dir_ML + '/prob_and_detection'  # output directory for ML probability outputs
         self.dir_migration = dir_output + '/data_loki/' + fd_seismic  # directory for migration outputs
         self.n_processor = copy.deepcopy(n_processor)  # number of threads for parallel processing
+        
+        self.dir_tt = copy.deepcopy(dir_tt)  # path to travetime data set
+        self.tt_precision = 'single'  # persicion for traveltime data set, 'single' or 'double'
+        self.tt_hdr_filename = 'header.hdr'  # travetime data set header filename
+        self.tt_ftage = copy.deepcopy(tt_ftage)  # traveltime data set filename tage
+        if self.dir_tt.split('/')[-1] == '':
+            tt_folder = self.dir_tt.split('/')[-2]
+        else:
+            tt_folder = self.dir_tt.split('/')[-1]
 
         self.dir_mseed = self.dir_ML + "/mseeds"  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
         self.dir_hdf5 = self.dir_mseed + '_processed_hdfs'  # path to the hdf5 and csv files
         self.dir_EQTjson = self.dir_ML + "/json"  # directory for outputting station json file for EQT
         self.dir_lokiprob = self.dir_migration + '/prob_evstream'  # directory for probability outputs of different events in SEED format
         self.dir_lokiseis = self.dir_migration + '/seis_evstream'  # directory for raw seismic outputs of different events in SEED format
-        self.dir_lokiout = self.dir_migration + '/result_MLprob'  # path for loki final outputs
-
-        self.dir_tt = copy.deepcopy(dir_tt)  # path to travetime data set
-        self.tt_precision = 'single'  # persicion for traveltime data set, 'single' or 'double'
-        self.tt_hdr_filename = 'header.hdr'  # travetime data set header filename
-        self.tt_ftage = copy.deepcopy(tt_ftage)  # traveltime data set filename tage
+        self.dir_lokiout = self.dir_migration + '/result_MLprob_{}'.format(tt_folder)  # path for loki final outputs
         
 
     def format_ML_inputs(self, file_station, channels=["*HE", "*HN", "*HZ"]):
