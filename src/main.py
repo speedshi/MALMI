@@ -151,7 +151,7 @@ class MALMI:
         print('MALMI_generate_prob complete!')
 
             
-    def event_detect_ouput(self, twind_srch=None, twlex=1.0, P_thrd=0.1, S_thrd=0.1, nsta_thrd=3, npha_thrd=4):
+    def event_detect_ouput(self, twind_srch=None, twlex=1.0, P_thrd=0.1, S_thrd=0.1, nsta_thrd=3, npha_thrd=4, outseis=True):
         """
         event detection based on the ML predicted event probabilites
         and output the corresponding phase probabilites of the detected events.
@@ -178,6 +178,9 @@ class MALMI:
         npha_thrd : int, optional
             minimal number of phases triggered during the specified event time period.
             The default is 4.
+        outseis : boolen, optional
+            whether to output raw seismic data segments for the detectd events.
+            The default is True.
 
         Returns
         -------
@@ -195,7 +198,12 @@ class MALMI:
         gc.collect()
         if twind_srch is None:
             twind_srch, _, _ = maxP2Stt(self.dir_tt, self.tt_hdr_filename, self.tt_ftage, self.tt_precision)
-        arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob, self.dir_lokiseis, self.dir_seismic, self.seismic_channels)
+            
+        if outseis:
+            dir_seismic = self.dir_seismic
+        else:
+            dir_seismic = None
+        arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob, self.dir_lokiseis, dir_seismic, self.seismic_channels)
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
 
