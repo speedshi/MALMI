@@ -24,7 +24,7 @@ import glob
 import csv
 
 
-def read_seismic_fromfd(dir_seismic):
+def read_seismic_fromfd(dir_seismic, channels=None):
     """
     read in continuous seismic data as obspy stream from a specified folder.
 
@@ -37,8 +37,13 @@ def read_seismic_fromfd(dir_seismic):
     -------
     stream : obspy stream
         containing all seismic data.
+    channels : str
+        channel name for loading data, default: None;
+        if None then loading all available channels in the stream.
 
     """
+    
+    import fnmatch
     
     # obtain the filename of each seismic data file 
     file_seismicin = sorted([fname for fname in os.listdir(dir_seismic) if os.path.isfile(os.path.join(dir_seismic, fname))])
@@ -47,6 +52,14 @@ def read_seismic_fromfd(dir_seismic):
     stream = obspy.Stream()
     for dfile in file_seismicin:
         stream += obspy.read(os.path.join(dir_seismic, dfile))
+    
+    if channels is not None:
+        # select channels
+        for tr in stream:
+            if not any([fnmatch.fnmatch(tr.stats.channel, cha) for cha in channels]):
+                # the channel of current trace not in the specified channel list
+                # remove this trace
+                stream.remove(tr)
     
     return stream
 

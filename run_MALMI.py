@@ -18,13 +18,13 @@ dir_output = "../data"  # path for outputs
 dir_tt = '../data/traveltime/tt_loki'  # path to travetime data set
 tt_ftage = 'layer'  # traveltime data set filename tage
 n_processor = 6  # number of CPU processors for parallel processing
-coseismiq = MALMI(dir_seismic, dir_output, dir_tt, tt_ftage, n_processor)
+seismic_channels = ["*HE", "*HN", "*HZ"]  # channels of the input seismic data
+coseismiq = MALMI(dir_seismic, dir_output, dir_tt, tt_ftage, n_processor, seismic_channels)
 gc.collect()
 
 
 file_station = '../data/station/station_location.csv'  #  station metadata file, in FDSNWS station text format: *.txt or StationXML format: *.xml
-channels = ["*HE", "*HN", "*HZ"]  # channels of the input seismic data
-coseismiq.format_ML_inputs(file_station, channels)
+coseismiq.format_ML_inputs(file_station)
 gc.collect()
 
 

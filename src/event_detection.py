@@ -785,7 +785,7 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
     return event_info
 
 
-def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4, dir_output='./MAILMI_events_prob/', dir_output_seis='./MAILMI_events_seis/', dir_seismic=None):
+def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4, dir_output='./MAILMI_events_prob/', dir_output_seis='./MAILMI_events_seis/', dir_seismic=None, seismic_channels=None):
     """
     This function is used to detect locatable event accross the whole arrary.
     If there are more triggered stations than the threshold (>=nsta_thrd) 
@@ -820,6 +820,8 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
     dir_seismic : str, optional
         path to the folder where all seismic data are saved. Default is None.
         None means do not output raw seismic data segments.
+    seismic_channels : list of str, default is None
+            specify the channels of the input seismic data.
     Returns
     -------
     Obspy trace data outputted in MSEED format in the defined output directory
@@ -833,7 +835,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
     # check if need to output raw seismic data segments as well
     if dir_seismic is not None:
         # load all seismic data from the specified data folder first
-        stream = read_seismic_fromfd(dir_seismic)
+        stream = read_seismic_fromfd(dir_seismic, channels=seismic_channels)
         
         # check if need to resample the seismic data
         stream = stream_resampling(stream, sampling_rate=100.0)

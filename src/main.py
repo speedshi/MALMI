@@ -19,7 +19,7 @@ import glob
 
 class MALMI:
 
-    def __init__(self, dir_seismic, dir_output, dir_tt, tt_ftage='layer', n_processor=1):
+    def __init__(self, dir_seismic, dir_output, dir_tt, tt_ftage='layer', n_processor=1, seismic_channels=["*HE", "*HN", "*HZ"]):
         """
         Initilize global input and output paramaters, configure MALMI.
         Parameters
@@ -34,6 +34,8 @@ class MALMI:
             traveltime data set filename tage. The default is 'layer'.
         n_processor : int, default: 1
             number of CPU processors for parallel processing.
+        seismic_channels : list of str, default: ["*HE", "*HN", "*HZ"]
+            specify the channels of the input seismic data.
         Returns
         -------
         None.
@@ -52,6 +54,7 @@ class MALMI:
         self.dir_prob = self.dir_ML + '/prob_and_detection'  # output directory for ML probability outputs
         self.dir_migration = dir_output + '/data_loki/' + fd_seismic  # directory for migration outputs
         self.n_processor = copy.deepcopy(n_processor)  # number of threads for parallel processing
+        self.seismic_channels = copy.deepcopy(seismic_channels)  # the channels of the input seismic data
         
         self.dir_tt = copy.deepcopy(dir_tt)  # path to travetime data set
         self.tt_precision = 'single'  # persicion for traveltime data set, 'single' or 'double'
@@ -70,15 +73,13 @@ class MALMI:
         self.dir_lokiout = self.dir_migration + '/result_MLprob_{}'.format(tt_folder)  # path for loki final outputs
         
 
-    def format_ML_inputs(self, file_station, channels=["*HE", "*HN", "*HZ"]):
+    def format_ML_inputs(self, file_station):
         """
         Format input data set for ML models.
         Parameters
         ----------
         file_station : str
             station metadata file, in FDSNWS station text format: *.txt or StationXML format: *.xml.
-        channels : list of str, default: ["*HE", "*HN", "*HZ"]
-            channels of the input seismic data.
 
         Returns
         -------
@@ -94,7 +95,7 @@ class MALMI:
         stream = read_seismic_fromfd(self.dir_seismic)
         
         # output to the seismic data format that QET can handle 
-        stream2EQTinput(stream, self.dir_mseed, channels)
+        stream2EQTinput(stream, self.dir_mseed, self.seismic_channels)
         del stream
         gc.collect()
         
@@ -194,7 +195,7 @@ class MALMI:
         gc.collect()
         if twind_srch is None:
             twind_srch, _, _ = maxP2Stt(self.dir_tt, self.tt_hdr_filename, self.tt_ftage, self.tt_precision)
-        arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob, self.dir_lokiseis, self.dir_seismic)
+        arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob, self.dir_lokiseis, self.dir_seismic, self.seismic_channels)
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
 
