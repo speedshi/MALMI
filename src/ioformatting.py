@@ -741,6 +741,20 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
             
         del ctemp, dtemp
     
+    mcatalog['id'] = np.array(mcatalog['id'])
+    mcatalog['time'] = np.array(mcatalog['time'])  
+    mcatalog['latitude'] = np.array(mcatalog['latitude'])
+    mcatalog['longitude'] = np.array(mcatalog['longitude'])
+    mcatalog['depth_km'] = np.array(mcatalog['depth_km'])
+    mcatalog['coherence_max'] = np.array(mcatalog['coherence_max'])
+    mcatalog['coherence_std'] = np.array(mcatalog['coherence_std'])
+    mcatalog['coherence_med'] = np.array(mcatalog['coherence_med'])
+    mcatalog['starttime'] = np.array(mcatalog['starttime'])
+    mcatalog['endtime'] = np.array(mcatalog['endtime'])
+    mcatalog['station_num'] = np.array(mcatalog['station_num'])
+    mcatalog['phase_num'] = np.array(mcatalog['phase_num'])
+    mcatalog['dir'] = np.array(mcatalog['dir'])
+    
     return mcatalog
 
 
