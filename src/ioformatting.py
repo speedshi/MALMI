@@ -113,11 +113,13 @@ def output_seissegment(stream, dir_output, starttime, endtime):
         for ichan in channels:
             stdata = (stream.select(station=ista, channel=ichan)).copy()
             if stdata.count() > 0:
-                stdata.trim(UTCDateTime(starttime), UTCDateTime(endtime), pad=True, fill_value=0)
-                starttime_str = starttime.strftime(timeformat)
-                endtime_str = endtime.strftime(timeformat)
-                ofname = os.path.join(dir_output, stdata[0].id + '__' + starttime_str + '__' + endtime_str + '.sac')
-                stdata.write(ofname, format="SAC")
+                stdata.trim(UTCDateTime(starttime), UTCDateTime(endtime), pad=False, fill_value=0)
+                if stdata.count() > 0:
+                    # make sure after trim there are data existing
+                    starttime_str = starttime.strftime(timeformat)
+                    endtime_str = endtime.strftime(timeformat)
+                    ofname = os.path.join(dir_output, stdata[0].id + '__' + starttime_str + '__' + endtime_str + '.sac')
+                    stdata.write(ofname, format="SAC")
                 
                 del stdata
     
@@ -652,7 +654,7 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
     Parameters
     ----------
     dir_dateset : str
-        Path the catalog data set.
+        Path to the parent folder of catalog file and phase file.
     cata_ftag : str, optional
         Catalog filename. The default is 'catalogue'.
     dete_ftag : str, optional
@@ -681,8 +683,8 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
     
     assert(os.path.exists(dir_dateset))
 
-    file_cata = sorted(glob.glob(dir_dateset + '/**{}/{}'.format(cata_fold,cata_ftag), recursive = True))  # file list of catalogue files
-    file_dete = sorted(glob.glob(dir_dateset + '/**/{}'.format(dete_ftag), recursive = True))  # file list of detection files
+    file_cata = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
+    file_dete = sorted(glob.glob(os.path.join(dir_dateset, '**/{}'.format(dete_ftag)), recursive = True))  # file list of detection files
     
     assert(len(file_cata) == len(file_dete))  # should correspond
     
@@ -729,8 +731,8 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
             mcatalog['coherence_med'].append(ctemp['coherence_med'][iev])  # median coherence of migration volume
             mcatalog['starttime'].append(dtemp['starttime'][iev])  # starttime of the event
             mcatalog['endtime'].append(dtemp['endtime'][iev])  # endtime of the event
-            mcatalog['station_num'].append[dtemp['station'][iev]]  # total number of stations triggered
-            mcatalog['phase_num'].append(dtemp['phase_num'][iev])  # total number of phases triggered
+            mcatalog['station_num'].append(dtemp['station'][iev])  # total number of stations triggered
+            mcatalog['phase_num'].append(dtemp['phase'][iev])  # total number of phases triggered
             dir_ers = ''
             sss = file_cata[ii].split('/')
             for pstr in sss[:-1]:
@@ -785,8 +787,9 @@ def write_rtddstation(file_station, dir_output='./', filename='station.csv'):
     
     # load station infomation: SED COSEISMIQ CSV format, temporary format
     stadf = pd.read_csv(file_station, delimiter=',', encoding='utf-8', 
-                        names=['net','agency','sta code','description','lat',
-                               'lon','altitude','type','up since','details'])
+                        names=['net','location','sta code','description','lat',
+                               'lon','altitude','type','up since','details'], 
+                        dtype={'location':np.str}, keep_default_na=False)
     
     sf = open(os.path.join(dir_output, filename), 'w')
     sfcsv = csv.writer(sf, delimiter=',')
@@ -796,15 +799,15 @@ def write_rtddstation(file_station, dir_output='./', filename='station.csv'):
     sf.flush()
     
     for ista in range(len(stadf)):
-        sid = '{}.{}.'.format(stadf.loc[ista,'net'], stadf.loc[ista, 'sta code'])
+        staid = '{}.{}.{}'.format(stadf.loc[ista,'net'], stadf.loc[ista, 'sta code'], stadf.loc[ista, 'location'])
         latitude = stadf.loc[ista, 'lat']
         longitude = stadf.loc[ista, 'lon']
         elevation = stadf.loc[ista, 'altitude']
         networkCode = stadf.loc[ista, 'net']
         stationCode = stadf.loc[ista, 'sta code']
-        locationCode = ''
+        locationCode = stadf.loc[ista, 'location']
         
-        sfcsv.writerow([sid, latitude, longitude, elevation, networkCode, stationCode, locationCode])
+        sfcsv.writerow([staid, latitude, longitude, elevation, networkCode, stationCode, locationCode])
         sf.flush()
     
     sf.close()
@@ -861,8 +864,9 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
     
     # load station infomation: SED COSEISMIQ CSV format, temporary format
     stadf = pd.read_csv(file_station, delimiter=',', encoding='utf-8', 
-                        names=['net','agency','sta code','description','lat',
-                               'lon','altitude','type','up since','details'])
+                        names=['net','location','sta code','description','lat',
+                               'lon','altitude','type','up since','details'], 
+                        dtype={'location':np.str}, keep_default_na=False)
     
     # initialize event file
     eventf = open(os.path.join(dir_output, filename_event), 'w')
@@ -900,12 +904,12 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
             df_csta = stadf.loc[stadf['sta code']==sta, :]  # get the current station information 
             assert(len(df_csta) == 1)
             assert(len(df_csta['type'].item())==2)
-            stationId = '{}.{}.'.format(df_csta['net'].item(), df_csta['sta code'].item())
+            stationId = '{}.{}.{}'.format(df_csta['net'].item(), df_csta['sta code'].item(), df_csta['location'].item())
             lowerUncertainty = 0.2
             upperUncertainty = 0.2
             networkCode = df_csta['net'].item()
             stationCode = df_csta['sta code'].item()
-            locationCode = ''
+            locationCode = df_csta['location'].item()
             evalMode = 'automatic'
             
             if 'P' in arrvtt[sta]:

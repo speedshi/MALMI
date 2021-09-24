@@ -226,3 +226,94 @@ def get_lokicoord(dir_tt, hdr_filename='header.hdr', extr=0.05, consider_mgregio
     return inv, region, mgregion
 
 
+
+def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, thrd_lat=None, thrd_lon=None, thrd_cstd=None):
+    """
+    This function is used to select events according to input criterions.
+
+    Parameters
+    ----------
+    catalog : dic
+        The input catalog which contains information of each event therein.
+        mcatalog['id'] : id of the event;
+        mcatalog['time'] : origin time;
+        mcatalog['latitude'] : latitude in degree;
+        mcatalog['longitude'] : logitude in degree;
+        mcatalog['depth_km'] : depth in km;
+        mcatalog['coherence_max'] : maximum coherence of migration volume;
+        mcatalog['coherence_std'] : standard deviation of migration volume;
+        mcatalog['coherence_med'] : median coherence of migration volume;
+        mcatalog['starttime'] : detected starttime of the event;
+        mcatalog['endtime'] : detected endtime of the event;
+        mcatalog['station_num'] : total number of stations triggered of the event;
+        mcatalog['phase_num'] : total number of phases triggered of the event;
+        mcatalog['dir'] : directory of the migration results of the event.
+    thrd_cmax : float, optional
+        threshold of minimal coherence. The default is None.
+    thrd_stanum : int, optional
+        threshold of minimal number of triggered stations. The default is None.
+    thrd_phsnum : int, optional
+        threshold of minimal number of triggered phases. The default is None.
+    thrd_lat : list of float, optional
+        threshold of latitude range. The default is None.
+    thrd_lon : list of float, optional
+        threshold of longitude range. The default is None.
+    thrd_cstd: float, optional
+        threshold of maximum standard variance of stacking volume. The default is None.
+
+    Returns
+    -------
+    catalog_s : dic
+        The catalog containing the selected events.
+
+    """
+    
+    n_event = len(catalog['time'])  # total number of event in the input catalog
+    
+    # select events according to the stacking coherence
+    if thrd_cmax is not None:
+        sindx = (catalog['coherence_max'] >= thrd_cmax)
+    else:
+        sindx = np.full((n_event,), True)
+    
+    # select events according to total number of triggered stations
+    if thrd_stanum is not None:
+        sindx_temp = (catalog['station_num'] >= thrd_stanum)
+        sindx = np.logical_and(sindx, sindx_temp)
+    
+    # select events according to total number of triggered phases
+    if thrd_phsnum is not None:
+        sindx_temp = (catalog['phase_num'] >= thrd_phsnum)
+        sindx = np.logical_and(sindx, sindx_temp)
+    
+    # select events according to latitude range
+    if thrd_lat is not None:
+        sindx_temp = (catalog['latitude'] >= thrd_lat[0]) & (catalog['latitude'] <= thrd_lat[1])
+        sindx = np.logical_and(sindx, sindx_temp)
+    
+    # select events according to longitude range
+    if thrd_lon is not None:
+        sindx_temp = (catalog['longitude'] >= thrd_lon[0]) & (catalog['longitude'] <= thrd_lon[1])
+        sindx = np.logical_and(sindx, sindx_temp)
+        
+    # select events according to standard variance of stacking volume
+    if thrd_cstd is not None:
+        sindx_temp = (catalog['coherence_std'] <= thrd_cstd)
+        sindx = np.logical_and(sindx, sindx_temp)
+    
+    catalog_s = {}
+    catalog_s['id'] = catalog['id'][sindx]
+    catalog_s['time'] = catalog['time'][sindx]
+    catalog_s['latitude'] = catalog['latitude'][sindx]
+    catalog_s['longitude'] = catalog['longitude'][sindx]
+    catalog_s['depth_km'] = catalog['depth_km'][sindx]
+    catalog_s['coherence_max'] = catalog['coherence_max'][sindx]
+    catalog_s['coherence_std'] = catalog['coherence_std'][sindx]
+    catalog_s['coherence_med'] = catalog['coherence_med'][sindx]
+    catalog_s['starttime'] = catalog['starttime'][sindx]
+    catalog_s['endtime'] = catalog['endtime'][sindx]
+    catalog_s['station_num'] = catalog['station_num'][sindx]
+    catalog_s['phase_num'] = catalog['phase_num'][sindx]
+    catalog_s['dir'] = catalog['dir'][sindx]
+    
+    return catalog_s

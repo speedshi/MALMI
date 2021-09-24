@@ -839,7 +839,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
         
         # check if need to resample the seismic data
         stream = stream_resampling(stream, sampling_rate=100.0)
-        stream.merge(fill_value=0)
+        # stream.merge(fill_value=0)
     
     datainfo = {}
     datainfo['dt'] = copy.deepcopy(dt_EQT)
