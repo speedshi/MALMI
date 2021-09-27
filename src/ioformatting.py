@@ -794,7 +794,7 @@ def write_rtddstation(file_station, dir_output='./', filename='station.csv'):
     if not os.path.exists(dir_output):
         os.makedirs(dir_output)
     
-    sf = open(os.path.join(dir_output, filename), 'w', newline="\n")
+    sf = open(os.path.join(dir_output, filename), 'w', newline="\r\n")
     sfcsv = csv.writer(sf, delimiter=',')
     
     sfheader = ['latitude', 'longitude', 'elevation', 'networkCode', 'stationCode', 'locationCode']
@@ -876,14 +876,14 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
         os.makedirs(dir_output)
     
     # initialize event file
-    eventf = open(os.path.join(dir_output, filename_event), 'w', newline="\n")
+    eventf = open(os.path.join(dir_output, filename_event), 'w', newline="\r\n")
     eventf_writer = csv.writer(eventf, delimiter=',')
     eventf_header = ['id', 'isotime', 'latitude', 'longitude', 'depth', 'magnitude', 'rms']
     eventf_writer.writerow(eventf_header)
     eventf.flush()
     
     # initialize phase file
-    phasef = open(os.path.join(dir_output, filename_phase), 'w', newline="\n")
+    phasef = open(os.path.join(dir_output, filename_phase), 'w', newline="\r\n")
     phasef_writer = csv.writer(phasef, delimiter=',')
     phasef_header = ['eventId','isotime','lowerUncertainty','upperUncertainty','type','networkCode','stationCode','locationCode','channelCode','evalMode']
     phasef_writer.writerow(phasef_header)
