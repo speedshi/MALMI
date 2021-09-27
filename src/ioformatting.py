@@ -775,12 +775,12 @@ def write_rtddstation(file_station, dir_output='./', filename='station.csv'):
     Returns
     -------
     # example of output data fromat
-    # id,latitude,longitude,elevation,networkCode,stationCode,locationCode
-    # 4D.MH36.A,45.980278,7.670195,3463.0,4D,MH36,A
-    # 4D.MH48.A,45.978720,7.663000,4003.0,4D,MH48,A
-    # 4D.RA43.,46.585719,8.383171,2320.4,4D,RA43,
-    # 8D.AMIDI.,45.903349,6.885881,2250.0,8D,AMIDI,00
-    # 8D.NVL3.,46.371345,6.873937,379.0,8D,NVL3,
+    # latitude,longitude,elevation,networkCode,stationCode,locationCode
+    # 45.980278,7.670195,3463.0,4D,MH36,A
+    # 45.978720,7.663000,4003.0,4D,MH48,A
+    # 46.585719,8.383171,2320.4,4D,RA43,
+    # 45.903349,6.885881,2250.0,8D,AMIDI,00
+    # 46.371345,6.873937,379.0,8D,NVL3,
 
     """
     
@@ -793,12 +793,12 @@ def write_rtddstation(file_station, dir_output='./', filename='station.csv'):
     sf = open(os.path.join(dir_output, filename), 'w')
     sfcsv = csv.writer(sf, delimiter=',')
     
-    sfheader = ['id', 'latitude', 'longitude', 'elevation', 'networkCode', 'stationCode', 'locationCode']
+    sfheader = ['latitude', 'longitude', 'elevation', 'networkCode', 'stationCode', 'locationCode']
     sfcsv.writerow(sfheader)
     sf.flush()
     
     for ista in range(len(stadf)):
-        staid = '{}.{}.{}'.format(stadf.loc[ista,'net'], stadf.loc[ista, 'sta code'], stadf.loc[ista, 'location'])
+        # staid = '{}.{}.{}'.format(stadf.loc[ista,'net'], stadf.loc[ista, 'sta code'], stadf.loc[ista, 'location'])
         latitude = stadf.loc[ista, 'lat']
         longitude = stadf.loc[ista, 'lon']
         elevation = stadf.loc[ista, 'altitude']
@@ -806,7 +806,7 @@ def write_rtddstation(file_station, dir_output='./', filename='station.csv'):
         stationCode = stadf.loc[ista, 'sta code']
         locationCode = stadf.loc[ista, 'location']
         
-        sfcsv.writerow([staid, latitude, longitude, elevation, networkCode, stationCode, locationCode])
+        sfcsv.writerow([latitude, longitude, elevation, networkCode, stationCode, locationCode])
         sf.flush()
     
     sf.close()
@@ -846,16 +846,16 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
     # 4,2019-11-05T01:12:25.753816Z,46.325012,7.353627,3.7090,0.39,0.144
 
     # example of phase file:
-    # eventId,stationId,isotime,lowerUncertainty,upperUncertainty,type,networkCode,stationCode,locationCode,channelCode,evalMode
-    # 1,8D.RAW2.,2019-11-05T00:54:22.64478Z,0.025,0.025,Pg,8D,RAW2,,HHZ,automatic
-    # 1,8D.RAW2.,2019-11-05T00:54:23.58254Z,0.100,0.100,Sg,8D,RAW2,,HHT,manual
-    # 1,CH.SAYF2.,2019-11-05T00:54:22.7681Z,0.025,0.025,Pg,CH,SAYF2,,HGZ,manual
-    # 1,CH.STSW2.,2019-11-05T00:54:24.007619Z,0.050,0.050,Sg,CH,STSW2,,HGT,manual
-    # 2,8D.RAW2.,2019-11-05T01:03:08.867835Z,0.050,0.050,S,8D,RAW2,,HHT,manual
-    # 2,CH.SAYF2.,2019-11-05T01:03:07.977432Z,0.025,0.025,P,CH,SAYF2,,HGZ,manual
-    # 2,CH.SAYF2.,2019-11-05T01:03:08.9947Z,0.050,0.050,Sg,CH,SAYF2,,HGT,automatic
-    # 2,CH.STSW2.,2019-11-05T01:03:09.12808Z,0.050,0.050,P,CH,STSW2,,HGR,manual
-    # 2,CH.SENIN.,2019-11-05T01:03:09.409276Z,0.025,0.025,Sg,CH,SENIN,,HHT,automatic
+    # eventId,isotime,lowerUncertainty,upperUncertainty,type,networkCode,stationCode,locationCode,channelCode,evalMode
+    # 1,2019-11-05T00:54:22.64478Z,0.025,0.025,Pg,8D,RAW2,,HHZ,automatic
+    # 1,2019-11-05T00:54:23.58254Z,0.100,0.100,Sg,8D,RAW2,,HHT,manual
+    # 1,2019-11-05T00:54:22.7681Z,0.025,0.025,Pg,CH,SAYF2,,HGZ,manual
+    # 1,2019-11-05T00:54:24.007619Z,0.050,0.050,Sg,CH,STSW2,,HGT,manual
+    # 2,2019-11-05T01:03:08.867835Z,0.050,0.050,S,8D,RAW2,,HHT,manual
+    # 2,2019-11-05T01:03:07.977432Z,0.025,0.025,P,CH,SAYF2,,HGZ,manual
+    # 2,2019-11-05T01:03:08.9947Z,0.050,0.050,Sg,CH,SAYF2,,HGT,automatic
+    # 2,2019-11-05T01:03:09.12808Z,0.050,0.050,P,CH,STSW2,,HGR,manual
+    # 2,2019-11-05T01:03:09.409276Z,0.025,0.025,Sg,CH,SENIN,,HHT,automatic
 
     """
     
@@ -877,7 +877,7 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
     # initialize phase file
     phasef = open(os.path.join(dir_output, filename_phase), 'w')
     phasef_writer = csv.writer(phasef, delimiter=',')
-    phasef_header = ['eventId','stationId','isotime','lowerUncertainty','upperUncertainty','type','networkCode','stationCode','locationCode','channelCode','evalMode']
+    phasef_header = ['eventId','isotime','lowerUncertainty','upperUncertainty','type','networkCode','stationCode','locationCode','channelCode','evalMode']
     phasef_writer.writerow(phasef_header)
     phasef.flush()
     
@@ -903,7 +903,7 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
             df_csta = stadf.loc[stadf['sta code']==sta, :]  # get the current station information 
             assert(len(df_csta) == 1)
             assert(len(df_csta['type'].item())==2)
-            stationId = '{}.{}.{}'.format(df_csta['net'].item(), df_csta['sta code'].item(), df_csta['location'].item())
+            # stationId = '{}.{}.{}'.format(df_csta['net'].item(), df_csta['sta code'].item(), df_csta['location'].item())
             lowerUncertainty = 0.2
             upperUncertainty = 0.2
             networkCode = df_csta['net'].item()
@@ -915,21 +915,21 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
                 isotime = arrvtt[sta]['P'].strftime(datetime_format)
                 PHStype = 'P'
                 channelCode = '{}Z'.format(df_csta['type'].item())
-                phasef_writer.writerow([eventId, stationId, isotime, lowerUncertainty, upperUncertainty,
-                                        PHStype, networkCode, stationCode, locationCode, channelCode, evalMode])
+                phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
+                                        networkCode, stationCode, locationCode, channelCode, evalMode])
                 phasef.flush()
                 
             if 'S' in arrvtt[sta]:
                 isotime = arrvtt[sta]['S'].strftime(datetime_format)
                 PHStype = 'S'
                 channelCode = '{}N'.format(df_csta['type'].item())
-                phasef_writer.writerow([eventId, stationId, isotime, lowerUncertainty, upperUncertainty,
-                                        PHStype, networkCode, stationCode, locationCode, channelCode, evalMode])
+                phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
+                                        networkCode, stationCode, locationCode, channelCode, evalMode])
                 phasef.flush()
                 
                 channelCode = '{}E'.format(df_csta['type'].item())
-                phasef_writer.writerow([eventId, stationId, isotime, lowerUncertainty, upperUncertainty,
-                                        PHStype, networkCode, stationCode, locationCode, channelCode, evalMode])
+                phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
+                                        networkCode, stationCode, locationCode, channelCode, evalMode])
                 phasef.flush()    
 
     eventf.close()
