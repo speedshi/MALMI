@@ -717,7 +717,6 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
         
         assert(len(ctemp['time']) == len(dtemp['phase']))  # event number should be the same
         for iev in range(len(ctemp['time'])):
-            assert(ctemp['time'][iev] >= dtemp['starttime'][iev])
             assert(ctemp['time'][iev] <= dtemp['endtime'][iev])
             
             eid = eid + 1
