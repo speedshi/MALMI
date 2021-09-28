@@ -235,6 +235,7 @@ def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, 
     ----------
     catalog : dic
         The input catalog which contains information of each event therein.
+        each parameter should be in numpy array format;
         mcatalog['id'] : id of the event;
         mcatalog['time'] : origin time;
         mcatalog['latitude'] : latitude in degree;
@@ -317,3 +318,115 @@ def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, 
     catalog_s['dir'] = catalog['dir'][sindx]
     
     return catalog_s
+
+
+def catalog_match(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth=None):
+    """
+    This function is to compare two input catalogs and match the contained events.
+
+    Input catalog should contain:
+        catalog['time']: origin time of each event, in datetime format;
+        catalog['longitude'], catalog['latitude']: the latitude and longitude 
+        in degree of each event; (if 'thrd_hdis' exist)
+        catalog['depth_km']: depth in km of each event; (if 'thrd_depth' exist)
+        catalog['id']: event id of each event, optional.
+        
+    NOTE do not modify the input catalogs.
+
+    Parameters
+    ----------
+    catalog : dict
+        the input catalog, usually the newly obtained catalog by users.
+    catalog_ref : dict
+        the reference catalog for comparison, usually a standard offiical catalog.
+    thrd_time : float
+        time limit in second, within this limit we can consider two event are identical.
+    thrd_hdis : float, optional
+        horizontal distance limit in km, within this limit we can consider two event are identical.
+        The default is None, means not comparing horizontal distance.
+    thrd_depth : float, optional
+        depth limit in second, within this limit we can consider two event are identical.
+        The default is None, means not comparing depth.
+
+    Returns
+    -------
+    catalog_match : dict
+        the matched catalog.
+        catalog_match['status'] : 'matched' -> find the same event in the reference catalog; 
+                                  'new' -> newly detected event not in the reference catalog; 
+                                  'undetected' -> missed event that exist in the reference catalog;
+        catalog_match['time'], catalog_match['longitude'], catalog_match['latitude'], catalog['id'],
+        catalog_match['depth_km'] : information of the 'matched' and the 'new' events in the input catalog;
+                                    'undetected' events will have None values for these parameters.
+        catalog_match['time_ref'], catalog_match['longitude_ref'], catalog_match['latitude_ref'], catalog['id_ref'],
+        catalog_match['depth_km_ref'] : information of the 'matched' and the 'undetected' events in the reference catalog;
+                                        'new' events will have None values for these parameters.
+
+    """
+    
+    from obspy.geodetics import gps2dist_azimuth
+    
+    Nev_cinp = len(catalog['time'])  # number of events in the input catalog
+    Nev_cref = len(catalog_ref['time'])  # number of events in the reference catalog
+    
+    # attached the event ID if the input catalog does not have one
+    # default id: linearly increase from 1 to the Number of events
+    if 'id' not in catalog:
+        catalog['id'] = np.arange(1, Nev_cinp+1)
+        
+    if 'id' not in catalog_ref:
+        catalog_ref['id'] = np.arange(1, Nev_cref+1)
+    
+    catalog_match = {}  # the output matched catalog
+    catalog_match['status'] = []
+    
+    # loop over each event in the input catalog, compare with events in the reference catalog
+    for iev in range(Nev_cinp):
+        evtimedfs = np.array([ettemp.total_seconds() for ettemp in (catalog_ref['time'] - catalog['time'][iev])])  # origin time difference in seconds
+        eindx_bool = (evtimedfs <= thrd_time)  # the boolean array indicating whether event origin time matched
+        eindx = np.flatnonzero(eindx_bool)  # index of event in the reference catalog which matches the current event
+
+        if (len(eindx) > 0):
+            # find events with similar orgin times in the reference catalog
+            # could match
+            
+            # calculate horizontal distance, in km
+            hdist_meter = np.zeros((len(eindx),))
+            for ii in eindx:
+                hdist_meter[ii], _, _ = gps2dist_azimuth(catalog_ref['latitude'][ii], catalog_ref['longitude'][ii], catalog['latitude'][iev], catalog['longitude'][iev])
+            hdist_km = hdist_meter/1000.0  # meter -> km
+            
+            # calculate vertival/depth distance with sign, in km
+            vdist_km = catalog_ref['depth_km'][eindx] - catalog['depth_km'][iev]
+            
+            selid = np.full_like(eindx, True, dtype=bool)
+            
+            if (thrd_hdis is not None):
+                # ckeck if horizontal distance within limit
+                selid_temp = (hdist_km <= thrd_hdis)
+                selid = np.logical_and(selid, selid_temp)
+
+            if (thrd_depth is not None):
+                # check if vertical/depth distance within limit
+                selid_temp = (np.absolute(vdist_km) <= thrd_depth)
+                selid = np.logical_and(selid, selid_temp)
+
+            eindx = eindx[selid]
+            hdist_km = hdist_km[selid]
+            vdist_km = vdist_km[selid]
+            
+        else:
+            # the current event does not match any events in the reference catalog
+            # it should be a newly detected event
+            catalog_match['status'].append('new')
+
+    return catalog_match
+
+
+
+
+
+
+
+
+
