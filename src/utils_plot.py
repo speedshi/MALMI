@@ -909,3 +909,116 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     fig.savefig(fname, dpi=600)
 
     return
+
+
+def catlogmatch_pieplot(catalog_mt, dir_fig='.'):
+    """
+    To plot the pie figure after comparing two catalogs.
+
+    Parameters
+    ----------
+    catalog_mt : dic
+        a comparison catalog, for detail see 'utils_dataprocess.catalog_match'.
+        catalog_mt['status'] contains the comparison results.
+    dir_fig : str, optional
+        dirctory for saving fiugre. The default is '.'.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    """
+    
+    # plot pie chart
+    N_matched = sum(catalog_mt['status'] == 'matched')  # total number of matched events
+    N_new = sum(catalog_mt['status'] == 'new')  # total number of new events
+    N_undetected = sum(catalog_mt['status'] == 'undetected')  # total number of undetected/missed events
+    
+    def func(pct, allvals):
+        absolute = int(round(pct/100.*np.sum(allvals)))
+        return "{:.1f}%\n{:d}".format(pct, absolute)
+    
+    fig = plt.figure(dpi=600)
+    ax = fig.add_axes([0,0,1,1])
+    labels = ['Matched', 'New', 'Undetected']
+    sizes = [N_matched, N_new, N_undetected]
+    explode = (0.05, 0.05, 0.05)  # whether "explode" any slice 
+    colors = ['#66b3ff', '#99ff99', '#ff9999']
+    ax.pie(sizes, explode=explode, labels=labels, colors=colors, autopct=lambda pct: func(pct, sizes), 
+           pctdistance=0.85, shadow=False, startangle=90)
+    
+    #draw circle
+    centre_circle = plt.Circle((0,0),0.70,fc='white')
+    fig = plt.gcf()
+    fig.gca().add_artist(centre_circle)
+    
+    # output figure
+    ax.axis('equal')
+    fname = os.path.join(dir_fig, 'catalog_statistical_pie.png')
+    fig.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    return
+
+
+def catalogcomp_barplot(catalog, catalog_ref, bins_dt=1, figsize=(6,6), dir_fig='.'):
+    """
+    Plot bar char of events per time slot for comparing two catalogs.
+
+    Parameters
+    ----------
+    catalog : dict
+        Input catalog.
+        catalog['time'] : origin times of each event;
+    catalog_ref : dic
+        Reference atalog for comparing.
+        catalog_ref['time'] : origin times of each event;
+    bins_dt : float, optional
+        time interval in days for generating time slots. The default is 1, 
+        e.g. count event number per day.
+    figsize : tuple, optional
+        the figure size. The default is (6,6).
+    dir_fig : str, optional
+        dirctory for saving figure. The default is '.'.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    import matplotlib.ticker as ticker
+    
+    evtimes = mdates.date2num(catalog['time'])
+    evtimes_ref = mdates.date2num(catalog_ref['time'])
+    
+    # calculate accumulated numbers
+    time_min = np.floor(min(evtimes.min(), evtimes_ref.min()))  # the earliest time
+    time_max = np.ceil(max(evtimes.max(),evtimes_ref.max()))  # the lastest time
+    
+    bins = np.arange(time_min, time_max+bins_dt, bins_dt)  # the edges of bins for accumulated plot
+    events_hist, bin_edges = np.histogram(evtimes, bins=bins)  # number of events in each bin
+    events_hist_ref, bin_edges = np.histogram(evtimes_ref, bins=bins)  # number of events in each bin
+    
+    fig = plt.figure(figsize=figsize, dpi=600)
+    ax1 = fig.add_subplot(111) 
+    ax1.hist(evtimes, bin_edges, rwidth=1.0, color='blue', label='New catalog', edgecolor='black',  linewidth=0.2, alpha=0.8)
+    ax1.hist(evtimes_ref, bin_edges, rwidth=0.55, color='gray', label='Ref. catalog', edgecolor='black',  linewidth=0.1, alpha=0.7)
+    ax1.legend(loc='upper left')
+    ax1.xaxis_date()
+    ax1.set_xlabel('Time', color='k', fontsize=14)
+    ax1.set_ylabel('# Events', color='k', fontsize=14)
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
+    ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
+
+    fname = os.path.join(dir_fig, 'catalog_compare_bar.png')
+    fig.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    return
+

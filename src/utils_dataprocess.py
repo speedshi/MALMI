@@ -320,16 +320,17 @@ def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, 
     return catalog_s
 
 
-def catalog_match(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth=None):
+def catalog_match(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth=None, matchmode='time'):
     """
     This function is to compare two input catalogs and match the contained events.
 
     Input catalog should contain:
         catalog['time']: origin time of each event, in datetime format;
         catalog['longitude'], catalog['latitude']: the latitude and longitude 
-        in degree of each event; (if 'thrd_hdis' exist)
-        catalog['depth_km']: depth in km of each event; (if 'thrd_depth' exist)
+        in degree of each event, optional;
+        catalog['depth_km']: depth in km of each event, optional;
         catalog['id']: event id of each event, optional.
+        catalog['magnitude'] : event magnitude, optional;
         
     NOTE do not modify the input catalogs.
 
@@ -347,6 +348,12 @@ def catalog_match(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth=No
     thrd_depth : float, optional
         depth limit in second, within this limit we can consider two event are identical.
         The default is None, means not comparing depth.
+    matchmode : str, optional
+        the way to find the best match event when there are multiple events in the reference
+        catalog that matches. The default value is 'time'.
+        'time' : the closest in origin time;
+        'hdist' : the closest in horizontal plane (minimal horizontal distance);
+        'dist' : the closest in 3D space;
 
     Returns
     -------
@@ -361,6 +368,8 @@ def catalog_match(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth=No
         catalog_match['time_ref'], catalog_match['longitude_ref'], catalog_match['latitude_ref'], catalog['id_ref'],
         catalog_match['depth_km_ref'] : information of the 'matched' and the 'undetected' events in the reference catalog;
                                         'new' events will have None values for these parameters.
+        catalog_match['hdist_km'], catalog_match['vdist_km']: the horizontal and vertical/depth distance in km between
+                                                              the matched events in the input catalog and the reference catalog.
 
     """
     
@@ -379,46 +388,211 @@ def catalog_match(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth=No
     
     catalog_match = {}  # the output matched catalog
     catalog_match['status'] = []
+    catalog_match['time'] = []
+    catalog_match['time_ref'] = []
+    catalog_match['id'] = []
+    catalog_match['id_ref'] = []
+    if ('latitude' in catalog) and ('longitude' in catalog):
+        catalog_match['latitude'] = []
+        catalog_match['latitude_ref'] = []
+        catalog_match['longitude'] = []
+        catalog_match['longitude_ref'] = []
+        catalog_match['hdist_km'] = []
+    if ('depth_km' in catalog):
+        catalog_match['depth_km'] = []
+        catalog_match['depth_km_ref'] = []
+        catalog_match['vdist_km'] = []
+    if ('magnitude' in catalog):
+        catalog_match['magnitude'] = []
+        catalog_match['magnitude_ref'] = []
     
+    dcevref_id = []
     # loop over each event in the input catalog, compare with events in the reference catalog
     for iev in range(Nev_cinp):
-        evtimedfs = np.array([ettemp.total_seconds() for ettemp in (catalog_ref['time'] - catalog['time'][iev])])  # origin time difference in seconds
+        evtimedfs = np.array([abs(ettemp.total_seconds()) for ettemp in (catalog_ref['time'] - catalog['time'][iev])])  # origin time difference in seconds
         eindx_bool = (evtimedfs <= thrd_time)  # the boolean array indicating whether event origin time matched
-        eindx = np.flatnonzero(eindx_bool)  # index of event in the reference catalog which matches the current event
+        eindx = np.flatnonzero(eindx_bool)  # index of events in the reference catalog which matches the origin time of the current event
+        evtimedfs_select = evtimedfs[eindx_bool]  # all the origin time differences in second within the limit
 
         if (len(eindx) > 0):
-            # find events with similar orgin times in the reference catalog
-            # could match
-            
-            # calculate horizontal distance, in km
-            hdist_meter = np.zeros((len(eindx),))
-            for ii in eindx:
-                hdist_meter[ii], _, _ = gps2dist_azimuth(catalog_ref['latitude'][ii], catalog_ref['longitude'][ii], catalog['latitude'][iev], catalog['longitude'][iev])
-            hdist_km = hdist_meter/1000.0  # meter -> km
-            
-            # calculate vertival/depth distance with sign, in km
-            vdist_km = catalog_ref['depth_km'][eindx] - catalog['depth_km'][iev]
-            
+            # find events with similar origin times in the reference catalog
+            # they could match with the current event
             selid = np.full_like(eindx, True, dtype=bool)
             
-            if (thrd_hdis is not None):
-                # ckeck if horizontal distance within limit
-                selid_temp = (hdist_km <= thrd_hdis)
-                selid = np.logical_and(selid, selid_temp)
+            if ('latitude' in catalog) and ('longitude' in catalog):
+                # calculate horizontal distance, in km
+                hdist_meter = np.zeros((len(eindx),))
+                for iii, iievref in enumerate(eindx):
+                    hdist_meter[iii], _, _ = gps2dist_azimuth(catalog_ref['latitude'][iievref], catalog_ref['longitude'][iievref], 
+                                                             catalog['latitude'][iev], catalog['longitude'][iev])
+                hdist_km = abs(hdist_meter)/1000.0  # meter -> km
+            
+                if (thrd_hdis is not None):
+                    # ckeck if horizontal distance within limit
+                    selid_temp = (hdist_km <= thrd_hdis)
+                    selid = np.logical_and(selid, selid_temp)
+            
+            if ('depth_km' in catalog):
+                # calculate vertival/depth distance with sign, in km
+                vdist_km = catalog_ref['depth_km'][eindx] - catalog['depth_km'][iev]
 
-            if (thrd_depth is not None):
-                # check if vertical/depth distance within limit
-                selid_temp = (np.absolute(vdist_km) <= thrd_depth)
-                selid = np.logical_and(selid, selid_temp)
+                if (thrd_depth is not None):
+                    # check if vertical/depth distance within limit
+                    selid_temp = (np.absolute(vdist_km) <= thrd_depth)
+                    selid = np.logical_and(selid, selid_temp)
 
             eindx = eindx[selid]
-            hdist_km = hdist_km[selid]
-            vdist_km = vdist_km[selid]
+            evtimedfs_select = evtimedfs_select[selid]
+            if ('latitude' in catalog) and ('longitude' in catalog):
+                hdist_km = hdist_km[selid]
+            if ('depth_km' in catalog):
+                vdist_km = vdist_km[selid]
+            
+            if len(eindx) == 0:
+                # the current event does not match any event in the reference catalog
+                # it should be a newly detected event
+                catalog_match['status'].append('new')
+                catalog_match['time'].append(catalog['time'][iev])
+                catalog_match['time_ref'].append(None)
+                catalog_match['id'].append(catalog['id'][iev])
+                catalog_match['id_ref'].append(None)
+                if ('latitude' in catalog) and ('longitude' in catalog):
+                    catalog_match['latitude'].append(catalog['latitude'][iev])
+                    catalog_match['latitude_ref'].append(None)
+                    catalog_match['longitude'].append(catalog['longitude'][iev])
+                    catalog_match['longitude_ref'].append(None)
+                    catalog_match['hdist_km'].append(None)
+                if ('depth_km' in catalog):
+                    catalog_match['depth_km'].append(catalog['depth_km'][iev]) 
+                    catalog_match['depth_km_ref'].append(None)
+                    catalog_match['vdist_km'].append(None)
+                if ('magnitude' in catalog):
+                    catalog_match['magnitude'].append(catalog['magnitude'][iev])
+                    catalog_match['magnitude_ref'].append(None)
+            
+            elif len(eindx) == 1:
+                # match one event in the reference catalog
+                catalog_match['status'].append('matched')
+                catalog_match['time'].append(catalog['time'][iev])
+                catalog_match['time_ref'].append(catalog_ref['time'][eindx[0]])
+                catalog_match['id'].append(catalog['id'][iev])
+                catalog_match['id_ref'].append(catalog_ref['id'][eindx[0]])
+                if ('latitude' in catalog) and ('longitude' in catalog):
+                    catalog_match['latitude'].append(catalog['latitude'][iev])
+                    catalog_match['latitude_ref'].append(catalog_ref['latitude'][eindx[0]])
+                    catalog_match['longitude'].append(catalog['longitude'][iev])
+                    catalog_match['longitude_ref'].append(catalog_ref['longitude'][eindx[0]])
+                    catalog_match['hdist_km'].append(hdist_km[0])
+                if ('depth_km' in catalog):
+                    catalog_match['depth_km'].append(catalog['depth_km'][iev]) 
+                    catalog_match['depth_km_ref'].append(catalog_ref['depth_km'][eindx[0]])
+                    catalog_match['vdist_km'].append(vdist_km[0])
+                if ('magnitude' in catalog):
+                    catalog_match['magnitude'].append(catalog['magnitude'][iev])
+                    catalog_match['magnitude_ref'].append(catalog_ref['magnitude'][eindx[0]])
+                
+                dcevref_id.append(eindx[0])  # add the event_ref index in the detection list
+                
+            elif len(eindx) > 1:
+                # more then one event matched
+                # need to define which one matches the best
+                if (matchmode == 'time') or ('latitude' not in catalog) or ('longitude' not in catalog):
+                    # best matched event is the closest in origin time
+                    ssid = np.argmin(evtimedfs_select)
+                elif matchmode == 'hdist':
+                    # best matched event is the closest in horizonal plane
+                    ssid = np.argmin(hdist_km)
+                elif matchmode == 'dist':
+                    # best matched event is the closest in 3D space
+                    ssid = np.argmin(np.sqrt(hdist_km*hdist_km + vdist_km*vdist_km))
+                else:
+                    raise ValueError('Input of matchmode is unrecognized!')
+                
+                catalog_match['status'].append('matched')
+                catalog_match['time'].append(catalog['time'][iev])
+                catalog_match['time_ref'].append(catalog_ref['time'][eindx[ssid]])
+                catalog_match['id'].append(catalog['id'][iev])
+                catalog_match['id_ref'].append(catalog_ref['id'][eindx[ssid]])
+                if ('latitude' in catalog) and ('longitude' in catalog):
+                    catalog_match['latitude'].append(catalog['latitude'][iev])
+                    catalog_match['latitude_ref'].append(catalog_ref['latitude'][eindx[ssid]])
+                    catalog_match['longitude'].append(catalog['longitude'][iev])
+                    catalog_match['longitude_ref'].append(catalog_ref['longitude'][eindx[ssid]])
+                    catalog_match['hdist_km'].append(hdist_km[ssid])
+                if ('depth_km' in catalog):
+                    catalog_match['depth_km'].append(catalog['depth_km'][iev]) 
+                    catalog_match['depth_km_ref'].append(catalog_ref['depth_km'][eindx[ssid]])
+                    catalog_match['vdist_km'].append(vdist_km[ssid])
+                if ('magnitude' in catalog):
+                    catalog_match['magnitude'].append(catalog['magnitude'][iev])
+                    catalog_match['magnitude_ref'].append(catalog_ref['magnitude'][eindx[ssid]])
+                
+                dcevref_id.append(eindx[ssid])  # add the event_ref index in the detection list
             
         else:
-            # the current event does not match any events in the reference catalog
+            # the current event does not match any event in the reference catalog
             # it should be a newly detected event
             catalog_match['status'].append('new')
+            catalog_match['time'].append(catalog['time'][iev])
+            catalog_match['time_ref'].append(None)
+            catalog_match['id'].append(catalog['id'][iev])
+            catalog_match['id_ref'].append(None)
+            if ('latitude' in catalog) and ('longitude' in catalog):
+                catalog_match['latitude'].append(catalog['latitude'][iev])
+                catalog_match['latitude_ref'].append(None)
+                catalog_match['longitude'].append(catalog['longitude'][iev])
+                catalog_match['longitude_ref'].append(None)
+                catalog_match['hdist_km'].append(None)
+            if ('depth_km' in catalog):
+                catalog_match['depth_km'].append(catalog['depth_km'][iev]) 
+                catalog_match['depth_km_ref'].append(None)
+                catalog_match['vdist_km'].append(None)
+            if ('magnitude' in catalog):
+                catalog_match['magnitude'].append(catalog['magnitude'][iev])
+                catalog_match['magnitude_ref'].append(None)
+
+    # find and merge undetected events which exist in the reference catalog into the final matched catalog
+    for ieref in range(Nev_cref):
+        if ieref not in dcevref_id:
+            # the event is not detected in the input catalog
+            catalog_match['status'].append('undetected')
+            catalog_match['time'].append(None)
+            catalog_match['time_ref'].append(catalog_ref['time'][ieref])
+            catalog_match['id'].append(None)
+            catalog_match['id_ref'].append(catalog_ref['id'][ieref])
+            if ('latitude' in catalog) and ('longitude' in catalog):
+                catalog_match['latitude'].append(None)
+                catalog_match['latitude_ref'].append(catalog_ref['latitude'][ieref])
+                catalog_match['longitude'].append(None)
+                catalog_match['longitude_ref'].append(catalog_ref['longitude'][ieref])
+                catalog_match['hdist_km'].append(None)
+            if ('depth_km' in catalog):
+                catalog_match['depth_km'].append(None) 
+                catalog_match['depth_km_ref'].append(catalog_ref['depth_km'][ieref])
+                catalog_match['vdist_km'].append(None)
+            if ('magnitude' in catalog):
+                catalog_match['magnitude'].append(None)
+                catalog_match['magnitude_ref'].append(catalog_ref['magnitude'][ieref])
+
+    # convert to numpy array
+    catalog_match['status'] = np.array(catalog_match['status'])
+    catalog_match['time'] = np.array(catalog_match['time'])
+    catalog_match['time_ref'] = np.array(catalog_match['time_ref'])
+    catalog_match['id'] = np.array(catalog_match['id'])
+    catalog_match['id_ref'] = np.array(catalog_match['id_ref'])
+    if ('latitude' in catalog_match) and ('longitude' in catalog_match):
+        catalog_match['latitude'] = np.array(catalog_match['latitude'])
+        catalog_match['latitude_ref'] = np.array(catalog_match['latitude_ref'])
+        catalog_match['longitude'] = np.array(catalog_match['longitude'])
+        catalog_match['longitude_ref'] = np.array(catalog_match['longitude_ref'])
+        catalog_match['hdist_km'] = np.array(catalog_match['hdist_km'])
+    if ('depth_km' in catalog_match):
+        catalog_match['depth_km'] = np.array(catalog_match['depth_km'])
+        catalog_match['depth_km_ref'] = np.array(catalog_match['depth_km_ref'])
+        catalog_match['vdist_km'] = np.array(catalog_match['vdist_km'])
+    if ('magnitude' in catalog_match):
+        catalog_match['magnitude'] = np.array(catalog_match['magnitude'])
+        catalog_match['magnitude_ref'] = np.array(catalog_match['magnitude_ref'])
 
     return catalog_match
 
