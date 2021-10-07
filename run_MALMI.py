@@ -15,7 +15,7 @@ import gc
 
 dir_seismic = "../data/seismic_data_raw/seismic_raw_20181206"  # path to raw continuous seismic data 
 dir_output = "../data"  # path for outputs
-dir_tt = '../data/traveltime/tt_loki'  # path to travetime data set
+dir_tt = '../data/traveltime/tt_150m'  # path to travetime data set
 tt_ftage = 'layer'  # traveltime data set filename tage
 n_processor = 6  # number of CPU processors for parallel processing
 seismic_channels = ["*HE", "*HN", "*HZ"]  # channels of the input seismic data
@@ -49,7 +49,7 @@ coseismiq.migration(probthrd)
 gc.collect()
 
 
-coseismiq.rsview()
+coseismiq.rsprocess_view()
 gc.collect()
 
 

@@ -114,8 +114,10 @@ def output_seissegment(stream, dir_output, starttime, endtime):
             stdata = (stream.select(station=ista, channel=ichan)).copy()
             if stdata.count() > 0:
                 stdata.trim(UTCDateTime(starttime), UTCDateTime(endtime), pad=False, fill_value=0)
+                stdata.merge(fill_value=0)
                 if stdata.count() > 0:
                     # make sure after trim there are data existing
+                    assert(stdata.count()==1)  # should contain only one trace
                     starttime_str = starttime.strftime(timeformat)
                     endtime_str = endtime.strftime(timeformat)
                     ofname = os.path.join(dir_output, stdata[0].id + '__' + starttime_str + '__' + endtime_str + '.sac')
@@ -599,6 +601,132 @@ def read_malmipsdetect(file_detect):
     return detect_info
 
 
+def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, S_thrd=0.1, thephase_ftage='.phs', ofname=None):
+    """
+    This function is used to extract ML picks according to the calculated 
+    theoratical arrivaltimes.
+
+    Parameters
+    ----------
+    dir_prob : str
+        The directory to where ML probabilities are saved.
+    dir_io : str
+        The directory to where the theoratical arrivaltimes file are saved, and
+        is also the directory for outputting the ML pick file.
+    maxtd_p : float, optional
+        time duration in second, [P_theoratical_arrt-maxtd_p, P_theoratical_arrt+maxtd_p] 
+        is the time range to consider possible ML picks for P-phase.
+        The default is 3.0.
+    maxtd_s : TYPE, optional
+        time duration in second, [S_theoratical_arrt-maxtd_s, S_theoratical_arrt+maxtd_s] 
+        is the time range to consider possible ML picks for S-phase.
+        The default is 3.0.
+    P_thrd : float, optional
+        probability threshold above which is considered as acceptable P-picks. 
+        The default is 0.1.
+    S_thrd : float, optional
+        probability threshold above which is considered as acceptable S-picks. 
+        The default is 0.1.
+    thephase_ftage : str, optional
+        The filename tage of theoratical arrivaltime file, better use the suffix ('.phs') 
+        of the theoratical arrivaltime file. The default is '.phs'.
+    ofname : TYPE, optional
+        The output ML picking filename. The default is None, then it share the 
+        same filename as the theoratical arrivaltime file.
+
+    Raises
+    ------
+    ValueError
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    # check if the input data directory exist
+    if not os.path.exists(dir_prob):
+        raise ValueError('Input direcotry {} does not exist!'.format(dir_prob))
+    if not os.path.exists(dir_io):
+        raise ValueError('Input direcotry {} does not exist!'.format(dir_io))
+    
+    # read the theoretical phase arrivaltimes
+    file_thephase = glob.glob(os.path.join(dir_io, '*'+thephase_ftage+'*'))
+    assert(len(file_thephase) == 1)  # should contains only one theoretical phase arrivaltime file
+    thearrvtt = read_arrivaltimes(file_thephase[0])
+    stations = list(thearrvtt.keys())  # station list which have theoretical arrivaltimes
+    
+    if ofname is None:
+        # set default output filename if it is not setted by inputs
+        ofname = file_thephase[0].split('/')[-1].split(thephase_ftage)[0] + '.MLpicks'
+    
+    # initialize the output file
+    ofile = open(os.path.join(dir_io, ofname), 'a')
+    ofile.write('# station P_arrivaltime S_arrivaltime \n')
+    ofile.flush()
+    
+    # loop over each station to find the ML picks and output to file
+    for sta in stations:
+        if 'P' in thearrvtt[sta]:
+            # P-phase theoretical arrivaltime exist
+            fprob_P = glob.glob(os.path.join(dir_prob, sta+'*PBP*'))
+            assert(len(fprob_P) < 2)
+            if len(fprob_P) == 1:
+                stream = obspy.read(fprob_P[0])  # load P-phase probability
+                art_start = thearrvtt[sta]['P'] - datetime.timedelta(seconds=maxtd_p)  # earliest possible P-phase arrivaltime
+                art_end = thearrvtt[sta]['P'] + datetime.timedelta(seconds=maxtd_p)  # latest possible P-phase arrivaltime
+                stream_sl = stream.slice(starttime=UTCDateTime(art_start), endtime=UTCDateTime(art_end))  # the probability segment between the earliest and latest possible phase arrivaltimes
+                if (stream_sl.count() > 0) and (stream_sl[0].data.max() >= P_thrd):
+                    # larger than threshold, is a good pick
+                    P_picks = stream_sl[0].times(type='utcdatetime')[np.argmax(stream_sl[0].data)].datetime  # P-phase pick time
+                else:
+                    # P-phase probability not larger than threshold, no acceptable picks
+                    P_picks = None
+            else:
+                # no P-phase probabilities
+                P_picks = None
+        else:
+            # no P-phase theoretical arrivaltime
+            P_picks = None
+        
+        if 'S' in thearrvtt[sta]:
+            # S-phase theoretical arrivaltime exist
+            fprob_S = glob.glob(os.path.join(dir_prob, sta+'*PBS*'))
+            assert(len(fprob_S) < 2)
+            if len(fprob_S) == 1:
+                stream = obspy.read(fprob_S[0])  # load P-phase probability
+                art_start = thearrvtt[sta]['S'] - datetime.timedelta(seconds=maxtd_s)  # earliest possible S-phase arrivaltime
+                art_end = thearrvtt[sta]['S'] + datetime.timedelta(seconds=maxtd_s)  # latest possible S-phase arrivaltime
+                stream_sl = stream.slice(starttime=UTCDateTime(art_start), endtime=UTCDateTime(art_end))  # the probability segment between the earliest and latest possible phase arrivaltimes
+                if (stream_sl.count() > 0) and (stream_sl[0].data.max() >= S_thrd):
+                    # larger than threshold, is a good pick
+                    S_picks = stream_sl[0].times(type='utcdatetime')[np.argmax(stream_sl[0].data)].datetime  # S-phase pick time
+                else:
+                    # S-phase probability not larger than threshold, no acceptable picks
+                    S_picks = None
+            else:
+                # no S-phase probabilities
+                S_picks = None
+        else:
+            # no S-phase theoretical arrivaltime
+            S_picks = None
+        
+        # output to file
+        if (P_picks is not None) and (S_picks is not None):
+            ofile.write(sta+' '+P_picks.isoformat()+' '+S_picks.isoformat()+'\n')
+            ofile.flush()
+        elif (P_picks is not None) and (S_picks is None):
+            ofile.write(sta+' '+P_picks.isoformat()+' None\n')
+            ofile.flush()
+        elif (P_picks is None) and (S_picks is not None):
+            ofile.write(sta+' None '+S_picks.isoformat()+'\n')
+            ofile.flush()
+
+    ofile.close()
+    return
+
+
 def read_arrivaltimes(file_arrvt):
     """
     This function is used to load the arrivaltimes of different stations.
@@ -634,6 +762,9 @@ def read_arrivaltimes(file_arrvt):
             arrvtt[arvtdf.loc[ii, 'station']]['P'] = datetime.datetime.strptime(arvtdf.loc[ii, 'Pt'], datetime_format_26)
         elif len(arvtdf.loc[ii, 'Pt']) == 19:
             arrvtt[arvtdf.loc[ii, 'station']]['P'] = datetime.datetime.strptime(arvtdf.loc[ii, 'Pt'], datetime_format_19)
+        elif arvtdf.loc[ii, 'Pt'] == 'None':
+            # no P-phase arrivaltimes
+            pass
         else:
             raise ValueError('Error! Input datetime format not recoginzed!')
             
@@ -641,6 +772,9 @@ def read_arrivaltimes(file_arrvt):
             arrvtt[arvtdf.loc[ii, 'station']]['S'] = datetime.datetime.strptime(arvtdf.loc[ii, 'St'], datetime_format_26)
         elif len(arvtdf.loc[ii, 'St']) == 19:
             arrvtt[arvtdf.loc[ii, 'station']]['S'] = datetime.datetime.strptime(arvtdf.loc[ii, 'St'], datetime_format_19)
+        elif arvtdf.loc[ii, 'St'] == 'None':
+            # no S-phase arrivaltimes
+            pass
         else:
             raise ValueError('Error! Input datetime format not recoginzed!')
     
@@ -817,7 +951,7 @@ def write_rtddstation(file_station, dir_output='./', filename='station.csv'):
     return
 
 
-def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event='event.csv', filename_phase='phase.csv'):
+def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event='event.csv', filename_phase='phase.csv', phaseart_ftage='.phs'):
     """
     This function is used to format the event and phase files for scrtdd.
 
@@ -839,6 +973,9 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
         filename of output event file. The default is 'event.csv'.
     filename_phase : str, optional
         filename of output phase file. The default is 'phase.csv'.
+    phaseart_ftage : str, optional
+        filename of the phase arrivaltime or picking time file.
+        The default is '.phs'.
 
     Returns
     -------
@@ -902,7 +1039,7 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
         eventf.flush()
         
         # load phase information and output
-        file_phase = glob.glob(os.path.join(catalog['dir'][iev], '*.phs'))
+        file_phase = glob.glob(os.path.join(catalog['dir'][iev], '*'+phaseart_ftage+'*'))
         assert(len(file_phase) == 1)
         arrvtt = read_arrivaltimes(file_phase[0])
         stations_art = list(arrvtt.keys())  # station names which have arrivaltimes

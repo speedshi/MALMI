@@ -17,6 +17,7 @@ import os
 import obspy
 import pandas as pd
 from utils_dataprocess import dnormlz
+import matplotlib.ticker as ticker
 
 
 def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magnitude_cumulative_number.png', ydata_thrd=4.5):
@@ -323,7 +324,7 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     return
 
 
-def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None):
+def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png'):
     """
     To plot the input seismic data of different stations with the characteristic 
     functions overlayed on the seismogram.
@@ -356,10 +357,16 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
         a filename tage for output figures;
     staname : list of str, default: None
         specify the stations to show;
-    arrvtt : dic, default: None
+    arrvtt : dic, default : None
         the arrivaltimes of P- and S-waves at different stations.
         arrvtt['station']['P'] : P-wave arrivaltime;
         arrvtt['station']['S'] : S-wave arrivaltime.
+    timerg : list of datetime, default : None
+        used to specify the plotting time rage.
+    dpi : int, default : 300
+        dpi of the output figure.
+    figfmt : str, default : png
+        format of the output figure.
 
     Returns
     -------
@@ -401,7 +408,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
     
     for icomp in comp:
         # plot data of all stations for each component
-        fig = plt.figure(figsize=figsize, dpi=300)
+        fig = plt.figure(figsize=figsize, dpi=dpi)
         ax = fig.add_subplot(111)
         
         for ii in range(len(staname)):
@@ -456,15 +463,17 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
                         # plot S arrivaltimes
                         ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
         
+        if timerg is not None:
+            ax.set_xlim(timerg)
         ax.set_yticks(ydev)
-        ax.set_yticklabels(staname, fontsize=14)
+        ax.set_yticklabels(staname, fontsize=14, fontweight ="bold")
         ax.tick_params(axis='x', labelsize=14)
-        ax.set_title('Input data [{}]'.format(this_date), fontsize=16, fontweight ="bold")
+        ax.set_title('Data [{}]'.format(this_date), fontsize=16, fontweight ="bold")
         if tag:
-            fname = os.path.join(dir_output, 'input_data_with_cf_{}_{}.png'.format(icomp, tag))
+            fname = os.path.join(dir_output, 'input_data_with_cf_{}_{}.{}'.format(icomp, tag, figfmt))
         else:
             fname = os.path.join(dir_output, 'input_data_with_cf_{}.png'.format(icomp))
-        fig.savefig(fname, bbox_inches='tight')
+        fig.savefig(fname, bbox_inches='tight', dpi=dpi)
         plt.cla()
         fig.clear()
         plt.close(fig)
@@ -474,7 +483,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
     return
 
 
-def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap='RdBu_r', dir_output=None):
+def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap='RdBu_r', dir_output=None, figfmt='png', normrg=None):
     """
     This function is to visualize the migration volume, plot profiles along 
     X-, Y- and Z-directions, and display the isosurface along contour-value of 
@@ -492,7 +501,13 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     colormap : str, optional
         colormap name used for plotting. The default is 'RdBu_r'.
     dir_output : str, optional
-        output directory for the generated figures. The default is None.
+        output directory for the generated figures. The default is None, is the 
+        same directory where the input migration volume stored.
+    figfmg : str, optional
+        format of the output figure. Default is 'png'.
+    normrg : list of float, optional
+        range for normalizing the migration volume. Default is None for not 
+        apply normalization.
 
     Returns
     -------
@@ -526,6 +541,9 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
         for j in range(nx):
             CXY[i,j]=np.max(corrmatrix[j,i,:])
     
+    if normrg is not None:
+        CXY = dnormlz(CXY, n1=normrg[0], n2=normrg[1], axis=None)
+    
     fig, ax = plt.subplots(dpi=600, subplot_kw={"projection": "3d"})  
     XX, YY = np.meshgrid(tobj.x, tobj.y)      
     surf = ax.plot_surface(XX, YY, CXY, rcount=200, ccount=200, cmap=cmap,
@@ -547,7 +565,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.set_title('Coherence matrix X-Y', fontsize=14, fontweight='bold') 
-    fname = os.path.join(dir_output, 'coherence_matrix_xy_surf.png')
+    fname = os.path.join(dir_output, 'coherence_matrix_xy_surf.{}'.format(figfmt))
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -561,7 +579,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.set_ylabel('Y (km)')
     cbar = plt.colorbar(cs)
     ax.set_aspect('equal')
-    fname = os.path.join(dir_output, 'coherence_matrix_xy.png')
+    fname = os.path.join(dir_output, 'coherence_matrix_xy.{}'.format(figfmt))
     plt.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -572,6 +590,9 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     for i in range(nz):
         for j in range(nx):
             CXZ[i, j] = np.max(corrmatrix[j,:,i])
+
+    if normrg is not None:
+        CXZ = dnormlz(CXZ, n1=normrg[0], n2=normrg[1], axis=None)
 
     fig, ax = plt.subplots(dpi=600, subplot_kw={"projection": "3d"})  
     XX, ZZ = np.meshgrid(tobj.x, tobj.z)      
@@ -595,7 +616,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.set_title('Coherence matrix X-Z', fontsize=14, fontweight='bold') 
     # zasp = ((np.max(tobj.z)-np.min(tobj.z)))/ (np.max(tobj.x)-np.min(tobj.x)) 
     # ax.set_box_aspect((1, zasp, 1))
-    fname = os.path.join(dir_output, 'coherence_matrix_xz_surf.png')
+    fname = os.path.join(dir_output, 'coherence_matrix_xz_surf.{}'.format(figfmt))
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -610,7 +631,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     cbar = plt.colorbar(cs)
     ax.invert_yaxis()
     ax.set_aspect('equal')
-    fname = os.path.join(dir_output, 'coherence_matrix_xz.png')
+    fname = os.path.join(dir_output, 'coherence_matrix_xz.{}'.format(figfmt))
     plt.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -621,6 +642,9 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     for i in range(nz):
         for j in range(ny):
             CYZ[i, j] = np.max(corrmatrix[:,j,i])
+
+    if normrg is not None:
+        CYZ = dnormlz(CYZ, n1=normrg[0], n2=normrg[1], axis=None)
     
     fig, ax = plt.subplots(dpi=600, subplot_kw={"projection": "3d"})  
     YY, ZZ = np.meshgrid(tobj.y, tobj.z)      
@@ -642,7 +666,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.set_title('Coherence matrix Y-Z', fontsize=14, fontweight='bold') 
-    fname = os.path.join(dir_output, 'coherence_matrix_yz_surf.png')
+    fname = os.path.join(dir_output, 'coherence_matrix_yz_surf.{}'.format(figfmt))
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -657,7 +681,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     cbar = plt.colorbar(cs)
     ax.invert_yaxis()
     ax.set_aspect('equal')
-    fname = os.path.join(dir_output, 'coherence_matrix_yz.png')
+    fname = os.path.join(dir_output, 'coherence_matrix_yz.{}'.format(figfmt))
     plt.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -911,7 +935,7 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     return
 
 
-def catlogmatch_pieplot(catalog_mt, dir_fig='.'):
+def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.'):
     """
     To plot the pie figure after comparing two catalogs.
 
@@ -920,6 +944,9 @@ def catlogmatch_pieplot(catalog_mt, dir_fig='.'):
     catalog_mt : dic
         a comparison catalog, for detail see 'utils_dataprocess.catalog_match'.
         catalog_mt['status'] contains the comparison results.
+    dd : float, optional
+        distance in km for generating distance bins for bar plot.
+        default is 0.2 km.
     dir_fig : str, optional
         dirctory for saving fiugre. The default is '.'.
 
@@ -930,7 +957,10 @@ def catlogmatch_pieplot(catalog_mt, dir_fig='.'):
 
     """
     
-    # plot pie chart
+    from matplotlib.ticker import FuncFormatter
+    import matplotlib
+    
+    # plot pie chart-----------------------------------------------------------
     N_matched = sum(catalog_mt['status'] == 'matched')  # total number of matched events
     N_new = sum(catalog_mt['status'] == 'new')  # total number of new events
     N_undetected = sum(catalog_mt['status'] == 'undetected')  # total number of undetected/missed events
@@ -955,11 +985,53 @@ def catlogmatch_pieplot(catalog_mt, dir_fig='.'):
     
     # output figure
     ax.axis('equal')
-    fname = os.path.join(dir_fig, 'catalog_statistical_pie.png')
+    fname = os.path.join(dir_fig, 'catalog_compare_statistical_pie.png')
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
     plt.close(fig)
+    #==========================================================================
+    
+    # plot horizontal distance barplot-----------------------------------------
+    evhdistkm = catalog_mt['hdist_km'][catalog_mt['hdist_km'] != None]  # distance in km
+    bins = np.arange(0, evhdistkm.max()+dd, dd)  # the edges of bins for accumulated plot
+    fig = plt.figure(figsize=(8,6), dpi=600)
+    ax1 = fig.add_subplot(111) 
+    ax1.hist(evhdistkm, bins, rwidth=1.0, color='black', histtype='step', linewidth=1.6, cumulative=True, density=True)
+    ax1.set_xlabel('Distance (km)', color='k', fontsize=14)
+    ax1.set_ylabel('Event percentage', color='k', fontsize=14)
+    
+    def to_percent(y, position):
+        # Ignore the passed in position. This has the effect of scaling the default
+        # tick locations.
+        s = str(100 * y)
+    
+        # The percent symbol needs escaping in latex
+        if matplotlib.rcParams['text.usetex'] is True:
+            return s + r'$\%$'
+        else:
+            return s + '%'
+            
+    # Create the formatter using the function to_percent. This multiplies all the
+    # default labels by 100, making them all percentages
+    formatter = FuncFormatter(to_percent)
+    
+    # Set the formatter
+    ax1.yaxis.set_major_formatter(formatter)
+    
+    # remove the vertical line at the end
+    def fix_hist_step_vertical_line_at_end(ax):
+        axpolygons = [poly for poly in ax.get_children() if isinstance(poly, matplotlib.patches.Polygon)]
+        for poly in axpolygons:
+            poly.set_xy(poly.get_xy()[:-1])
+    fix_hist_step_vertical_line_at_end(ax1)
+    
+    fname = os.path.join(dir_fig, 'catalog_compare_hdist_bar.png')
+    fig.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    #==========================================================================
     
     return
 
@@ -990,8 +1062,6 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dt=1, figsize=(6,6), dir_fig=
 
     """
     
-    import matplotlib.ticker as ticker
-    
     evtimes = mdates.date2num(catalog['time'])
     evtimes_ref = mdates.date2num(catalog_ref['time'])
     
@@ -999,7 +1069,7 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dt=1, figsize=(6,6), dir_fig=
     time_min = np.floor(min(evtimes.min(), evtimes_ref.min()))  # the earliest time
     time_max = np.ceil(max(evtimes.max(),evtimes_ref.max()))  # the lastest time
     
-    bins = np.arange(time_min, time_max+bins_dt, bins_dt)  # the edges of bins for accumulated plot
+    bins = np.arange(time_min, time_max+bins_dt, bins_dt)  # the edges of bins for bar plot
     events_hist, bin_edges = np.histogram(evtimes, bins=bins)  # number of events in each bin
     events_hist_ref, bin_edges = np.histogram(evtimes_ref, bins=bins)  # number of events in each bin
     
@@ -1014,7 +1084,7 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dt=1, figsize=(6,6), dir_fig=
     ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
     ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
 
-    fname = os.path.join(dir_fig, 'catalog_compare_bar.png')
+    fname = os.path.join(dir_fig, 'catalog_compare_timebin_bar.png')
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()

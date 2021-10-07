@@ -192,9 +192,12 @@ class MALMI:
         from event_detection import eqt_eventdetectfprob, arrayeventdetect
         from utils_dataprocess import maxP2Stt
         
+        self.P_thrd = P_thrd
+        self.S_thrd = S_thrd
+        
         print('MALMI starts to detect events based on the ML predicted phase probabilites and output the corresponding phase probabilites of the detected events:')
         # eqt_arrayeventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
-        event_info = eqt_eventdetectfprob(self.dir_prob, P_thrd, S_thrd)
+        event_info = eqt_eventdetectfprob(self.dir_prob, self.P_thrd, self.S_thrd)
         gc.collect()
         if twind_srch is None:
             twind_srch, _, _ = maxP2Stt(self.dir_tt, self.tt_hdr_filename, self.tt_ftage, self.tt_precision)
@@ -247,42 +250,61 @@ class MALMI:
         print('MALMI_migration complete!')
     
         
-    def rsview(self):
+    def rsprocess_view(self, getMLpick=True, plotwaveforms=True):
         """
         Visualize some results.
-
+        
+        Parameters
+        ----------
+        getMLpick : boolen, optional
+            whether to extract ML picks according to theretical arrivaltimes.
+            The default value is True.
+        plotwaveforms : boolen, optional
+            whether to plot the seismic waveforms (overlapped with ML probabilites 
+            and theoretical arrivaltimes) of each event.
+            The default value is True.
+        
         Returns
         -------
         None.
 
         """
         
-        from ioformatting import read_arrivaltimes
+        from ioformatting import read_arrivaltimes, get_MLpicks_ftheart
         from utils_plot import seischar_plot
         
-        print('MALMI starts to visualize and output results:')
+        print('MALMI starts to post-process, visualize the outputted results:')
     
         # obtain the data folder name of each event, each folder contain the results for a particular event
         evdir = sorted([fdname for fdname in os.listdir(self.dir_lokiout) if os.path.isdir(os.path.join(self.dir_lokiout, fdname))])
     
-        # loop over each event, plot the data
+        # loop over each event, extract the ML picks and visualize the data
         for iefd in evdir:
             # get the input and output foldername for each event
             dir_seis_ev = os.path.join(self.dir_lokiseis, iefd)  # seismic data folder of the current event
             dir_prob_ev = os.path.join(self.dir_lokiprob, iefd)  # ML probability folder of the current event
             dir_output_ev = os.path.join(self.dir_lokiout, iefd)  # migration results folder of the current event
-            file_arrvt_list = glob.glob(dir_output_ev+'/*.phs', recursive=True)
-            if len(file_arrvt_list) == 1:
-                file_arrvt = file_arrvt_list[0]
-                arrvtt = read_arrivaltimes(file_arrvt)
-            else:
-                arrvtt = None
-            seischar_plot(dir_seis_ev, dir_prob_ev, dir_output_ev, figsize=(12, 12), 
-                          comp=['Z','N','E'], dyy=1.8, fband=[2, 30], normv=self.probthrd, 
-                          ppower=self.ppower, tag=None, staname=None, arrvtt=arrvtt)
+            
+            # extract the ML picks according to theoretical arrivaltimes
+            if getMLpick:
+                get_MLpicks_ftheart(dir_prob_ev, dir_output_ev, maxtd_p=3.0, maxtd_s=3.0, 
+                                    P_thrd=self.P_thrd, S_thrd=self.S_thrd, 
+                                    thephase_ftage='.phs', ofname=None)
+            
+            # plot waveforms overlapped with ML probabilites and theoretical arrivaltimes
+            if plotwaveforms:
+                file_arrvt_list = glob.glob(dir_output_ev+'/*.phs', recursive=True)
+                if len(file_arrvt_list) == 1:
+                    file_arrvt = file_arrvt_list[0]
+                    arrvtt = read_arrivaltimes(file_arrvt)
+                else:
+                    arrvtt = None
+                seischar_plot(dir_seis_ev, dir_prob_ev, dir_output_ev, figsize=(12, 12), 
+                              comp=['Z','N','E'], dyy=1.8, fband=[2, 30], normv=self.probthrd, 
+                              ppower=self.ppower, tag=None, staname=None, arrvtt=arrvtt)
     
         gc.collect()
-        print('MALMI_rsview complete!')
+        print('MALMI_rsprocess_view complete!')
 
     
     def clear_interm(self):
