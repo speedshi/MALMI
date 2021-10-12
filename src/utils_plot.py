@@ -1092,3 +1092,57 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dt=1, figsize=(6,6), dir_fig=
     
     return
 
+
+def compare_spronvar(catalog1, catalog2, labels=None, dir_output='.'):
+    """
+    This function is used to compare the source prominance and noise variance 
+    between two catalogs. These two parameters is an indicator of the goodness
+    of each event.
+    For source prominance, the higher the better.
+    For noise variance, the lower the better.
+
+    Parameters
+    ----------
+    catalog1 : dict
+        The inputs of catalog1 which contains information for calculating source
+        prominance and noise variance.
+    catalog2 : dict
+        The inputs of catalog2 which contains information for calculating source
+        prominance and noise variance.
+    labels : list of str, optional
+        The lables for the two input catalogs. The default is None.
+    fname : TYPE, optional
+        The directory of output figure. The default is '.'.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    if labels is None:
+        labels = ['Catalog1', 'Catalog2']
+    
+    spro_ref = 2.0  # the final stacking volume is normalize between [1, 2], so this is require to compute source prominance. May change in the future!
+    
+    spro_1 = spro_ref / catalog1['coherence_med']  # source prominance of the first catalog
+    nvar_1 = catalog1['coherence_std']  # noise variance of the first catalog
+    
+    spro_2 = spro_ref / catalog2['coherence_med']  # source prominance of the second catalog
+    nvar_2 = catalog2['coherence_std']  # noise variance of the second catalog
+    
+    fig = plt.figure(dpi=600, figsize=(6,6))
+    ax = fig.add_subplot(111)
+    ax.plot(spro_1, nvar_1, 'o', color='red', ms=4, alpha=0.6, label=labels[0], markeredgewidth=0)
+    ax.plot(spro_2, nvar_2, 'o', color='black', ms=4, alpha=0.6, label=labels[1], markeredgewidth=0)
+    ax.legend(loc ="upper left", fontsize='large', markerscale=1.5)
+    ax.set_xlabel('Source prominance', fontsize=14)
+    ax.set_ylabel('Noise variance', fontsize=14)
+    ax.tick_params(axis='both', labelsize=12)
+    
+    fname = os.path.join(dir_output, 'compare_catalog_spronvar.png')
+    fig.savefig(fname, dpi=600, bbox_inches='tight')
+    
+    return
+
+

@@ -1082,3 +1082,45 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
     return
 
 
+def dict2csv(indic, filename=None):
+    """
+    Write a input dictory to a CSC file.
+
+    Parameters
+    ----------
+    indic : dict
+        The input dictionary.
+    filename : str, optional
+        The output filename including path. The default is None.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    if filename is None:
+        filename = 'output.csv'
+    
+    outfile = open(filename, 'w', newline='')
+    ofcsv = csv.writer(outfile, delimiter=',', lineterminator="\n")
+    
+    # write keys, i.e. CSV header row
+    dickeys = list(indic.keys())
+    ofcsv.writerow(dickeys)
+    outfile.flush()
+    
+    # write each row
+    NN = len(indic[dickeys[0]])  # total number of rows
+    for ii in range(NN):
+        crow = []
+        for ikey in dickeys:
+            crow.append(indic[ikey][ii])
+    
+        ofcsv.writerow(crow)
+        outfile.flush()
+    
+    outfile.close()
+    return
+
+
