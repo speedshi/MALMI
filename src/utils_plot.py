@@ -969,22 +969,40 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.'):
         absolute = int(round(pct/100.*np.sum(allvals)))
         return "{:.1f}%\n{:d}".format(pct, absolute)
     
-    fig = plt.figure(dpi=600)
-    ax = fig.add_axes([0,0,1,1])
-    labels = ['Matched', 'New', 'Undetected']
-    sizes = [N_matched, N_new, N_undetected]
-    explode = (0.05, 0.05, 0.05)  # whether "explode" any slice 
-    colors = ['#66b3ff', '#99ff99', '#ff9999']
-    ax.pie(sizes, explode=explode, labels=labels, colors=colors, autopct=lambda pct: func(pct, sizes), 
-           pctdistance=0.85, shadow=False, startangle=90)
+    #fig = plt.figure(dpi=600, figsize=(8,4))
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4), subplot_kw={'aspect': 1})
+    # plot the first 
+    #ax.set_position([0.125, 0.125, 0.48, 0.88])
+    labels = ['Matched', 'New']
+    sizes = [N_matched, N_new]
+    explode = (0.04, 0.04)  # whether "explode" any slice 
+    colors = ['#66b3ff', '#99ff99']
+    ax1.pie(sizes, explode=explode, labels=labels, colors=colors, autopct=lambda pct: func(pct, sizes), 
+           pctdistance=0.8, shadow=False, startangle=90)
+    # draw circle
+    centre_circle = plt.Circle((0,0),0.6,fc='white')
+    ax1.set_title('New catalog', fontsize=13, fontweight='bold')
+    ax1.axis('equal')
+    ax1.text(-0.5, -1.3, 'Total events: {}'.format(N_matched+N_new))
+    ax1.add_artist(centre_circle)
     
-    #draw circle
-    centre_circle = plt.Circle((0,0),0.70,fc='white')
-    fig = plt.gcf()
-    fig.gca().add_artist(centre_circle)
+    # plot the second
+    # ax2 = fig.add_subplot(1,2,2)
+    #ax2.set_position([0.52, 0.125, 0.875, 0.88])
+    labels = ['Matched', 'Undetected']
+    sizes = [N_matched, N_undetected]
+    explode = (0.01, 0.03)  # whether "explode" any slice 
+    colors = ['#66b3ff', '#ff9999']
+    ax2.pie(sizes, explode=explode, labels=labels, colors=colors, autopct=lambda pct: func(pct, sizes), 
+           pctdistance=0.82, shadow=False, startangle=60)
+    # draw circle
+    centre_circle = plt.Circle((0,0),0.6,fc='white')
+    ax2.set_title('Reference catalog', fontsize=13, fontweight='bold')
+    ax2.axis('equal')
+    ax2.text(-0.5, -1.3, 'Total events: {}'.format(N_matched+N_undetected))
+    ax2.add_artist(centre_circle)
     
     # output figure
-    ax.axis('equal')
     fname = os.path.join(dir_fig, 'catalog_compare_statistical_pie.png')
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
@@ -1093,13 +1111,15 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dt=1, figsize=(6,6), dir_fig=
     return
 
 
-def compare_spronvar(catalog1, catalog2, labels=None, dir_output='.'):
+def compare_2para(catalog1, catalog2, key_xy=['coherence_med', 'coherence_std'], labels_xy=None, labels=None, dir_output='.', fname=None):
     """
-    This function is used to compare the source prominance and noise variance 
-    between two catalogs. These two parameters is an indicator of the goodness
-    of each event.
-    For source prominance, the higher the better.
-    For noise variance, the lower the better.
+    This function is used to compare and crossplot two parameters  
+    between two catalogs. These two parameters is an indicator should be an indicator
+    of the goodness of each event.
+    For example the paramters for plotting can be:
+        1: source prominance, the higher the better.
+        2: noise variance, the lower the better.
+        3. coherence, the higher the better.
 
     Parameters
     ----------
@@ -1109,10 +1129,18 @@ def compare_spronvar(catalog1, catalog2, labels=None, dir_output='.'):
     catalog2 : dict
         The inputs of catalog2 which contains information for calculating source
         prominance and noise variance.
+    key_xy : list of str, optional
+        Indicate the key in the input catalog dictionary for plotting,
+        the frist for x axis, the second for y axis.
+    labels_xy : list of str, optiona;
+        The corresponding x and y axis lables. If None, then keep consistent 
+        with key_xy. The default is None.
     labels : list of str, optional
         The lables for the two input catalogs. The default is None.
-    fname : TYPE, optional
+    dir_output : str, optional
         The directory of output figure. The default is '.'.
+    fname : str, optional
+        The output filename. The default is None.
 
     Returns
     -------
@@ -1123,24 +1151,29 @@ def compare_spronvar(catalog1, catalog2, labels=None, dir_output='.'):
     if labels is None:
         labels = ['Catalog1', 'Catalog2']
     
-    spro_ref = 2.0  # the final stacking volume is normalize between [1, 2], so this is require to compute source prominance. May change in the future!
+    if labels_xy is None:
+        labels_xy = key_xy
     
-    spro_1 = spro_ref / catalog1['coherence_med']  # source prominance of the first catalog
-    nvar_1 = catalog1['coherence_std']  # noise variance of the first catalog
+   
+    cata1_x = catalog1[key_xy[0]]  # the x data of the first catalog
+    cata1_y = catalog1[key_xy[1]]  # the y data of the first catalog
     
-    spro_2 = spro_ref / catalog2['coherence_med']  # source prominance of the second catalog
-    nvar_2 = catalog2['coherence_std']  # noise variance of the second catalog
+    cata2_x = catalog2[key_xy[0]]  # the x data of the second catalog
+    cata2_y = catalog2[key_xy[1]]  # the y data of the second catalog
     
     fig = plt.figure(dpi=600, figsize=(6,6))
     ax = fig.add_subplot(111)
-    ax.plot(spro_1, nvar_1, 'o', color='red', ms=4, alpha=0.6, label=labels[0], markeredgewidth=0)
-    ax.plot(spro_2, nvar_2, 'o', color='black', ms=4, alpha=0.6, label=labels[1], markeredgewidth=0)
+    ax.plot(cata1_x, cata1_y, 'o', color='red', ms=4, alpha=0.6, label=labels[0], markeredgewidth=0)
+    ax.plot(cata2_x, cata2_y, 'o', color='black', ms=4, alpha=0.6, label=labels[1], markeredgewidth=0)
     ax.legend(loc ="upper left", fontsize='large', markerscale=1.5)
-    ax.set_xlabel('Source prominance', fontsize=14)
-    ax.set_ylabel('Noise variance', fontsize=14)
+    ax.set_xlabel(labels_xy[0], fontsize=14)
+    ax.set_ylabel(labels_xy[1], fontsize=14)
     ax.tick_params(axis='both', labelsize=12)
     
-    fname = os.path.join(dir_output, 'compare_catalog_spronvar.png')
+    if fname is None:
+        fname = os.path.join(dir_output, 'compare_catalogs_crossplot.png')
+    else:
+        fname = os.path.join(dir_output, fname)
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     
     return
