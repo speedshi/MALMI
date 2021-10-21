@@ -82,7 +82,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
             # directly assign the magnitude of matched event to it
             eidx_ref = (catalog_ref['id'] == catalog_match['id_ref'][eidx][0])
             assert(sum(eidx_ref)==1)  # only one event should mathch this id_ref
-            catalog['magnitude'].append(catalog_ref['magnitude'][eidx_ref][0])
+            catalog_new['magnitude'].append(catalog_ref['magnitude'][eidx_ref][0])
             
         elif catalog_match['status'][eidx][0] == 'new':
             # this event is a new event with no event in the reference catalog can match
@@ -345,7 +345,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                         assert(sum(starefindx)==1)
                         if (mgcalpara['phase'] == 'P') or (mgcalpara['phase'] == 'S'):
                             ampratio = (ev_amplitude[iqq] * ev_ssdist[iqq]) / (evref_amplitude[starefindx][0] * evref_ssdist[starefindx][0])  # note here we correct the amplitude ratio using event-station distance to account for geometric spreading
-                            catalog['magnitude'].append(event_match_magnitude[ekk] + np.log10(ampratio))
+                            catalog_new['magnitude'].append(event_match_magnitude[ekk] + np.log10(ampratio))
                             magnitude_done = True
                             break
                         elif mgcalpara['phase'] == 'PS':
@@ -353,7 +353,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                             ampratio_S = (ev_Samplitude[iqq] * ev_ssdist[iqq]) / (evref_Samplitude[starefindx][0] * evref_ssdist[starefindx][0])
                             ESTMP = event_match_magnitude[ekk] + np.log10(ampratio_P)
                             ESTMS = event_match_magnitude[ekk] + np.log10(ampratio_S)
-                            catalog['magnitude'].append(0.5*(ESTMP + ESTMS))
+                            catalog_new['magnitude'].append(0.5*(ESTMP + ESTMS))
                             magnitude_done = True
                             break
                         else:
@@ -365,7 +365,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
             
             if not magnitude_done:
                 # no common station matched, cannot determine magnitude
-                catalog['magnitude'].append(None)
+                catalog_new['magnitude'].append(None)
                 warnings.warn("Magnitude of event_id: {} cannot be determined! No common station found beteen this event and the reference events.".format(catalog['id'][iev]))
         else:
             raise ValueError('match status wrong for the input catalog! Should either be matched or new!')
