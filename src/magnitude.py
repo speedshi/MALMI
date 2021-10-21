@@ -154,7 +154,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                         tt1 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
                         tt2 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
                         stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                        if stream_sta.count()==3:
+                        if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
                             # should have 3 component data
                             ev_stalist.append(sta)
                             ev_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
@@ -173,7 +173,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                         tt1 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
                         tt2 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
                         stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                        if stream_sta.count()==3:
+                        if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
                             # should have 3 component data
                             ev_stalist.append(sta)
                             ev_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
@@ -271,7 +271,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                             tt1 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
                             tt2 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
                             stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                            if stream_sta.count()==3:
+                            if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
                                 # should have 3 component data
                                 evref_stalist.append(sta)
                                 evref_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
@@ -290,7 +290,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                             tt1 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
                             tt2 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
                             stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                            if stream_sta.count()==3:
+                            if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
                                 # should have 3 component data
                                 evref_stalist.append(sta)
                                 evref_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
