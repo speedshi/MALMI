@@ -81,6 +81,9 @@ def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magn
         # ax2.plot(ee, events_cum[res], marker='*', mew=0, mfc='lime', ms=9)
         ax2.plot(bin_edges[0:][res-1], events_cum[res-2], marker='*', mew=0, mfc='lime', ms=9)
     
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
+    ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
+    
     # output figure
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
@@ -782,7 +785,7 @@ def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plo
     return
 
 
-def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False):
+def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17):
     """
     To plot the basemap with seismic events color-coded using event depth.
     
@@ -809,6 +812,11 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap=
         filename of the output figure. The default is "./basemap.png".
     plot_stationname : boolen, optional
         specify whether to plot the station names on the map. Default is yes.
+    eq_size : list of float or float
+        the size of the plotted seismic events. If input is a float, then plot 
+        the events using the same size; if input is a list of float (must be in
+        the same size as eq_longi), then plot events in different sizes.
+        The default is to plot with the same size of 0.17.
         
     Returns
     -------
@@ -845,7 +853,10 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap=
         pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), depth_max])
     else:
         pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), eq_depth.max()])
-    fig.plot(eq_longi, eq_latit, color=eq_depth, cmap=True, style='c0.17c', pen='0.3p,black')  # , transparency=30
+    if isinstance(eq_size, float):
+        fig.plot(eq_longi, eq_latit, color=eq_depth, cmap=True, style="c{}c".format(eq_size), pen="0.3p,black")  # , transparency=30
+    else:
+        fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_depth, cmap=True, style="cc", pen="0.1p,black", transparency=10)
     fig.colorbar(frame='af+l"Depth (km)"')
     
     # show how many events in total
@@ -858,7 +869,7 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap=
 
 
 
-def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False):
+def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17):
     """
     To plot the basemap with seismic events color-coded using event origin time.
     
@@ -886,6 +897,11 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
         filename of the output figure. The default is "./basemap.png".
     plot_stationname : boolen, optional
         specify whether to plot the station names on the map. Default is yes.
+    eq_size : list of float or float
+        the size of the plotted seismic events. If input is a float, then plot 
+        the events using the same size; if input is a list of float (must be in
+        the same size as eq_longi), then plot events in different sizes.
+        The default is to plot with the same size of 0.17.
         
     Returns
     -------
@@ -923,7 +939,10 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
         time_ref = max(eq_times)
     eq_tref = mdates.date2num(eq_times) - mdates.date2num(time_ref)
     pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()])
-    fig.plot(eq_longi, eq_latit, color=eq_tref, cmap=True, style='c0.17c', pen='0.3p,black')  # , transparency=30
+    if isinstance(eq_size, float):
+        fig.plot(eq_longi, eq_latit, color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.3p,black")  # , transparency=30
+    else:
+        fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_tref, cmap=True, style="cc", pen="0.1p,black", transparency=10)
     fig.colorbar(frame='af+l"Days relative to {}"'.format(time_ref))
     
     # show how many events in total
@@ -1054,7 +1073,7 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.'):
     return
 
 
-def catalogcomp_barplot(catalog, catalog_ref, bins_dt=1, figsize=(6,6), dir_fig='.'):
+def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig='.', labels=None):
     """
     Plot bar char of events per time slot for comparing two catalogs.
 
@@ -1066,19 +1085,24 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dt=1, figsize=(6,6), dir_fig=
     catalog_ref : dic
         Reference atalog for comparing.
         catalog_ref['time'] : origin times of each event;
-    bins_dt : float, optional
+    bins_dv : float, optional
         time interval in days for generating time slots. The default is 1, 
         e.g. count event number per day.
     figsize : tuple, optional
         the figure size. The default is (6,6).
     dir_fig : str, optional
         dirctory for saving figure. The default is '.'.
+    labels : list of str, optional
+        the lables for the input two dataset.
 
     Returns
     -------
     None.
 
     """
+    
+    if labels is None:
+        labels = ['New catalog', 'Ref. catalog']
     
     evtimes = mdates.date2num(catalog['time'])
     evtimes_ref = mdates.date2num(catalog_ref['time'])
@@ -1087,14 +1111,14 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dt=1, figsize=(6,6), dir_fig=
     time_min = np.floor(min(evtimes.min(), evtimes_ref.min()))  # the earliest time
     time_max = np.ceil(max(evtimes.max(),evtimes_ref.max()))  # the lastest time
     
-    bins = np.arange(time_min, time_max+bins_dt, bins_dt)  # the edges of bins for bar plot
+    bins = np.arange(time_min, time_max+bins_dv, bins_dv)  # the edges of bins for bar plot
     events_hist, bin_edges = np.histogram(evtimes, bins=bins)  # number of events in each bin
     events_hist_ref, bin_edges = np.histogram(evtimes_ref, bins=bins)  # number of events in each bin
     
     fig = plt.figure(figsize=figsize, dpi=600)
     ax1 = fig.add_subplot(111) 
-    ax1.hist(evtimes, bin_edges, rwidth=1.0, color='blue', label='New catalog', edgecolor='black',  linewidth=0.2, alpha=0.8)
-    ax1.hist(evtimes_ref, bin_edges, rwidth=0.55, color='gray', label='Ref. catalog', edgecolor='black',  linewidth=0.1, alpha=0.7)
+    ax1.hist(evtimes, bin_edges, rwidth=1.0, color='blue', label=labels[0], edgecolor='black',  linewidth=0.1, alpha=1.0)
+    ax1.hist(evtimes_ref, bin_edges, rwidth=0.55, color='gray', label=labels[1], edgecolor='black',  linewidth=0.1, alpha=0.8)
     ax1.legend(loc='upper left')
     ax1.xaxis_date()
     ax1.set_xlabel('Time', color='k', fontsize=14)
@@ -1103,6 +1127,67 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dt=1, figsize=(6,6), dir_fig=
     ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
 
     fname = os.path.join(dir_fig, 'catalog_compare_timebin_bar.png')
+    fig.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    return
+
+
+def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fig='.', labels=None):
+    """
+    Plot the number of events per magnitude bins for comparing two catalogs.
+
+    Parameters
+    ----------
+    catalog : dict
+        Input catalog.
+        catalog['magnitude'] : magnitude of each event;
+    catalog_ref : dic
+        Reference atalog for comparing.
+        catalog_ref['magnitude'] : magnitude of each event;
+    bins_dv : float, optional
+        magnitude interval for generating magnitude bins. The default is 0.5.
+    figsize : tuple, optional
+        the figure size. The default is (6,6).
+    dir_fig : str, optional
+        dirctory for saving figure. The default is '.'.
+    labels : list of str, optional
+        the lables for the input two dataset.
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    if labels is None:
+        labels = ['New catalog', 'Ref. catalog']
+        
+    data = np.array(catalog['magnitude'])
+    data_ref = np.array(catalog_ref['magnitude'])
+    
+    # calculate accumulated numbers
+    data_min = min(data.min(), data_ref.min())  # the smallest value
+    data_max = max(data.max(), data_ref.max())  # the lastest value
+    
+    bins = np.arange(data_min, data_max+bins_dv, bins_dv)  # the edges of bins for bar plot
+    events_hist, bin_edges = np.histogram(data, bins=bins)  # number of events in each bin
+    events_hist_ref, bin_edges = np.histogram(data_ref, bins=bins)  # number of events in each bin
+    
+    fig = plt.figure(figsize=figsize, dpi=600)
+    ax1 = fig.add_subplot(111) 
+    ax1.hist(data, bin_edges, rwidth=1.0, color='blue', label=labels[0], edgecolor='black',  linewidth=0.1, alpha=1.0)
+    ax1.hist(data_ref, bin_edges, rwidth=0.55, color='gray', label=labels[1], edgecolor='black',  linewidth=0.1, alpha=0.8)
+    ax1.legend(loc='upper right')
+    ax1.set_xlabel('Magnitude', color='k', fontsize=14)
+    ax1.set_ylabel('# Events', color='k', fontsize=14)
+    
+    # ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
+    # ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
+
+    fname = os.path.join(dir_fig, 'catalog_compare_magnitude_frequency.png')
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()

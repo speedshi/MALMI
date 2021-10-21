@@ -20,7 +20,7 @@ from obspy import UTCDateTime
 import warnings
 
 
-def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D'):
+def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='station_dist'):
     
     # calculate magnitude according to relative amplitude ratio
     # at least one event must match between the input catalog and the reference catalog
@@ -32,7 +32,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
     
     if mgcalpara is None:
         mgcalpara = {}
-        mgcalpara['freq'] = [3, 40]  # in Hz
+        mgcalpara['freq'] = [4, 40]  # in Hz
         mgcalpara['phase'] = 'P'  # which phase to use for extracting amplitude ratio, can be 'P', 'S' or 'PS'
         mgcalpara['P_start'] = -0.5  # negtive value means time duration before a datetime
         mgcalpara['P_end'] = 0.6
@@ -220,14 +220,20 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
             ev_ssdist = np.array(ev_ssdist)
             if (mgcalpara['phase'] == 'P') or (mgcalpara['phase'] == 'S'):
                 ev_amplitude = np.array(ev_amplitude)
-                llindex = np.argsort(-1.0*ev_amplitude)  # in descending order
+                if sorder == 'amplitude':
+                    llindex = np.argsort(-1.0*ev_amplitude)  # get the station ordered according to amplitude descending order
+                elif sorder == 'station_dist':
+                    llindex = np.argsort(ev_ssdist)  # get the station ordered according to event-station distance ascending order
                 ev_amplitude = ev_amplitude[llindex]
                 ev_stalist = ev_stalist[llindex]
                 ev_ssdist = ev_ssdist[llindex]
             elif mgcalpara['phase'] == 'PS':
                 ev_Pamplitude = np.array(ev_Pamplitude)
                 ev_Samplitude = np.array(ev_Samplitude)
-                llindex = np.argsort(-1.0*(ev_Pamplitude+ev_Samplitude))  # in descending order
+                if sorder == 'amplitude':
+                    llindex = np.argsort(-1.0*(ev_Pamplitude+ev_Samplitude))  # get the station ordered according to amplitude descending order
+                elif sorder == 'station_dist':
+                    llindex = np.argsort(ev_ssdist)  # get the station ordered according to event-station distance ascending order
                 ev_Pamplitude = ev_Pamplitude[llindex]
                 ev_Samplitude = ev_Samplitude[llindex]
                 ev_stalist = ev_stalist[llindex]
