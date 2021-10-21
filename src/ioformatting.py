@@ -965,6 +965,7 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
         mcatalog['latitude'] : latitude in degree;
         mcatalog['longitude'] : logitude in degree;
         mcatalog['depth_km'] : depth in km;
+        mcatalog['magnitude'] : magnitude;
         mcatalog['dir'] : directory of the migration results of the event.
     file_station : str
         filename of the input station file.
@@ -1034,7 +1035,12 @@ def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event=
         latitude = catalog['latitude'][iev]
         longitude = catalog['longitude'][iev]
         depth = catalog['depth_km'][iev]
-        magnitude = 1.0
+        if 'magnitude' in catalog:
+            # have magnitude info
+            magnitude = catalog['magnitude'][iev]
+        else:
+            # no magnitude info
+            magnitude = 1.0
         rms = 0.2
         eventf_writer.writerow([eventId, isotime, latitude, longitude, depth, magnitude, rms])
         eventf.flush()
