@@ -22,6 +22,7 @@ import numpy as np
 import gc
 import glob
 import csv
+import copy
 
 
 def read_seismic_fromfd(dir_seismic, channels=None):
@@ -1122,5 +1123,34 @@ def dict2csv(indic, filename=None):
     
     outfile.close()
     return
+
+
+def csv2dict(file_csv):
+    """
+    This function is used to load the csv file and return a dict which contains
+    the information of the csv file. The first row of the csv file contains the
+    column names.
+
+    Parameters
+    ----------
+    file_csv : str
+        The input filename including path of the csv file.
+
+    Returns
+    -------
+    outdic : dict
+        The return dict which contains all information in the csv file.
+
+    """
+    
+    # load station infomation: SED COSEISMIQ CSV format, temporary format
+    df = pd.read_csv(file_csv, delimiter=',', header="infer", skipinitialspace=True, encoding='utf-8')
+    
+    outdic = {}
+    for column in df:
+       outdic[column] = copy.deepcopy(df[column].values)
+    
+    return outdic
+
 
 

@@ -320,7 +320,7 @@ def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, 
     return catalog_s
 
 
-def catalog_match(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth=None, matchmode='time'):
+def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth=None, matchmode='time'):
     """
     This function is to compare two input catalogs and match the contained events.
 
@@ -331,6 +331,8 @@ def catalog_match(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth=No
         catalog['depth_km']: depth in km of each event, optional;
         catalog['id']: event id of each event, optional.
         catalog['magnitude'] : event magnitude, optional;
+    
+    None value will be assigned to event with no avaliable information.
         
     NOTE do not modify the input catalogs.
 

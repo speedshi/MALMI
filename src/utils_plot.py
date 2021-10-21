@@ -845,7 +845,7 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap=
         pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), depth_max])
     else:
         pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), eq_depth.max()])
-    fig.plot(eq_longi, eq_latit, color=eq_depth, cmap=True, style='c0.2c', pen='0.4p,black')  # , transparency=30
+    fig.plot(eq_longi, eq_latit, color=eq_depth, cmap=True, style='c0.17c', pen='0.3p,black')  # , transparency=30
     fig.colorbar(frame='af+l"Depth (km)"')
     
     # show how many events in total
@@ -923,7 +923,7 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
         time_ref = max(eq_times)
     eq_tref = mdates.date2num(eq_times) - mdates.date2num(time_ref)
     pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()])
-    fig.plot(eq_longi, eq_latit, color=eq_tref, cmap=True, style='c0.2c', pen='0.4p,black')  # , transparency=30
+    fig.plot(eq_longi, eq_latit, color=eq_tref, cmap=True, style='c0.17c', pen='0.3p,black')  # , transparency=30
     fig.colorbar(frame='af+l"Days relative to {}"'.format(time_ref))
     
     # show how many events in total
