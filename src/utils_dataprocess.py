@@ -227,7 +227,7 @@ def get_lokicoord(dir_tt, hdr_filename='header.hdr', extr=0.05, consider_mgregio
 
 
 
-def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, thrd_lat=None, thrd_lon=None, thrd_cstd=None):
+def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, thrd_lat=None, thrd_lon=None, thrd_cstd=None, thrd_depth=None):
     """
     This function is used to select events according to input criterions.
 
@@ -261,6 +261,8 @@ def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, 
         threshold of longitude range. The default is None.
     thrd_cstd: float, optional
         threshold of maximum standard variance of stacking volume. The default is None.
+    thrd_depth: list of float, optional
+        threshold of depth range in km. The default is None.
 
     Returns
     -------
@@ -300,6 +302,11 @@ def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, 
     # select events according to standard variance of stacking volume
     if thrd_cstd is not None:
         sindx_temp = (catalog['coherence_std'] <= thrd_cstd)
+        sindx = np.logical_and(sindx, sindx_temp)
+        
+    # select events according to depth range
+    if thrd_depth is not None:
+        sindx_temp = (catalog['depth_km'] >= thrd_depth[0]) & (catalog['depth_km'] <= thrd_depth[1])
         sindx = np.logical_and(sindx, sindx_temp)
     
     catalog_s = {}

@@ -825,6 +825,7 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap=
     """  
     
     import pygmt
+    pygmt.config(FORMAT_GEO_MAP="ddd.xx")
 
     fig = pygmt.Figure()
     fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
@@ -854,7 +855,7 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap=
     else:
         pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), eq_depth.max()])
     if isinstance(eq_size, float):
-        fig.plot(eq_longi, eq_latit, color=eq_depth, cmap=True, style="c{}c".format(eq_size), pen="0.3p,black")  # , transparency=30
+        fig.plot(eq_longi, eq_latit, color=eq_depth, cmap=True, style="c{}c".format(eq_size), pen="0.1p,black")  # , transparency=30
     else:
         fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_depth, cmap=True, style="cc", pen="0.1p,black", transparency=10)
     fig.colorbar(frame='af+l"Depth (km)"')
@@ -910,6 +911,7 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     """  
     
     import pygmt
+    pygmt.config(FORMAT_GEO_MAP="ddd.xx")
 
     fig = pygmt.Figure()
     fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
@@ -940,7 +942,7 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     eq_tref = mdates.date2num(eq_times) - mdates.date2num(time_ref)
     pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()])
     if isinstance(eq_size, float):
-        fig.plot(eq_longi, eq_latit, color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.3p,black")  # , transparency=30
+        fig.plot(eq_longi, eq_latit, color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.1p,black")  # , transparency=30
     else:
         fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_tref, cmap=True, style="cc", pen="0.1p,black", transparency=10)
     fig.colorbar(frame='af+l"Days relative to {}"'.format(time_ref))

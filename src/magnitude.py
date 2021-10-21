@@ -20,7 +20,7 @@ from obspy import UTCDateTime
 import warnings
 
 
-def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='station_dist'):
+def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='amplitude'):
     
     # calculate magnitude according to relative amplitude ratio
     # at least one event must match between the input catalog and the reference catalog
@@ -32,7 +32,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
     
     if mgcalpara is None:
         mgcalpara = {}
-        mgcalpara['freq'] = [4, 40]  # in Hz
+        mgcalpara['freq'] = [3, 40]  # in Hz
         mgcalpara['phase'] = 'P'  # which phase to use for extracting amplitude ratio, can be 'P', 'S' or 'PS'
         mgcalpara['P_start'] = -0.5  # negtive value means time duration before a datetime
         mgcalpara['P_end'] = 0.6
