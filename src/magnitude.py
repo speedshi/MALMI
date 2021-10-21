@@ -151,66 +151,67 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
             for sta in arrvt:
                 if mgcalpara['phase'] == 'P':
                     if 'P' in arrvt[sta]:
-                        ev_stalist.append(sta)
                         tt1 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
                         tt2 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
                         stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                        assert(stream_sta.count()==3)  # should have 3 component data
-                        ev_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                        stream_sta[1].data*stream_sta[1].data + 
-                                                        stream_sta[2].data*stream_sta[2].data)))
-                        
-                        staindx = (stations['stationCode'] == sta)
-                        assert(sum(staindx)==1)
-                        hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                             catalog['latitude'][iev], catalog['longitude'][iev])
-                        vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                        ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
+                        if stream_sta.count()==3:
+                            # should have 3 component data
+                            ev_stalist.append(sta)
+                            ev_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
+                                                            stream_sta[1].data*stream_sta[1].data + 
+                                                            stream_sta[2].data*stream_sta[2].data)))
+                            
+                            staindx = (stations['stationCode'] == sta)
+                            assert(sum(staindx)==1)
+                            hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
+                                                                 catalog['latitude'][iev], catalog['longitude'][iev])
+                            vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
+                            ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
                         
                 elif mgcalpara['phase'] == 'S':
                     if 'S' in arrvt[sta]:
-                        ev_stalist.append(sta)
                         tt1 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
                         tt2 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
                         stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                        assert(stream_sta.count()==3)  # should have 3 component data
-                        ev_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                        stream_sta[1].data*stream_sta[1].data + 
-                                                        stream_sta[2].data*stream_sta[2].data)))
-                        
-                        staindx = (stations['stationCode'] == sta)
-                        assert(sum(staindx)==1)
-                        hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                             catalog['latitude'][iev], catalog['longitude'][iev])
-                        vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                        ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
+                        if stream_sta.count()==3:
+                            # should have 3 component data
+                            ev_stalist.append(sta)
+                            ev_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
+                                                            stream_sta[1].data*stream_sta[1].data + 
+                                                            stream_sta[2].data*stream_sta[2].data)))
+                            
+                            staindx = (stations['stationCode'] == sta)
+                            assert(sum(staindx)==1)
+                            hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
+                                                                 catalog['latitude'][iev], catalog['longitude'][iev])
+                            vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
+                            ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
                 
                 elif mgcalpara['phase'] == 'PS':
                     if ('P' in arrvt[sta]) and ('S' in arrvt[sta]):
-                        ev_stalist.append(sta)
-                        
-                        tt1 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
-                        tt2 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
-                        stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                        assert(stream_sta.count()==3)  # should have 3 component data
-                        ev_Pamplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                         stream_sta[1].data*stream_sta[1].data + 
-                                                         stream_sta[2].data*stream_sta[2].data)))
-                        
-                        tt1 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
-                        tt2 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
-                        stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                        assert(stream_sta.count()==3)  # should have 3 component data
-                        ev_Samplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                         stream_sta[1].data*stream_sta[1].data + 
-                                                         stream_sta[2].data*stream_sta[2].data)))
-                        
-                        staindx = (stations['stationCode'] == sta)
-                        assert(sum(staindx)==1)
-                        hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                             catalog['latitude'][iev], catalog['longitude'][iev])
-                        vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                        ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
+                        if stream.select(station=sta).count()==3:
+                            # should have 3 component data
+                            ev_stalist.append(sta)
+                            tt1 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
+                            tt2 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
+                            stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
+                            ev_Pamplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
+                                                             stream_sta[1].data*stream_sta[1].data + 
+                                                             stream_sta[2].data*stream_sta[2].data)))
+                            
+                            tt1 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
+                            tt2 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
+                            stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
+                            ev_Samplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
+                                                             stream_sta[1].data*stream_sta[1].data + 
+                                                             stream_sta[2].data*stream_sta[2].data)))
+                            
+                            staindx = (stations['stationCode'] == sta)
+                            assert(sum(staindx)==1)
+                            hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
+                                                                 catalog['latitude'][iev], catalog['longitude'][iev])
+                            vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
+                            ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
                 
                 else:
                     raise ValueError('Incorrent input for mgcalpara[\'phase\']!')
@@ -267,66 +268,67 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                 for sta in arrvt_ref:
                     if mgcalpara['phase'] == 'P':
                         if 'P' in arrvt_ref[sta]:
-                            evref_stalist.append(sta)
                             tt1 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
                             tt2 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
                             stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                            assert(stream_sta.count()==3)  # should have 3 component data
-                            evref_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                               stream_sta[1].data*stream_sta[1].data + 
-                                                               stream_sta[2].data*stream_sta[2].data)))
-                            
-                            staindx = (stations['stationCode'] == sta)
-                            assert(sum(staindx)==1)
-                            hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                                 event_match_latitude[ekk], event_match_longitude[ekk])
-                            vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                            evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
+                            if stream_sta.count()==3:
+                                # should have 3 component data
+                                evref_stalist.append(sta)
+                                evref_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
+                                                                   stream_sta[1].data*stream_sta[1].data + 
+                                                                   stream_sta[2].data*stream_sta[2].data)))
+                                
+                                staindx = (stations['stationCode'] == sta)
+                                assert(sum(staindx)==1)
+                                hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
+                                                                     event_match_latitude[ekk], event_match_longitude[ekk])
+                                vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
+                                evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
                             
                     elif mgcalpara['phase'] == 'S':
                         if 'S' in arrvt_ref[sta]:
-                            evref_stalist.append(sta)
                             tt1 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
                             tt2 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
                             stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                            assert(stream_sta.count()==3)  # should have 3 component data
-                            evref_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                               stream_sta[1].data*stream_sta[1].data + 
-                                                               stream_sta[2].data*stream_sta[2].data)))
-                            
-                            staindx = (stations['stationCode'] == sta)
-                            assert(sum(staindx)==1)
-                            hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                                 event_match_latitude[ekk], event_match_longitude[ekk])
-                            vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                            evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
+                            if stream_sta.count()==3:
+                                # should have 3 component data
+                                evref_stalist.append(sta)
+                                evref_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
+                                                                   stream_sta[1].data*stream_sta[1].data + 
+                                                                   stream_sta[2].data*stream_sta[2].data)))
+                                
+                                staindx = (stations['stationCode'] == sta)
+                                assert(sum(staindx)==1)
+                                hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
+                                                                     event_match_latitude[ekk], event_match_longitude[ekk])
+                                vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
+                                evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
                     
                     elif mgcalpara['phase'] == 'PS':
                         if ('P' in arrvt_ref[sta]) and ('S' in arrvt_ref[sta]):
-                            evref_stalist.append(sta)
-                            
-                            tt1 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
-                            tt2 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
-                            stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                            assert(stream_sta.count()==3)  # should have 3 component data
-                            evref_Pamplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                                stream_sta[1].data*stream_sta[1].data + 
-                                                                stream_sta[2].data*stream_sta[2].data)))
-                            
-                            tt1 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
-                            tt2 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
-                            stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                            assert(stream_sta.count()==3)  # should have 3 component data
-                            evref_Samplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                                stream_sta[1].data*stream_sta[1].data + 
-                                                                stream_sta[2].data*stream_sta[2].data)))
-                            
-                            staindx = (stations['stationCode'] == sta)
-                            assert(sum(staindx)==1)
-                            hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                                 event_match_latitude[ekk], event_match_longitude[ekk])
-                            vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                            evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
+                            if stream.select(station=sta).count()==3:
+                                # should have 3 component data
+                                evref_stalist.append(sta)
+                                tt1 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
+                                tt2 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
+                                stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
+                                evref_Pamplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
+                                                                    stream_sta[1].data*stream_sta[1].data + 
+                                                                    stream_sta[2].data*stream_sta[2].data)))
+                                
+                                tt1 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
+                                tt2 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
+                                stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
+                                evref_Samplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
+                                                                    stream_sta[1].data*stream_sta[1].data + 
+                                                                    stream_sta[2].data*stream_sta[2].data)))
+                                
+                                staindx = (stations['stationCode'] == sta)
+                                assert(sum(staindx)==1)
+                                hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
+                                                                     event_match_latitude[ekk], event_match_longitude[ekk])
+                                vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
+                                evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
                     
                     else:
                         raise ValueError('Incorrent input for mgcalpara[\'phase\']!')
