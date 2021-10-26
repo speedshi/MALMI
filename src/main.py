@@ -19,7 +19,7 @@ import glob
 
 class MALMI:
 
-    def __init__(self, dir_seismic, dir_output, dir_tt, tt_ftage='layer', n_processor=1, seismic_channels=["*HE", "*HN", "*HZ"]):
+    def __init__(self, dir_seismic, dir_output, file_station, dir_tt, tt_ftage='layer', n_processor=1):
         """
         Initilize global input and output paramaters, configure MALMI.
         Parameters
@@ -28,14 +28,18 @@ class MALMI:
             path to raw continuous seismic data.
         dir_output : str
             path for outputs.
+        file_station : str
+            station metadata file including path. The data format should be 
+            recognizable by ObsPy, such as:
+                FDSNWS station text format: *.txt,
+                FDSNWS StationXML format: *.xml.
         dir_tt : str
             path to travetime data set.
         tt_ftage : str, optional
             traveltime data set filename tage. The default is 'layer'.
         n_processor : int, default: 1
             number of CPU processors for parallel processing.
-        seismic_channels : list of str, default: ["*HE", "*HN", "*HZ"]
-            specify the channels of the input seismic data.
+
         Returns
         -------
         None.
@@ -54,7 +58,6 @@ class MALMI:
         self.dir_prob = self.dir_ML + '/prob_and_detection'  # output directory for ML probability outputs
         self.dir_migration = dir_output + '/data_loki/' + fd_seismic  # directory for migration outputs
         self.n_processor = copy.deepcopy(n_processor)  # number of threads for parallel processing
-        self.seismic_channels = copy.deepcopy(seismic_channels)  # the channels of the input seismic data
         
         self.dir_tt = copy.deepcopy(dir_tt)  # path to travetime data set
         self.tt_precision = 'single'  # persicion for traveltime data set, 'single' or 'double'
@@ -72,15 +75,21 @@ class MALMI:
         self.dir_lokiseis = self.dir_migration + '/seis_evstream'  # directory for raw seismic outputs of different events in SEED format
         self.dir_lokiout = self.dir_migration + '/result_MLprob_{}'.format(tt_folder)  # path for loki final outputs
         
+        self.file_station = copy.deepcopy(file_station)  # path to the station metadata to get station invertory
+        
 
-    def format_ML_inputs(self, file_station):
+    def format_ML_inputs(self, seismic_channels=["*HE", "*HN", "*HZ"], seisdatastru='AIOFD'):
         """
         Format input data set for ML models.
         Parameters
         ----------
-        file_station : str
-            station metadata file, in FDSNWS station text format: *.txt or StationXML format: *.xml.
-
+        seismic_channels : list of str, default: ["*HE", "*HN", "*HZ"]
+            specify the channels of the input seismic data.
+        seisdatastru : str
+            specify the seismic data file structure.
+            'AIOFD' : continuous seismic data are organized All In One FolDer;
+            'SDS' : continuous seismic data are organized in SeisComP Data Structure.
+        
         Returns
         -------
         None.
@@ -91,6 +100,8 @@ class MALMI:
         
         print('MALMI starts to format input data set for ML models:')
         
+        self.seismic_channels = copy.deepcopy(seismic_channels)  # the channels of the input seismic data
+        
         # read in all continuous seismic data in the input folder as an obspy stream
         stream = read_seismic_fromfd(self.dir_seismic)
         
@@ -100,7 +111,7 @@ class MALMI:
         gc.collect()
         
         # create station jason file for EQT------------------------------------
-        stainv2json(file_station, self.dir_mseed, self.dir_EQTjson)
+        stainv2json(self.file_station, self.dir_mseed, self.dir_EQTjson)
         gc.collect()
         print('MALMI_format_ML_inputs complete!')
 
@@ -113,7 +124,8 @@ class MALMI:
         input_MLmodel : str
             path to a trained EQT model.
         overlap : float, default: 0.5
-            overlap rate of time window for generating probabilities. e.g. 0.6 means 60% of time window are overlapped.
+            overlap rate of time window for generating probabilities. 
+            e.g. 0.6 means 60% of time window are overlapped.
 
         Returns
         -------
