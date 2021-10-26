@@ -93,7 +93,7 @@ def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magn
     return
 
 
-def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=None, staname=None, arrvtt=None):
+def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, comp=['P', 'S', 'D'], colorline=['r', 'b', 'k--']):
     """
     To plot the input probability data of different stations.
 
@@ -119,6 +119,12 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
         the arrivaltimes of P- and S-waves at different stations.
         arrvtt['station']['P'] : P-wave arrivaltime;
         arrvtt['station']['S'] : S-wave arrivaltime.
+    comp : list of str, default: ['P','S','D']
+        specify the components to plot, all components are plotted in one figure.
+    colorline : list of str, default: ['r', 'b', 'k--']
+        specify the line format and line color for each components. Because all
+        components are plotting in one figure, so this will help better discriminate
+        different components.
 
     Returns
     -------
@@ -150,45 +156,20 @@ def probin_plot(dir_input, dir_output, figsize, normv=None, ppower=None, tag=Non
     ax = fig.add_subplot(111)
     ydev = [ii*dyy for ii in range(len(staname))]
     for ii in range(len(staname)):
-        # plot P-phase probability
-        tr = stream.select(station=staname[ii], component="P")
-        if tr.count() > 0:
-            tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            if (normv is not None) and (max(abs(tr[0].data)) >= normv):
-                vdata = tr[0].data / max(abs(tr[0].data))
-            else:
-                vdata = tr[0].data
-            if ppower:
-                vdata = vdata**ppower
-            ax.plot(tt, vdata+ydev[ii], 'r', linewidth=1.2)
-            del vdata, tt
-        del tr
-        
-        # plot S-phase probability
-        tr = stream.select(station=staname[ii], component="S")
-        if tr.count() > 0:
-            tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            if (normv is not None) and (max(abs(tr[0].data)) >= normv):
-                vdata = tr[0].data / max(abs(tr[0].data))
-            else:
-                vdata = tr[0].data
-            if ppower:
-                vdata = vdata**ppower
-            ax.plot(tt, vdata+ydev[ii], 'b', linewidth=1.2)
-            del vdata, tt
-        del tr
-        
-        # plot event probability
-        tr = stream.select(station=staname[ii], component="D")
-        if tr.count() > 0:
-            tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-            if (normv is not None) and (max(abs(tr[0].data)) >= normv):
-                vdata = tr[0].data / max(abs(tr[0].data))
-            else:
-                vdata = tr[0].data
-            ax.plot(tt, vdata+ydev[ii], 'k--', linewidth=1.2)
-            del vdata, tt
-        del tr
+        # plot phase probability
+        for iicp in range(len(comp)):
+            tr = stream.select(station=staname[ii], component=comp[iicp])
+            if tr.count() > 0:
+                tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
+                if (normv is not None) and (max(abs(tr[0].data)) >= normv):
+                    vdata = tr[0].data / max(abs(tr[0].data))
+                else:
+                    vdata = tr[0].data
+                if ppower:
+                    vdata = vdata**ppower
+                ax.plot(tt, vdata+ydev[ii], colorline[iicp], linewidth=1.2)
+                del vdata, tt
+            del tr
         
         # plot phase arrivaltimes
         if arrvtt is not None:
@@ -956,7 +937,7 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     return
 
 
-def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.'):
+def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png'):
     """
     To plot the pie figure after comparing two catalogs.
 
@@ -970,6 +951,8 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.'):
         default is 0.2 km.
     dir_fig : str, optional
         dirctory for saving fiugre. The default is '.'.
+    figformat : str, optional
+        output figure format. The default is 'png'.
 
     Returns
     -------
@@ -980,7 +963,7 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.'):
     
     from matplotlib.ticker import FuncFormatter
     import matplotlib
-    
+       
     # plot pie chart-----------------------------------------------------------
     N_matched = sum(catalog_mt['status'] == 'matched')  # total number of matched events
     N_new = sum(catalog_mt['status'] == 'new')  # total number of new events
@@ -1024,7 +1007,7 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.'):
     ax2.add_artist(centre_circle)
     
     # output figure
-    fname = os.path.join(dir_fig, 'catalog_compare_statistical_pie.png')
+    fname = os.path.join(dir_fig, 'catalog_compare_statistical_pie.'+figformat)
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -1065,7 +1048,10 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.'):
             poly.set_xy(poly.get_xy()[:-1])
     fix_hist_step_vertical_line_at_end(ax1)
     
-    fname = os.path.join(dir_fig, 'catalog_compare_hdist_bar.png')
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(10*dd)) # forced the horizontal major ticks to appear by steps of '10dd' units
+    ax1.xaxis.set_minor_locator(ticker.MultipleLocator(dd))  # forced the horizontal minor ticks to appear by steps of 'dd' units
+    
+    fname = os.path.join(dir_fig, 'catalog_compare_hdist_bar.'+figformat)
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -1075,7 +1061,7 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.'):
     return
 
 
-def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig='.', labels=None):
+def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig='.', labels=None, figformat='png'):
     """
     Plot bar char of events per time slot for comparing two catalogs.
 
@@ -1096,6 +1082,8 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig=
         dirctory for saving figure. The default is '.'.
     labels : list of str, optional
         the lables for the input two dataset.
+    figformat : str, optional
+        output figure format. The default is 'png'.
 
     Returns
     -------
@@ -1119,16 +1107,16 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig=
     
     fig = plt.figure(figsize=figsize, dpi=600)
     ax1 = fig.add_subplot(111) 
-    ax1.hist(evtimes, bin_edges, rwidth=1.0, color='blue', label=labels[0], edgecolor='black',  linewidth=0.1, alpha=1.0)
-    ax1.hist(evtimes_ref, bin_edges, rwidth=0.55, color='gray', label=labels[1], edgecolor='black',  linewidth=0.1, alpha=0.8)
+    ax1.hist(evtimes, bin_edges, rwidth=1.0, color='tab:blue', label=labels[0], edgecolor='black',  linewidth=0.1, alpha=1.0)
+    ax1.hist(evtimes_ref, bin_edges, rwidth=0.6, color='tab:orange', label=labels[1], edgecolor='black',  linewidth=0.1, alpha=0.9)
     ax1.legend(loc='upper left')
     ax1.xaxis_date()
     ax1.set_xlabel('Time', color='k', fontsize=14)
-    ax1.set_ylabel('# Events', color='k', fontsize=14)
+    ax1.set_ylabel('Number of events', color='k', fontsize=14)
     ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
     ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
-
-    fname = os.path.join(dir_fig, 'catalog_compare_timebin_bar.png')
+    ax1.tick_params(axis='both', labelsize=12)
+    fname = os.path.join(dir_fig, 'catalog_compare_timebin_bar.'+figformat)
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -1137,7 +1125,7 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig=
     return
 
 
-def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fig='.', labels=None):
+def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fig='.', labels=None, figformat='png'):
     """
     Plot the number of events per magnitude bins for comparing two catalogs.
 
@@ -1157,6 +1145,8 @@ def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fi
         dirctory for saving figure. The default is '.'.
     labels : list of str, optional
         the lables for the input two dataset.
+    figformat : str, optional
+        output figure format. The default is 'png'.
 
     Returns
     -------
@@ -1178,18 +1168,48 @@ def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fi
     events_hist, bin_edges = np.histogram(data, bins=bins)  # number of events in each bin
     events_hist_ref, bin_edges = np.histogram(data_ref, bins=bins)  # number of events in each bin
     
+    # number of events 
     fig = plt.figure(figsize=figsize, dpi=600)
     ax1 = fig.add_subplot(111) 
-    ax1.hist(data, bin_edges, rwidth=1.0, color='blue', label=labels[0], edgecolor='black',  linewidth=0.1, alpha=1.0)
-    ax1.hist(data_ref, bin_edges, rwidth=0.55, color='gray', label=labels[1], edgecolor='black',  linewidth=0.1, alpha=0.8)
+    ax1.hist(data, bin_edges, rwidth=1.0, color='tab:blue', label=labels[0], edgecolor='black',  linewidth=0.1, alpha=1.0)
+    ax1.hist(data_ref, bin_edges, rwidth=0.6, color='tab:orange', label=labels[1], edgecolor='black',  linewidth=0.1, alpha=0.9)
+    ax1.set_yscale('log')
     ax1.legend(loc='upper right')
     ax1.set_xlabel('Magnitude', color='k', fontsize=14)
-    ax1.set_ylabel('# Events', color='k', fontsize=14)
-    
+    ax1.set_ylabel('Number of events', color='k', fontsize=14)
     # ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
     # ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
-
-    fname = os.path.join(dir_fig, 'catalog_compare_magnitude_frequency.png')
+    ax1.tick_params(axis='both', labelsize=12)
+    fname = os.path.join(dir_fig, 'catalog_compare_magnitude_frequency.'+figformat)
+    fig.savefig(fname, dpi=600, bbox_inches='tight')
+    plt.cla()
+    fig.clear()
+    plt.close(fig)
+    
+    # accumulated number of events
+    events_hist_accu = np.zeros_like(events_hist)
+    events_hist_ref_accu = np.zeros_like(events_hist_ref)
+    assert(len(events_hist_accu)==len(events_hist_ref_accu))
+    for iie in range(len(events_hist)):
+        events_hist_accu[iie] = events_hist[iie:].sum()
+        events_hist_ref_accu[iie] = events_hist_ref[iie:].sum()
+    xbars = np.zeros_like(events_hist, dtype=float)
+    for iie in range(len(xbars)):
+        xbars[iie] = 0.5*(bin_edges[iie] + bin_edges[iie+1])
+    barwidth = bin_edges[1] - bin_edges[0]
+    fig = plt.figure(figsize=figsize, dpi=600)
+    ax1 = fig.add_subplot(111) 
+    ax1.bar(xbars, events_hist_accu, width=barwidth*1.0, color='tab:blue', label=labels[0], 
+            edgecolor='black',  linewidth=0.1, alpha=1.0, log=True)
+    ax1.bar(xbars, events_hist_ref_accu, width=barwidth*0.6, color='tab:orange', label=labels[1], 
+            edgecolor='black',  linewidth=0.1, alpha=0.9, log=True)
+    ax1.legend(loc='upper right')
+    ax1.set_xlabel('Magnitude', color='k', fontsize=14)
+    ax1.set_ylabel('Number of events', color='k', fontsize=14)
+    # ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
+    # ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
+    ax1.tick_params(axis='both', labelsize=12)
+    fname = os.path.join(dir_fig, 'catalog_compare_magnitude_frequency_accumulate.'+figformat)
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()

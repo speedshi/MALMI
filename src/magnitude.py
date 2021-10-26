@@ -21,9 +21,85 @@ import warnings
 
 
 def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='amplitude'):
-    
-    # calculate magnitude according to relative amplitude ratio
-    # at least one event must match between the input catalog and the reference catalog
+    """
+    To calculate magnitude according to relative amplitude ratio.
+    At least one event must match between the input catalog and the reference catalog.
+
+    Parameters
+    ----------
+    catalog : dict
+        the input catalog in which the event magnitude need to be determined.
+        requried keys:
+            catalog['id']
+            catalog['latitude']
+            catalog['longitude']
+            catalog['depth_km']
+            catalog['dir']
+    catalog_ref : dict
+        the reference catalog where event magnitude already exist.
+        required keys:
+            catalog_ref['id']
+            catalog_ref['magnitude']
+            catalog_ref['latitude']
+            catalog_ref['longitude']
+            catalog_ref['depth_km']
+    catalog_match : dict
+        a matched catalog between input catalog and the reference catalog, see 
+        function "catalog_matchref" for more detail.
+        required keys:
+            catalog_match['status']
+            catalog_match['id']
+            catalog_match['id_ref']
+    stations : dict
+        contains station information.
+        required keys:
+            stations['stationCode'] : the station name
+            stations['latitude']
+            stations['longitude']
+            stations['elevation']
+    mgcalpara : dict, optional
+        parameters realted to magnitude estimation.
+        The default is None, means use default parameters.
+        required keys:
+            mgcalpara['freq'] : filtering frequency band for pre-processing seismic data;
+            mgcalpara['phase'] : use which phase for determine event magnitude:
+                'P' for using P-phase only;
+                'S' for using S-phase only;
+                'PS' for using P-phase and S-phase to get event magnitude independently, then averge the two to get the final value;
+            mgcalpara['P_start'] : start time relative to P-picking time for getting P-phase amplitude;
+            mgcalpara['P_end'] : end time relative to P-picking time for getting P-phase amplitude.
+            mgcalpara['S_start'] : start time relative to S-picking time for getting S-phase amplitude;
+            mgcalpara['S_end'] : end time relative to S-picking time for getting S-phase amplitude.
+            Note nagtive means time before the picking time, positive means time after the picking time.
+            Maximum absolute amplitude (3D partical motion) between starttime and endtime
+            is chosen as the phase amplitude.
+    mode : char, optional
+        Determine the order of refernce events for magnitude estimation. 
+        "closest" : determine event magnitude from the closest avaliable event in the reference catalog;
+        "largest" : determine event magnitude from the largest avaliable event in the reference catalog;
+        The default is 'closest'.
+    distmode : char, optional
+        clarify how to calculate inter-event distance.
+        "3D" : calculating distance in 3D.
+        "horizontal" : only calculate horizontal distance, ignoring depth information.
+        The default is '3D'.
+    sorder : char, optional
+        Determine the order of comment stations for magnitude estimation. 
+        "amplitude" : determine event magnitude from the station with largest amplitude;
+        "station_dist" : determine event magnitude from the closest avaliable station;
+        The default is 'amplitude'.
+
+    Raises
+    ------
+    ValueError
+        DESCRIPTION.
+
+    Returns
+    -------
+    catalog_new : dict
+        input catalog with magnitude of all included events determined.
+
+    """
     
     from ioformatting import read_arrivaltimes
     
