@@ -11,15 +11,17 @@ import sys
 sys.path.append('/home/peidong/xresearch/code/MALMI/src')
 from main import MALMI
 import gc
+import sys
+import datetime
 
 
-dir_seismic = "../data/seismic_data_raw/seismic_raw_20181206"  # path to seismic data set
+dir_seismic = "../data/seismic_data/SDS"  # path to the SDS archive directory
 dir_output = "../data/region1"  # path for outputs
 dir_tt = '../data/traveltime/tt_150m'  # path to travetime data set
 tt_ftage = 'layer'  # traveltime data set filename tage
 n_processor = 6  # number of CPU processors for parallel processing
-seisdatastru = 'AIO'  # the input seismic data file structure, and be 'AIO' or 'SDS'
-seisdate = None  # the date of seismic data to be precessed, only needed when seisdatastru is 'SDS'
+seisdatastru = 'SDS'  # the input seismic data file structure, and be 'AIO' or 'SDS'
+seisdate = datetime.datetime.strptime(sys.argv[1], "%Y%m%d").date()  # the date of seismic data to be precessed, only needed when seisdatastru is 'SDS'
 coseismiq = MALMI(dir_seismic, dir_output, dir_tt, tt_ftage, n_processor, seisdatastru, seisdate)
 gc.collect()
 

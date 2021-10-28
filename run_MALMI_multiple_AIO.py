@@ -14,18 +14,19 @@ import gc
 import sys
 
 
-dir_seismic = sys.argv[1]  # path to raw continuous seismic data 
-dir_output = "../data"  # path for outputs
-file_station = '../data/station/station_location.csv'  #  station metadata file, in FDSNWS station text format: *.txt or StationXML format: *.xml
+dir_seismic = sys.argv[1]  # path to the directory of all seismic data, data are stored all in one folder
+dir_output = "../data/region1"  # path for outputs
 dir_tt = '../data/traveltime/tt_150m'  # path to travetime data set
 tt_ftage = 'layer'  # traveltime data set filename tage
 n_processor = 6  # number of CPU processors for parallel processing
-coseismiq = MALMI(dir_seismic, dir_output, file_station, dir_tt, tt_ftage, n_processor)
+seisdatastru = 'AIO'  # the input seismic data file structure, and be 'AIO' or 'SDS'
+coseismiq = MALMI(dir_seismic, dir_output, dir_tt, tt_ftage, n_processor, seisdatastru)
 gc.collect()
 
 
+file_station = '../data/station/station_location.csv'  #  station metadata file, in FDSNWS station text format: *.txt or StationXML format: *.xml
 seismic_channels = ["*HE", "*HN", "*HZ"]  # channels of the input seismic data
-coseismiq.format_ML_inputs(seismic_channels)
+coseismiq.format_ML_inputs(file_station, seismic_channels)
 gc.collect()
 
 

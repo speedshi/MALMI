@@ -25,6 +25,47 @@ import csv
 import copy
 
 
+def read_stationinfo(file_station):
+    """
+    To read in station metadata and returns an obspy invertory object.
+
+    Parameters
+    ----------
+    file_station : str
+        filename (inclusing path) of the station metadata. 
+        Must be in FDSNWS station text file format: *.txt;
+        or StationXML format: *.xml.
+
+    Returns
+    -------
+    stainfo : obspy invertory object
+        contains station information, such as network code, station code, 
+        longitude, latitude, evelvation etc.
+
+    """
+    
+    # read station metadata
+    stafile_suffix = file_station.split('.')[-1]
+    if stafile_suffix == 'xml' or stafile_suffix == 'XML':
+        # input are in StationXML format
+        stainfo = read_inventory(file_station, format="STATIONXML")
+    elif stafile_suffix == 'txt' or stafile_suffix == 'TXT':
+        # input are in FDSNWS station text file format
+        stainfo = read_inventory(file_station, format="STATIONTXT")
+    elif stafile_suffix == 'csv' or stafile_suffix == 'CSV':
+        # SED COSEISMIQ CSV format, temporary format
+        stainfo = Inventory(networks=[])
+        stadf = pd.read_csv(file_station, delimiter=',', encoding='utf-8', 
+                            names=['net','agency','sta code','description','lat','lon','altitude','type','up since','details'])
+        for rid, row in stadf.iterrows():
+            net = Network(code=row['net'], stations=[])
+            sta = Station(code=row['sta code'],latitude=row['lat'],longitude=row['lon'],elevation=row['altitude'])
+            net.stations.append(sta)
+            stainfo.networks.append(net)
+    
+    return stainfo
+
+
 def read_seismic_fromfd(dir_seismic, channels=None):
     """
     read in continuous seismic data as obspy stream from a specified folder.
@@ -238,14 +279,13 @@ def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*
     return
 
 
-def stainv2json(file_station, mseed_directory, dir_json):
+def stainv2json(stainfo, mseed_directory, dir_json):
     """
     Parameters
     ----------
-    file_station : str
-        filename (inclusing path) of the station metadata. 
-        Must be in FDSNWS station text file format: *.txt;
-        or StationXML format: *.xml.
+    stainfo : obspy invertory object
+        contains station information, such as network code, station code, 
+        longitude, latitude, evelvation etc. can be obtained using function: 'read_stationinfo'.
     mseed_directory : str
         String specifying the path to the directory containing miniseed files. 
         Directory must contain subdirectories of station names, which contain miniseed files 
@@ -262,31 +302,10 @@ def stainv2json(file_station, mseed_directory, dir_json):
     
     Example
     -------
-    file_station = "../data/station/all_stations_inv.xml"
     mseed_directory = "../data/seismic_data/EQT/mseeds/"
     dir_json = "../data/seismic_data/EQT/json"
-    stainv2json(file_station, mseed_directory, dir_json)
+    stainv2json(stainfo, mseed_directory, dir_json)
     """
-    
-    # read station metadata
-    stafile_suffix = file_station.split('.')[-1]
-    if stafile_suffix == 'xml' or stafile_suffix == 'XML':
-        # input are in StationXML format
-        stainfo = read_inventory(file_station, format="STATIONXML")
-    elif stafile_suffix == 'txt' or stafile_suffix == 'TXT':
-        # input are in FDSNWS station text file format
-        stainfo = read_inventory(file_station, format="STATIONTXT")
-    elif stafile_suffix == 'csv' or stafile_suffix == 'CSV':
-        # SED COSEISMIQ CSV format, temporary format
-        stainfo = Inventory(networks=[])
-        stadf = pd.read_csv(file_station, delimiter=',', encoding='utf-8', 
-                            names=['net','agency','sta code','description','lat','lon','altitude','type','up since','details'])
-        for rid, row in stadf.iterrows():
-            net = Network(code=row['net'], stations=[])
-            sta = Station(code=row['sta code'],latitude=row['lat'],longitude=row['lon'],elevation=row['altitude'])
-            net.stations.append(sta)
-            stainfo.networks.append(net)
-            
             
     # get the name of all used stations
     sta_names = sorted([dname for dname in os.listdir(mseed_directory) if os.path.isdir(os.path.join(mseed_directory, dname))])

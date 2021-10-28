@@ -15,11 +15,13 @@ import gc
 import copy
 import shutil
 import glob
+import datetime
+import warnings
         
 
 class MALMI:
 
-    def __init__(self, dir_seismic, dir_output, file_station, dir_tt, tt_ftage='layer', n_processor=1):
+    def __init__(self, dir_seismic, dir_output, dir_tt, tt_ftage='layer', n_processor=1, seisdatastru='AIO', seisdate=None):
         """
         Initilize global input and output paramaters, configure MALMI.
         Parameters
@@ -28,17 +30,19 @@ class MALMI:
             path to raw continuous seismic data.
         dir_output : str
             path for outputs.
-        file_station : str
-            station metadata file including path. The data format should be 
-            recognizable by ObsPy, such as:
-                FDSNWS station text format: *.txt,
-                FDSNWS StationXML format: *.xml.
         dir_tt : str
             path to travetime data set.
         tt_ftage : str, optional
             traveltime data set filename tage. The default is 'layer'.
         n_processor : int, default: 1
             number of CPU processors for parallel processing.
+        seisdatastru : str
+            specify the input seismic data file structure.
+            'AIO' : continuous seismic data are organized All In One folder;
+            'SDS' : continuous seismic data are organized in SeisComP Data Structure.
+        seisdate : datetime.date
+            When seisdatastru is 'SDS', seismic data set are processed daily, 
+            therefore an input date is needed to specify the date for processing.
 
         Returns
         -------
@@ -46,13 +50,23 @@ class MALMI:
 
         """
         
+        self.seisdatastru = copy.deepcopy(seisdatastru)
         self.dir_seismic = copy.deepcopy(dir_seismic)
         
-        # get the foldername of the input seismic data, used as the identifer of the input data set
-        if self.dir_seismic[-1] == '/':
-            fd_seismic = self.dir_seismic.split('/')[-2]
+        if self.seisdatastru == 'AIO':
+            # input seismic data files are stored simply in one folder
+            # get the foldername of the input seismic data, used as the identifer of the input data set
+            if self.dir_seismic[-1] == '/':
+                fd_seismic = self.dir_seismic.split('/')[-2]
+            else:
+                fd_seismic = self.dir_seismic.split('/')[-1]
+        elif self.seisdatastru == 'SDS':
+            # input seismic data files are organized in SDS
+            # use the date as the identifer of the input data set
+            self.seisdate = copy.deepcopy(seisdate)
+            fd_seismic = datetime.datetime.strftime(self.seisdate, "%Y%m%d")
         else:
-            fd_seismic = self.dir_seismic.split('/')[-1]
+            raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
             
         self.dir_ML = dir_output + "/data_EQT/" + fd_seismic  # directory for ML outputs
         self.dir_prob = self.dir_ML + '/prob_and_detection'  # output directory for ML probability outputs
@@ -74,21 +88,20 @@ class MALMI:
         self.dir_lokiprob = self.dir_migration + '/prob_evstream'  # directory for probability outputs of different events in SEED format
         self.dir_lokiseis = self.dir_migration + '/seis_evstream'  # directory for raw seismic outputs of different events in SEED format
         self.dir_lokiout = self.dir_migration + '/result_MLprob_{}'.format(tt_folder)  # path for loki final outputs
-        
-        self.file_station = copy.deepcopy(file_station)  # path to the station metadata to get station invertory
-        
 
-    def format_ML_inputs(self, seismic_channels=["*HE", "*HN", "*HZ"], seisdatastru='AIOFD'):
+
+    def format_ML_inputs(self, file_station, seismic_channels=["*HE", "*HN", "*HZ"]):
         """
         Format input data set for ML models.
         Parameters
         ----------
+        file_station : str
+            station metadata file including path. The data format should be 
+            recognizable by ObsPy, such as:
+                FDSNWS station text format: *.txt,
+                FDSNWS StationXML format: *.xml.
         seismic_channels : list of str, default: ["*HE", "*HN", "*HZ"]
             specify the channels of the input seismic data.
-        seisdatastru : str
-            specify the seismic data file structure.
-            'AIOFD' : continuous seismic data are organized All In One FolDer;
-            'SDS' : continuous seismic data are organized in SeisComP Data Structure.
         
         Returns
         -------
@@ -96,26 +109,63 @@ class MALMI:
 
         """
         
-        from ioformatting import read_seismic_fromfd, stream2EQTinput, stainv2json
+        from ioformatting import read_stationinfo, read_seismic_fromfd, stream2EQTinput, stainv2json
+        import obspy
         
         print('MALMI starts to format input data set for ML models:')
         
+        self.file_station = copy.deepcopy(file_station)  # path to the station metadata to get station invertory
         self.seismic_channels = copy.deepcopy(seismic_channels)  # the channels of the input seismic data
         
-        # read in all continuous seismic data in the input folder as an obspy stream
-        stream = read_seismic_fromfd(self.dir_seismic)
+        # read in station invertory and obtain station information
+        stainfo = read_stationinfo(self.file_station)
         
-        # output to the seismic data format that QET can handle 
-        stream2EQTinput(stream, self.dir_mseed, self.seismic_channels)
-        del stream
-        gc.collect()
+        if self.seisdatastru == "AIO":
+            # input seismic data files are stored simply in one folder
+            
+            # read in all continuous seismic data in the input folder as an obspy stream
+            stream = read_seismic_fromfd(self.dir_seismic)
+            # output to the seismic data format that QET can handle 
+            stream2EQTinput(stream, self.dir_mseed, self.seismic_channels)
+            del stream
+            gc.collect()
+            
+        elif self.seisdatastru == 'SDS':
+            # input seismic data files are organized in SDS
+            # data set could be very large, need to process per station
+
+            tdate = self.seisdate  # the date to be processed for SDS data files
+            tyear = tdate.year  # year
+            tday = tdate.timetuple().tm_yday  # day of the year
+        
+            for network in stainfo:
+                for station in network:
+                    # loop over each station for formatting input date set
+                    # and outputting correct input formats for adopted ML models   
+                    datapath1 = os.path.join(self.dir_seismic, str(tyear), network.code, station.code)
+                    if os.path.exists(datapath1):
+                        stream = obspy.Stream()  # initilize an empty obspy stream
+                        for icha in self.seismic_channels:
+                            # loop over each channel to load data of the current station
+                            datapath2 = glob.glob(os.path.join(datapath1, '*'+icha+'*'))
+                            assert(len(datapath2)==1)
+                            stream += obspy.read(os.path.join(datapath2[0], '*'+str(tday)))
+                        
+                        # ouput data for the current station
+                        stream2EQTinput(stream, self.dir_mseed, self.seismic_channels) 
+                        del stream
+                    else:
+                        warnings.warn('No data found for: {}!'.format(datapath1))
+            
+        else:
+            raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
         
         # create station jason file for EQT------------------------------------
-        stainv2json(self.file_station, self.dir_mseed, self.dir_EQTjson)
+        stainv2json(stainfo, self.dir_mseed, self.dir_EQTjson)
         gc.collect()
         print('MALMI_format_ML_inputs complete!')
 
-    
+
     def generate_prob(self, input_MLmodel, overlap=0.5):
         """
         Generate event and phase probabilities using ML models.
