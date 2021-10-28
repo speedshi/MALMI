@@ -18,15 +18,15 @@ dir_output = "../data/region1"  # path for outputs
 dir_tt = '../data/traveltime/tt_150m'  # path to travetime data set
 tt_ftage = 'layer'  # traveltime data set filename tage
 n_processor = 6  # number of CPU processors for parallel processing
+seismic_channels = ["*HE", "*HN", "*HZ"]  # channels of the input seismic data
 seisdatastru = 'AIO'  # the input seismic data file structure, and be 'AIO' or 'SDS'
 seisdate = None  # the date of seismic data to be precessed, only needed when seisdatastru is 'SDS'
-coseismiq = MALMI(dir_seismic, dir_output, dir_tt, tt_ftage, n_processor, seisdatastru, seisdate)
+coseismiq = MALMI(dir_seismic, dir_output, dir_tt, tt_ftage, n_processor, seismic_channels, seisdatastru, seisdate)
 gc.collect()
 
 
 file_station = '../data/station/station_location.csv'  #  station metadata file, in FDSNWS station text format: *.txt or StationXML format: *.xml
-seismic_channels = ["*HE", "*HN", "*HZ"]  # channels of the input seismic data
-coseismiq.format_ML_inputs(file_station, seismic_channels)
+coseismiq.format_ML_inputs(file_station)
 gc.collect()
 
 
