@@ -33,6 +33,12 @@ pip install .
 git clone https://github.com/speedshi/MALMI.git
 ```
 
+### Input Dataset
+**MALMI** generally requires two kinds of input dataset: continuous raw seismic data and station inventory.  
+*continuous raw data* can be in any format that is recognizable by [ObsPy](https://docs.obspy.org/packages/autogen/obspy.core.stream.read.html). The continuous data files can be organized in two structures: (1) store all data files in the same folder (suitable for small dateset); (2) SeisComP Data Structure ([SDS](https://www.seiscomp.de/doc/base/concepts/waveformarchives.html)) (suitable for large dateset). Simply set the input parameter: seisdatastru as 'AIO' or 'SDS' for these two dataset structures.  
+*station inventory* can be in any format that is recognizable by [ObsPy](https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html). The required infomation of stations are: newwork code, staiton code, latitude, longitude, latitude, elevation.
+
+
 ### Usage
 Fellow the example script: 'run_MALMI.py' to use the code. You could copy it anywhere in the system. Open the file to change the input parameters at your preference. Good Luck!
 ```bash
@@ -43,6 +49,16 @@ python run_MALMI.py
 
 ## Reference
 We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you use MALMI.
+We will give a talk about the MALMI system and real data applications at AGU 2021 Fall Meeting. Detail information as below:
+Abstract ID: 932446
+Abstract Title: An End-to-end Seismic Catalog Builder From Continuous Seismic Data Based on Machine Learning and Waveform Migration
+Final Paper Number: S31A-06
+Presentation Type: Oral Session
+Session Number and Title: S31A: Decoding Geophysical Signatures With Machine Learning: Novel Methods and Results I Oral
+Session Date and Time: Wednesday, 15 December 2021; 08:00 - 09:15 CST
+Presentation Length: 08:28 - 08:33 CST
+Online Only Session: No
+If Hybrid Session, Location: Convention Center Room 343-345
 
 
 ## License
