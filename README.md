@@ -10,13 +10,15 @@ Currently **MALMI** utilize [*EQTransformer*](https://github.com/speedshi/EQTran
 ```bash
 conda config --add channels conda-forge
 conda config --set channel_priority strict
-conda create -n malmi python=3.7 obspy spyder pygmt
+conda create -n malmi python=3.7 obspy spyder pygmt six~=1.15.0 numpy~=1.19.2
 conda activate malmi
 ```
 
 ### Install EQTransformer
 ```bash
-conda install -c smousavi05 eqtransformer
+git clone https://github.com/speedshi/EQTransformer.git
+cd WHERE_EQTransformer_IS_STORED
+python setup.py install
 ```
 
 ### Install loki
