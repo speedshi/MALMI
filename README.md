@@ -48,18 +48,19 @@ python run_MALMI.py
 ```
 
 ## Reference
-We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you use MALMI.
-We will give a talk about the MALMI system and real data applications at AGU 2021 Fall Meeting. Detail information as below:
-Abstract ID: 932446
-Abstract Title: An End-to-end Seismic Catalog Builder From Continuous Seismic Data Based on Machine Learning and Waveform Migration
-Final Paper Number: S31A-06
-Presentation Type: Oral Session
-Session Number and Title: S31A: Decoding Geophysical Signatures With Machine Learning: Novel Methods and Results I Oral
-Session Date and Time: Wednesday, 15 December 2021; 08:00 - 09:15 CST
-Presentation Length: 08:28 - 08:33 CST
-Online Only Session: No
-If Hybrid Session, Location: Convention Center Room 343-345
+We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you use MALMI.  
+We will give a talk about the MALMI system and real data applications at AGU 2021 Fall Meeting. Detail information as below:  
+Abstract ID: 932446  
+Abstract Title: An End-to-end Seismic Catalog Builder From Continuous Seismic Data Based on Machine Learning and Waveform Migration  
+Final Paper Number: S31A-06  
+Presentation Type: Oral Session  
+Session Number and Title: S31A: Decoding Geophysical Signatures With Machine Learning: Novel Methods and Results I Oral  
+Session Date and Time: Wednesday, 15 December 2021; 08:00 - 09:15 CST  
+Presentation Length: 08:28 - 08:33 CST  
+Online Only Session: No  
+If Hybrid Session, Location: Convention Center Room 343-345  
 
+If you are interested, please do come to our session.
 
 ## License
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. For more details, see in the license file.
