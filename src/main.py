@@ -264,10 +264,10 @@ class MALMI:
             twind_srch, _, _ = maxP2Stt(self.dir_tt, self.tt_hdr_filename, self.tt_ftage, self.tt_precision)
             
         if outseis:
-            dir_seismic = self.dir_seismic
+            dir_seisdataset = self.dir_mseed
         else:
-            dir_seismic = None
-        arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob, self.dir_lokiseis, dir_seismic, self.seismic_channels)
+            dir_seisdataset = None
+        arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob, self.dir_lokiseis, dir_seisdataset, self.seismic_channels, True)
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
 
@@ -372,7 +372,7 @@ class MALMI:
         
         print('MALMI starts to clear some intermediate results for saving disk space:')
         shutil.rmtree(self.dir_mseed)  # remove the mseed directory which are the formateed continuous seismic data set for ML inputs
-        shutil.rmtree(self.dir_hdf5)  # remove the hdf5 directory which are formatted overlapping data segments of seismic data set for ML predictions
+        shutil.rmtree(self.dir_hdf5)  # remove the hdf5 directory which are formatted overlapping data segments of seismic data set for ML_EQT predictions
         
         # remove the generated continuous probability hdf5 files
         prob_h5files = glob.glob(self.dir_prob + '/**/*.hdf5', recursive=True)
