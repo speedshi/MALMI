@@ -1150,7 +1150,7 @@ def dict2csv(indic, filename=None):
     return
 
 
-def csv2dict(file_csv):
+def csv2dict(file_csv, delimiter=','):
     """
     This function is used to load the csv file and return a dict which contains
     the information of the csv file. The first row of the csv file contains the
@@ -1169,7 +1169,7 @@ def csv2dict(file_csv):
     """
     
     # load station infomation: SED COSEISMIQ CSV format, temporary format
-    df = pd.read_csv(file_csv, delimiter=',', header="infer", skipinitialspace=True, encoding='utf-8')
+    df = pd.read_csv(file_csv, delimiter=delimiter, header="infer", skipinitialspace=True, encoding='utf-8')
     
     outdic = {}
     for column in df:

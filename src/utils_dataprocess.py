@@ -310,19 +310,22 @@ def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, 
         sindx = np.logical_and(sindx, sindx_temp)
     
     catalog_s = {}
-    catalog_s['id'] = catalog['id'][sindx]
-    catalog_s['time'] = catalog['time'][sindx]
-    catalog_s['latitude'] = catalog['latitude'][sindx]
-    catalog_s['longitude'] = catalog['longitude'][sindx]
-    catalog_s['depth_km'] = catalog['depth_km'][sindx]
-    catalog_s['coherence_max'] = catalog['coherence_max'][sindx]
-    catalog_s['coherence_std'] = catalog['coherence_std'][sindx]
-    catalog_s['coherence_med'] = catalog['coherence_med'][sindx]
-    catalog_s['starttime'] = catalog['starttime'][sindx]
-    catalog_s['endtime'] = catalog['endtime'][sindx]
-    catalog_s['station_num'] = catalog['station_num'][sindx]
-    catalog_s['phase_num'] = catalog['phase_num'][sindx]
-    catalog_s['dir'] = catalog['dir'][sindx]
+    # catalog_s['id'] = catalog['id'][sindx]
+    # catalog_s['time'] = catalog['time'][sindx]
+    # catalog_s['latitude'] = catalog['latitude'][sindx]
+    # catalog_s['longitude'] = catalog['longitude'][sindx]
+    # catalog_s['depth_km'] = catalog['depth_km'][sindx]
+    # catalog_s['coherence_max'] = catalog['coherence_max'][sindx]
+    # catalog_s['coherence_std'] = catalog['coherence_std'][sindx]
+    # catalog_s['coherence_med'] = catalog['coherence_med'][sindx]
+    # catalog_s['starttime'] = catalog['starttime'][sindx]
+    # catalog_s['endtime'] = catalog['endtime'][sindx]
+    # catalog_s['station_num'] = catalog['station_num'][sindx]
+    # catalog_s['phase_num'] = catalog['phase_num'][sindx]
+    # catalog_s['dir'] = catalog['dir'][sindx]
+    catakeys = list(catalog.keys())
+    for ikey in catakeys:
+        catalog_s[ikey] = catalog[ikey][sindx]
     
     return catalog_s
 
