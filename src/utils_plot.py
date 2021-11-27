@@ -20,15 +20,18 @@ from utils_dataprocess import dnormlz
 import matplotlib.ticker as ticker
 
 
-def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magnitude_cumulative_number.png', ydata_thrd=4.5):
+def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magnitude_cumulative_number.png', ydata_thrd=4.5, figsize=(12,4)):
     """
+    To plot the magnitude v.s. time
     
     Parameters
     ----------
-    time : nparray, shape (n_events,1)
+    time : list of nparray, each entry contains events of a catalog e.g.: [nparry(n_events1,), nparry(n_events2,), ...]
         the origin times of events, datetime format.
-    ydata : nparray, shape (n_events,1)
+        If only one catalog are plotted can also be a single nparray
+    ydata : list of nparray, each entry contains events of a catalog e.g.: [nparry(n_events1,), nparry(n_events2,), ...]
         an attribute of events for plotting on the Y-axis, e.g. magnitude.
+        If only one catalog are plotted can also be a single nparray
     bins_dt : float
         bin segments (time segment) for cumulative plot, in days.
     yname : str
@@ -37,7 +40,9 @@ def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magn
         output filename.
     ydata_thrd : float
         a threshold of ydata related to plotting;    
-
+    figsize : tuple
+        figure size
+    
     Returns
     -------
     None.
@@ -45,45 +50,62 @@ def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magn
     """
     
     
-    fig =  plt.figure(figsize=(12,4))
+    if isinstance(time, np.ndarray):
+        time = [time]   
+    if isinstance(ydata, np.ndarray):
+        ydata = [ydata]
+        
+    assert(isinstance(time, list))
+    assert(isinstance(ydata, list))
+    
+    pointsl = ['r', 'k', 'm', 'c']
+    linesl = ['b-', 'b--', 'b-.', 'b:']
+    linesl = ['r-', 'k--', 'b-.', 'b:']
+    
+    fig =  plt.figure(figsize=figsize)
     ax1 = fig.add_subplot(111) 
+    ic = 0
+    for itime, iydata in zip(time, ydata):
+        size = dnormlz(iydata, 6, 120)
+        
+        itime = mdates.date2num(itime)
+        time_min = np.floor(np.amin(itime))  # the earliest time
+        time_max = np.ceil(np.amax(itime))  # the lastest time
+        
+        # plot detection property vs detection time
+        ax1.scatter(itime, iydata, size, c=pointsl[ic], marker='o', alpha=0.5, linewidths=0)  # c=depth, cmap='Reds_r', vmin=0, vmax=10
+        
+        # calculate accumulated numbers
+        bins = np.arange(time_min,time_max+bins_dt,bins_dt)  # the edges of bins for accumulated plot
+        events_hist, bin_edges = np.histogram(itime,bins=bins)  # number of events in each bin
+        events_cum = events_hist.cumsum()  # accumulated number
+        
+        # plot accumulated number of detections
+        if ic == 0:
+            ax2 = ax1.twinx()
+        ax2.plot(bin_edges[1:], events_cum, linesl[ic], lw=2.6, alpha=0.8, zorder=1)  # accumulated event before a date (not include)
+        # ax2.plot(bin_edges[1:],events_hist,c='g',lw=1.5,zorder=1)  # plot the number of events per bin/time-period
+        # ax2.hist(itime,bins=bin_edges)  # plot the number of events per bin/time-period
+        
+        # plot events larger than a certain threshold on the cumulative curve
+        eidx = (np.array(iydata) >= ydata_thrd)
+        chse_t = itime[eidx]
+        for ee in chse_t:
+            res = next(x for x, val in enumerate(bin_edges) if val > ee)
+            # ax2.plot(ee, events_cum[res], marker='*', mew=0, mfc='lime', ms=9)
+            ax2.plot(bin_edges[0:][res-1], events_cum[res-2], marker='*', mew=0, mfc='lime', ms=9)
     
-    time = mdates.date2num(time)
-    size = dnormlz(ydata, 6, 120)
+        ic += 1
     
-    # plot detection property vs detection time
-    ax1.scatter(time, ydata, size, c='r', marker='o', alpha=0.5, linewidths=0)  # c=depth, cmap='Reds_r', vmin=0, vmax=10
     ax1.xaxis_date()
     ax1.tick_params(axis='both', which='major', labelsize=12)
     ax1.set_ylabel(yname,color='k',fontsize=14)
     ax1.autoscale(enable=True, axis='x', tight=True)
-    
-    # calculate accumulated numbers
-    time_min = np.floor(np.amin(time))  # the earliest time
-    time_max = np.ceil(np.amax(time))  # the lastest time
-    
-    bins = np.arange(time_min,time_max+bins_dt,bins_dt)  # the edges of bins for accumulated plot
-    events_hist, bin_edges = np.histogram(time,bins=bins)  # number of events in each bin
-    events_cum = events_hist.cumsum()  # accumulated number
-    
-    # plot accumulated number of detections
-    ax2 = ax1.twinx()
-    ax2.plot(bin_edges[1:],events_cum,c='b',lw=2.2,alpha=0.8,zorder=1)  # accumulated event before a date (not include)
-    # ax2.plot(bin_edges[1:],events_hist,c='g',lw=1.5,zorder=1)  # plot the number of events per bin/time-period
-    ax2.set_ylabel('Cumulative num.',color='b',fontsize=14)
-    ax2.tick_params(axis='y', colors='b')
-    
-    # plot events larger than a certain threshold on the cumulative curve
-    eidx = (np.array(ydata) >= ydata_thrd)
-    chse_t = time[eidx]
-    for ee in chse_t:
-        res = next(x for x, val in enumerate(bin_edges) if val > ee)
-        # ax2.plot(ee, events_cum[res], marker='*', mew=0, mfc='lime', ms=9)
-        ax2.plot(bin_edges[0:][res-1], events_cum[res-2], marker='*', mew=0, mfc='lime', ms=9)
-    
     ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
     ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
-    
+    ax2.set_ylabel('Cumulative num.',color='b',fontsize=14)
+    ax2.tick_params(axis='y', colors='b')
+        
     # output figure
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
@@ -308,7 +330,7 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     return
 
 
-def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png'):
+def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=None, linewd=0.6):
     """
     To plot the input seismic data of different stations with the characteristic 
     functions overlayed on the seismogram.
@@ -351,6 +373,15 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
         dpi of the output figure.
     figfmt : str, default : png
         format of the output figure.
+    process : function
+        define how to process the characteristic function, e.g 'np.median' or 'np.mean'
+        default is None, no processing.
+    plotthrd : float
+        only plot part of characteristic function that are above 'plotthrd' value.
+        default is None, plot all characteristic funtion.
+    linewd : float
+        the plot line width for plotting.
+        default is 0.6.
 
     Returns
     -------
@@ -405,7 +436,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
                     vdata = tr[0].data / max(abs(tr[0].data))
                 else:
                     vdata = tr[0].data
-                ax.plot(tt, vdata+ydev[ii], 'k', linewidth=1.2)
+                ax.plot(tt, vdata+ydev[ii], 'k', linewidth=linewd)
                 del vdata, tt
             del tr
             
@@ -419,7 +450,14 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
                     vdata = tr[0].data
                 if ppower:
                     vdata = vdata**ppower
-                ax.plot(tt, vdata+ydev[ii], 'r', linewidth=1.2)
+                if process is not None:
+                    vdata = vdata - process(vdata)
+                if plotthrd is None:
+                    ax.plot(tt, vdata+ydev[ii], 'r', linewidth=linewd)
+                else:
+                    for ipp in range(1, len(vdata)):
+                        if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
+                            ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'r', linewidth=linewd)
                 del vdata, tt
             del tr
             
@@ -433,7 +471,14 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
                     vdata = tr[0].data
                 if ppower:
                     vdata = vdata**ppower
-                ax.plot(tt, vdata+ydev[ii], 'b', linewidth=1.2)
+                if process is not None:
+                    vdata = vdata - process(vdata)
+                if plotthrd is None:
+                    ax.plot(tt, vdata+ydev[ii], 'b', linewidth=linewd)
+                else:
+                    for ipp in range(1, len(vdata)):
+                        if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
+                            ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'b', linewidth=linewd)
                 del vdata, tt
             del tr
             
@@ -449,6 +494,8 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
         
         if timerg is not None:
             ax.set_xlim(timerg)
+        myFmt = mdates.DateFormatter("%H:%M:%S")
+        ax.xaxis.set_major_formatter(myFmt)
         ax.set_yticks(ydev)
         ax.set_yticklabels(staname, fontsize=14, fontweight ="bold")
         ax.tick_params(axis='x', labelsize=14)
@@ -456,7 +503,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
         if tag:
             fname = os.path.join(dir_output, 'input_data_with_cf_{}_{}.{}'.format(icomp, tag, figfmt))
         else:
-            fname = os.path.join(dir_output, 'input_data_with_cf_{}.png'.format(icomp))
+            fname = os.path.join(dir_output, 'input_data_with_cf_{}.{}'.format(icomp, figfmt))
         fig.savefig(fname, bbox_inches='tight', dpi=dpi)
         plt.cla()
         fig.clear()
@@ -548,7 +595,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.set_title('Coherence matrix X-Y', fontsize=14, fontweight='bold') 
+    ax.set_title('Migration profile X-Y', fontsize=14, fontweight='bold') 
     fname = os.path.join(dir_output, 'coherence_matrix_xy_surf.{}'.format(figfmt))
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
@@ -556,7 +603,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     plt.close(fig)
     
     fig = plt.figure(dpi=600)
-    fig.suptitle('Coherence matrix X-Y', fontsize=14, fontweight='bold')
+    fig.suptitle('Migration profile X-Y', fontsize=14, fontweight='bold')
     ax = fig.gca()
     cs = plt.contourf(tobj.x, tobj.y, CXY, 20, cmap=cmap, interpolation='bilinear')
     ax.set_xlabel('X (km)')
@@ -597,7 +644,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.set_title('Coherence matrix X-Z', fontsize=14, fontweight='bold') 
+    ax.set_title('Migration profile X-Z', fontsize=14, fontweight='bold') 
     # zasp = ((np.max(tobj.z)-np.min(tobj.z)))/ (np.max(tobj.x)-np.min(tobj.x)) 
     # ax.set_box_aspect((1, zasp, 1))
     fname = os.path.join(dir_output, 'coherence_matrix_xz_surf.{}'.format(figfmt))
@@ -607,7 +654,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     plt.close(fig)
     
     fig = plt.figure(dpi=600)
-    fig.suptitle('Coherence matrix X-Z', fontsize=14, fontweight='bold')
+    fig.suptitle('Migration profile X-Z', fontsize=14, fontweight='bold')
     ax = fig.gca()
     cs = plt.contourf(tobj.x, tobj.z, CXZ, 20, cmap=cmap, interpolation='bilinear')
     ax.set_xlabel('X (km)')
@@ -649,7 +696,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.set_title('Coherence matrix Y-Z', fontsize=14, fontweight='bold') 
+    ax.set_title('Migration profile Y-Z', fontsize=14, fontweight='bold') 
     fname = os.path.join(dir_output, 'coherence_matrix_yz_surf.{}'.format(figfmt))
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
@@ -657,7 +704,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     plt.close(fig)
     
     fig = plt.figure(dpi=600)
-    fig.suptitle('Coherence matrix Y-Z', fontsize=14, fontweight='bold')
+    fig.suptitle('Migration profile Y-Z', fontsize=14, fontweight='bold')
     ax = fig.gca()
     cs = plt.contourf(tobj.y, tobj.z, CYZ, 20, cmap=cmap, interpolation='bilinear')
     ax.set_xlabel('Y (km)')
@@ -766,7 +813,7 @@ def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plo
     return
 
 
-def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17):
+def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depthrg=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17):
     """
     To plot the basemap with seismic events color-coded using event depth.
     
@@ -781,8 +828,10 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap=
         latitude of seismic events in degree.
     eq_depth : list or numpy.array of float
         depth of seismic events in km.
-    depth_max : float
-        maximum depth in km for showing. Default is None, i.e. show all depths.    
+    depthrg : float or list of float
+        when input is a float or list with only 1 entry, it specify the maximum depth in km for showing. 
+        when input is a list of two entries, it specify the depth range in km for showing.
+        Default is None, i.e. show all depths.    
     sta_inv : obspy invertory format, optional
         station inventory containing station metadata. The default is None.
     mkregion : list of float, optional
@@ -831,14 +880,21 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depth_max=None, cmap=
         fig.plot(data=np.array([[mkregion[0], mkregion[2], mkregion[1], mkregion[3]]]), style='r+s', pen="1p,yellow")
     
     # plot events
-    if depth_max:
-        pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), depth_max])
+    if depthrg is not None:
+        if isinstance(depthrg, float):
+            pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), depthrg])
+        elif isinstance(depthrg, list) and (len(depthrg)==1):
+            pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), depthrg[0]])
+        elif isinstance(depthrg, list) and (len(depthrg)==2):
+            pygmt.makecpt(cmap=cmap, series=[depthrg[0], depthrg[1]])
+        else:
+            raise ValueError('Input depthrg not recognized!')
     else:
         pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), eq_depth.max()])
     if isinstance(eq_size, float):
-        fig.plot(eq_longi, eq_latit, color=eq_depth, cmap=True, style="c{}c".format(eq_size), pen="0.1p,black", no_clip="r")  # , transparency=30
+        fig.plot(eq_longi, eq_latit, color=eq_depth, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30
     else:
-        fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_depth, cmap=True, style="cc", pen="0.1p,black", transparency=10, no_clip="r")
+        fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_depth, cmap=True, style="cc", pen="0.01p,black", transparency=10)  # , no_clip="r"
     fig.colorbar(frame='af+l"Depth (km)"')
     
     # show how many events in total
@@ -923,9 +979,9 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     eq_tref = mdates.date2num(eq_times) - mdates.date2num(time_ref)
     pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()])
     if isinstance(eq_size, float):
-        fig.plot(eq_longi, eq_latit, color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.1p,black", no_clip="r")  # , transparency=30
+        fig.plot(eq_longi, eq_latit, color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30, 
     else:
-        fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_tref, cmap=True, style="cc", pen="0.1p,black", transparency=10, no_clip="r")
+        fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_tref, cmap=True, style="cc", transparency=10, pen="0.01p,black")  # , no_clip="r"
     fig.colorbar(frame='af+l"Days relative to {}"'.format(time_ref))
     
     # show how many events in total
@@ -937,7 +993,7 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     return
 
 
-def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png'):
+def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png', fnametag=None):
     """
     To plot the pie figure after comparing two catalogs.
 
@@ -953,6 +1009,8 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png'):
         dirctory for saving fiugre. The default is '.'.
     figformat : str, optional
         output figure format. The default is 'png'.
+    fnametag : str, optional
+        figure name tage.
 
     Returns
     -------
@@ -1007,7 +1065,10 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png'):
     ax2.add_artist(centre_circle)
     
     # output figure
-    fname = os.path.join(dir_fig, 'catalog_compare_statistical_pie.'+figformat)
+    if fnametag is None:
+        fname = os.path.join(dir_fig, 'catalog_compare_statistical_pie.'+figformat)
+    else:
+        fname = os.path.join(dir_fig, 'catalog_compare_statistical_pie_'+fnametag+'.'+figformat)
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -1051,7 +1112,10 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png'):
     ax1.xaxis.set_major_locator(ticker.MultipleLocator(10*dd)) # forced the horizontal major ticks to appear by steps of '10dd' units
     ax1.xaxis.set_minor_locator(ticker.MultipleLocator(dd))  # forced the horizontal minor ticks to appear by steps of 'dd' units
     
-    fname = os.path.join(dir_fig, 'catalog_compare_hdist_bar.'+figformat)
+    if fnametag is None:
+        fname = os.path.join(dir_fig, 'catalog_compare_hdist_bar.'+figformat)
+    else:
+        fname = os.path.join(dir_fig, 'catalog_compare_hdist_bar_'+fnametag+'.'+figformat)
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -1061,7 +1125,7 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png'):
     return
 
 
-def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig='.', labels=None, figformat='png'):
+def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig='.', labels=None, figformat='png', fnametag=None):
     """
     Plot bar char of events per time slot for comparing two catalogs.
 
@@ -1084,7 +1148,9 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig=
         the lables for the input two dataset.
     figformat : str, optional
         output figure format. The default is 'png'.
-
+    fnametag : str, optional
+        figure name tage.
+        
     Returns
     -------
     None.
@@ -1116,7 +1182,10 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig=
     ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
     ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
     ax1.tick_params(axis='both', labelsize=12)
-    fname = os.path.join(dir_fig, 'catalog_compare_timebin_bar.'+figformat)
+    if fnametag is None:
+        fname = os.path.join(dir_fig, 'catalog_compare_timebin_bar.'+figformat)
+    else:
+        fname = os.path.join(dir_fig, 'catalog_compare_timebin_bar_'+fnametag+'.'+figformat)
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -1125,7 +1194,7 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig=
     return
 
 
-def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fig='.', labels=None, figformat='png'):
+def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fig='.', labels=None, figformat='png', fnametag=None):
     """
     Plot the number of events per magnitude bins for comparing two catalogs.
 
@@ -1147,7 +1216,9 @@ def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fi
         the lables for the input two dataset.
     figformat : str, optional
         output figure format. The default is 'png'.
-
+    fnametag : str, optional
+        figure name tage.
+        
     Returns
     -------
     None.
@@ -1180,7 +1251,10 @@ def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fi
     # ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
     # ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
     ax1.tick_params(axis='both', labelsize=12)
-    fname = os.path.join(dir_fig, 'catalog_compare_magnitude_frequency.'+figformat)
+    if fnametag is None:
+        fname = os.path.join(dir_fig, 'catalog_compare_magnitude_frequency.'+figformat)
+    else:
+        fname = os.path.join(dir_fig, 'catalog_compare_magnitude_frequency_'+fnametag+'.'+figformat)
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -1209,7 +1283,10 @@ def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fi
     # ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
     # ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
     ax1.tick_params(axis='both', labelsize=12)
-    fname = os.path.join(dir_fig, 'catalog_compare_magnitude_frequency_accumulate.'+figformat)
+    if fnametag is None:
+        fname = os.path.join(dir_fig, 'catalog_compare_magnitude_frequency_accumulate.'+figformat)
+    else:
+        fname = os.path.join(dir_fig, 'catalog_compare_magnitude_frequency_accumulate_'+fnametag+'.'+figformat)
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -1286,3 +1363,296 @@ def compare_2para(catalog1, catalog2, key_xy=['coherence_med', 'coherence_std'],
     return
 
 
+def catalog_plot_depth(region, catalog, depthrg=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None):
+    """
+    To plot the basemap with seismic events color-coded using event depth.
+    
+    Parameters
+    ----------
+    region : list of float
+        the lat/lon boundary of plotting region, in format of 
+        [lon_min, lon_max, lat_min, lat_max] in degree.
+    catalog: dict,
+        containing catalog event information;
+        catalog['longitude'] : list or numpy.array of float
+            longitude of seismic events in degree.
+        catalog['latitude'] : list or numpy.array of float
+            latitude of seismic events in degree.
+        catalog['depth_km'] : list or numpy.array of float
+            depth of seismic events in km.
+    depthrg : float or list of float
+        when input is a float or list with only 1 entry, it specify the maximum depth in km for showing. 
+        when input is a list of two entries, it specify the depth range in km for showing.
+        Default is None, i.e. show all depths.    
+    sta_inv : obspy invertory format, optional
+        station inventory containing station metadata. The default is None.
+    mkregion : list of float or list of lists, optional
+        if list of float:
+            the lat/lon boundary of a marked region for highlighting, in format of 
+            [lon_min, lon_max, lat_min, lat_max] in degree. 
+        if list of lists:
+            plot several marked regions, [[lon_min, lon_max, lat_min, lat_max], ...]
+        The default is None, i.e. not plotting the highlighting area.
+    fname : str, optional
+        filename of the output figure. The default is "./basemap.png".
+    plot_stationname : boolen, optional
+        specify whether to plot the station names on the map. Default is yes.
+    eq_size : list of float or float
+        the size of the plotted seismic events. If input is a float, then plot 
+        the events using the same size; if input is a list of float (must be in
+        the same size as events), then plot events in different sizes.
+        The default is to plot with the same size of 0.17.
+    markers : dict, for plotting additional markers;
+        markers['latitude'] : list of float, latitude in degree of markers;
+        markers['longitude'] : list of float, longitude in degree of markers;
+        markers['shape'] : list of str or str, specify the shape of markers, 
+                           length of 1 or same as markers, e.g. 'c' or ['c', 't', 's', ...]
+        markers['size'] : list of float or float, specify the size of markers, 
+                          same length as markers['shape'], e.g. 0.3 or [0.3, 0.4, 0.2, ...]
+        markers['color'] : list of str or str, specify the colors of markers, 
+                           same length as markers['shape'], e.g. 'black' or ['black', 'white', 'red', ...]
+                           if None, not filling with colors;
+        markers['pen'] : list of str or str, specify the pen for plotting the markers,
+                         same length as markers['shape'], e.g. "0.7p,black" or ["0.7p,black", "0.5p,red", "0.3p,blue", ...]
+        default is None, not plotting.
+        
+    Returns
+    -------
+    None.
+
+    """  
+    
+    import pygmt
+    pygmt.config(FORMAT_GEO_MAP="ddd.xx")
+
+    fig = pygmt.Figure()
+    fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
+              projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
+              water="skyblue",  # Set the color of the land t
+              borders="1/0.5p",  # Display the national borders and set the pen thickness
+              shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
+              frame="a",  # Set the frame to display annotations and gridlines
+              land="gray",  # Set the color of the land
+              #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
+              )
+    
+    # plot stations
+    for net in sta_inv:
+        for sta in net:
+            fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="black", pen="0.35p,black") 
+            if plot_stationname:
+                fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', D='0/-0.15c')
+    
+    # highlight a rectangular area on the map
+    if mkregion is not None:
+        if isinstance(mkregion[0], float):
+            # plot one marked rectangular region
+            fig.plot(data=np.array([[mkregion[0], mkregion[2], mkregion[1], mkregion[3]]]), style='r+s', pen="1p,yellow")
+        elif isinstance(mkregion[0], list):
+            # plot several marked rectangular region
+            for imkrg in mkregion:
+                fig.plot(data=np.array([[imkrg[0], imkrg[2], imkrg[1], imkrg[3]]]), style='r+s', pen="1p,black")
+                
+    # plot events
+    if depthrg is not None:
+        if isinstance(depthrg, float):
+            pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), depthrg])
+        elif isinstance(depthrg, list) and (len(depthrg)==1):
+            pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), depthrg[0]])
+        elif isinstance(depthrg, list) and (len(depthrg)==2):
+            pygmt.makecpt(cmap=cmap, series=[depthrg[0], depthrg[1]])
+        else:
+            raise ValueError('Input depthrg not recognized!')
+    else:
+        pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), catalog['depth_km'].max()])
+    if isinstance(eq_size, float):
+        fig.plot(catalog['longitude'], catalog['latitude'], color=catalog['depth_km'], cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30
+    else:
+        fig.plot(x=catalog['longitude'], y=catalog['latitude'], size=eq_size, color=catalog['depth_km'], cmap=True, style="cc", pen="0.01p,black", transparency=10)  # , no_clip="r"
+    fig.colorbar(frame='af+l"Depth (km)"')
+    
+    # plot the markers
+    if markers is not None:
+        if isinstance(markers['shape'], str):
+            # plot markers with the same size, shape and color
+            if markers['color'] is not None:
+                fig.plot(x=markers['longitude'], y=markers['latitude'], 
+                         style="{}{}c".format(markers['shape'], markers['size']), 
+                         color="{}".format(markers['color']), pen=markers['pen'], transparency=10) 
+            else:
+                fig.plot(x=markers['longitude'], y=markers['latitude'], 
+                         style="{}{}c".format(markers['shape'], markers['size']), 
+                         pen=markers['pen'], transparency=10) 
+        else:
+            # plot marker with different size, shape and color
+            for iim in range(len(markers['shape'])):
+                if markers['color'][iim] is not None:
+                    fig.plot(x=markers['longitude'][iim], y=markers['latitude'][iim], 
+                         style="{}{}c".format(markers['shape'][iim], markers['size'][iim]), 
+                         color="{}".format(markers['color'][iim]), pen=markers['pen'][iim], transparency=10)
+                else:
+                    fig.plot(x=markers['longitude'][iim], y=markers['latitude'][iim], 
+                         style="{}{}c".format(markers['shape'][iim], markers['size'][iim]), 
+                         pen=markers['pen'][iim], transparency=10)
+    
+    # show how many events in total
+    fig.text(text='{} events'.format(len(catalog['longitude'])), position='BR', font='14p,Helvetica-Bold,black', justify='BR', offset='-0.4/0.4')
+    
+    # save figure
+    fig.savefig(fname, dpi=600)
+
+    return
+
+
+def catalog_plot_otime(region, catalog, time_ref=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None):
+    """
+    To plot the basemap with seismic events color-coded using event origin time.
+    
+    Parameters
+    ----------
+    region : list float
+        the lat/lon boundary of plotting region, in format of 
+        [lon_min, lon_max, lat_min, lat_max] in degree.
+    catalog: dict,
+        containing catalog event information;
+        catalog['longitude'] : list or numpy.array of float
+            longitude of seismic events in degree.
+        catalog['latitude'] : list or numpy.array of float
+            latitude of seismic events in degree.
+        catalog['time'] : numpy.array of datetime
+            origin times of seismic events in datetime format.
+    time_ref : datetime
+        Reference time for calculate time difference. Default is None, 
+        i.e. maximum origin time of the input event.    
+    sta_inv : obspy invertory format, optional
+        station inventory containing station metadata. The default is None.
+    mkregion : list of float or list of lists, optional
+        if list of float:
+            the lat/lon boundary of a marked region for highlighting, in format of 
+            [lon_min, lon_max, lat_min, lat_max] in degree. 
+        if list of lists:
+            plot several marked regions, [[lon_min, lon_max, lat_min, lat_max], ...]
+        The default is None, i.e. not plotting the highlighting area.
+    fname : str, optional
+        filename of the output figure. The default is "./basemap.png".
+    plot_stationname : boolen, optional
+        specify whether to plot the station names on the map. Default is yes.
+    eq_size : list of float or float
+        the size of the plotted seismic events. If input is a float, then plot 
+        the events using the same size; if input is a list of float (must be in
+        the same size as eq_longi), then plot events in different sizes.
+        The default is to plot with the same size of 0.17.
+    markers : dict, for plotting additional markers;
+        markers['latitude'] : list of float, latitude in degree of markers;
+        markers['longitude'] : list of float, longitude in degree of markers;
+        markers['shape'] : list of str or str, specify the shape of markers, 
+                           length of 1 or same as markers, e.g. 'c' or ['c', 't', 's', ...]
+        markers['size'] : list of float or float, specify the size of markers, 
+                          same length as markers['shape'], e.g. 0.3 or [0.3, 0.4, 0.2, ...]
+        markers['color'] : list of str or str, specify the colors of markers, 
+                           same length as markers['shape'], e.g. 'black' or ['black', 'white', 'red', ...]
+                           if None, not filling with colors;
+        markers['pen'] : list of str or str, specify the pen for plotting the markers,
+                         same length as markers['shape'], e.g. "0.7p,black" or ["0.7p,black", "0.5p,red", "0.3p,blue", ...]
+        default is None, not plotting.
+        
+    Returns
+    -------
+    None.
+
+    """  
+    
+    import pygmt
+    pygmt.config(FORMAT_GEO_MAP="ddd.xx")
+
+    fig = pygmt.Figure()
+    fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
+              projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
+              water="skyblue",  # Set the color of the land t
+              borders="1/0.5p",  # Display the national borders and set the pen thickness
+              shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
+              frame="a",  # Set the frame to display annotations and gridlines
+              land="gray",  # Set the color of the land
+              #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
+              )
+    
+    # plot stations
+    for net in sta_inv:
+        for sta in net:
+            fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="black", pen="0.35p,black") 
+            if plot_stationname:
+                fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', D='0/-0.15c')
+    
+    # highlight a rectangular area on the map
+    if mkregion is not None:
+        if isinstance(mkregion[0], float):
+            # plot one marked rectangular region
+            fig.plot(data=np.array([[mkregion[0], mkregion[2], mkregion[1], mkregion[3]]]), style='r+s', pen="1p,yellow")
+        elif isinstance(mkregion[0], list):
+            # plot several marked rectangular region
+            for imkrg in mkregion:
+                fig.plot(data=np.array([[imkrg[0], imkrg[2], imkrg[1], imkrg[3]]]), style='r+s', pen="1p,black")
+    
+    # plot events
+    if not time_ref:
+        # set the default reference time to be the 
+        time_ref = max(catalog['time'])
+    eq_tref = mdates.date2num(catalog['time']) - mdates.date2num(time_ref)
+    pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()])
+    if isinstance(eq_size, float):
+        fig.plot(catalog['longitude'], catalog['latitude'], color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30, 
+    else:
+        fig.plot(x=catalog['longitude'], y=catalog['latitude'], size=eq_size, color=eq_tref, cmap=True, style="cc", transparency=10, pen="0.01p,black")  # , no_clip="r"
+    fig.colorbar(frame='af+l"Days relative to {}"'.format(time_ref))
+    
+    # plot the markers
+    if markers is not None:
+        if isinstance(markers['shape'], str):
+            # plot markers with the same size, shape and color
+            if markers['color'] is not None:
+                fig.plot(x=markers['longitude'], y=markers['latitude'], 
+                         style="{}{}c".format(markers['shape'], markers['size']), 
+                         color="{}".format(markers['color']), pen=markers['pen'], transparency=10) 
+            else:
+                fig.plot(x=markers['longitude'], y=markers['latitude'], 
+                         style="{}{}c".format(markers['shape'], markers['size']), 
+                         pen=markers['pen'], transparency=10) 
+        else:
+            # plot marker with different size, shape and color
+            for iim in range(len(markers['shape'])):
+                if markers['color'][iim] is not None:
+                    fig.plot(x=markers['longitude'][iim], y=markers['latitude'][iim], 
+                         style="{}{}c".format(markers['shape'][iim], markers['size'][iim]), 
+                         color="{}".format(markers['color'][iim]), pen=markers['pen'][iim], transparency=10)
+                else:
+                    fig.plot(x=markers['longitude'][iim], y=markers['latitude'][iim], 
+                         style="{}{}c".format(markers['shape'][iim], markers['size'][iim]), 
+                         pen=markers['pen'][iim], transparency=10)
+    
+    # show how many events in total
+    fig.text(text='{} events'.format(len(catalog['longitude'])), position='BR', font='14p,Helvetica-Bold,black', justify='BR', offset='-0.4/0.4')
+    
+    # save figure
+    fig.savefig(fname, dpi=600)
+
+    return
+
+
+def catalog_plot_profile(catalog, pfregion, pfazimuth):
+    
+    
+    from utils_dataprocess import catalog_select
+    import pygmt
+    
+    fig = pygmt.Figure()
+    
+    # loop over each region to extract corresponding seismic events and project to a profile
+    for ii in range(len(pfregion)):
+        catalog_rg = catalog_select(catalog, thrd_lat=[pfregion[ii][2], pfregion[ii][3]], thrd_lon=[pfregion[ii][0], pfregion[ii][1]], thrd_depth=None)
+        evpjs = fig.project(x=catalog_rg['longitude'], y=catalog_rg['latitude'], z=catalog_rg['depth_km'], 
+                              center=[0.5*(pfregion[ii][0]+pfregion[ii][1]), 0.5*(pfregion[ii][2]+pfregion[ii][3])], 
+                              azimuth=pfazimuth[ii], convention='pz', unit=True)
+    
+    
+    return
+    

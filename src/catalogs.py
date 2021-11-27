@@ -71,3 +71,4 @@ def catalog_evselect(catalog, timerg=None, latrg=None, lonrg=None, deprg=None):
         catalog_s[ikey] = catalog[ikey][sindx]
 
     return catalog_s
+
