@@ -310,19 +310,6 @@ def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, 
         sindx = np.logical_and(sindx, sindx_temp)
     
     catalog_s = {}
-    # catalog_s['id'] = catalog['id'][sindx]
-    # catalog_s['time'] = catalog['time'][sindx]
-    # catalog_s['latitude'] = catalog['latitude'][sindx]
-    # catalog_s['longitude'] = catalog['longitude'][sindx]
-    # catalog_s['depth_km'] = catalog['depth_km'][sindx]
-    # catalog_s['coherence_max'] = catalog['coherence_max'][sindx]
-    # catalog_s['coherence_std'] = catalog['coherence_std'][sindx]
-    # catalog_s['coherence_med'] = catalog['coherence_med'][sindx]
-    # catalog_s['starttime'] = catalog['starttime'][sindx]
-    # catalog_s['endtime'] = catalog['endtime'][sindx]
-    # catalog_s['station_num'] = catalog['station_num'][sindx]
-    # catalog_s['phase_num'] = catalog['phase_num'][sindx]
-    # catalog_s['dir'] = catalog['dir'][sindx]
     catakeys = list(catalog.keys())
     for ikey in catakeys:
         catalog_s[ikey] = catalog[ikey][sindx]
@@ -609,7 +596,42 @@ def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth
     return catalog_match
 
 
+def chamferdist(datax, datay):
+    """
+    To calucate the chamfer distance between the input data cloud x (datax)
+    and data cloud y (datay).
 
+    Parameters
+    ----------
+    datax : numpy array of float
+        The input data cloud x.
+        shape: number of points x number of dimensions.
+    datay : numpy array of float
+        The input data cloud y.
+        shape: number of points x number of dimensions.
+
+    Returns
+    -------
+    CD : float
+        the calculated chamfer distance between datax and datay.
+
+    """
+    
+    Nx = datax.shape[0]  # total number of data points in data cloud x
+    Ny = datay.shape[0]  # total number of data points in data cloud y
+    
+    CDx = 0.0
+    for ix in range(Nx):
+        CDx += min(np.sum((datay - datax[ix,:])**2, axis=1))
+    CDx = CDx / Nx
+
+    CDy = 0.0
+    for iy in range(Ny):
+        CDy += min(np.sum((datax - datay[iy,:])**2, axis=1))
+    CDy = CDy / Ny
+    
+    CD = CDx + CDy
+    return CD
 
 
 
