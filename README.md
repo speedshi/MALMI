@@ -52,7 +52,8 @@ python run_MALMI.py
 ```
 
 ## Reference 
-We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you use MALMI. We currently have a manuscript on Archive, will update the information here soon.
+We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you use MALMI. We currently have a manuscript on arXiv, will update the information here soon.
+
 We had a talk about the MALMI system and real data applications at AGU 2021 Fall Meeting. Detail information as below:  
 Abstract ID: 932446  
 Abstract Title: An End-to-end Seismic Catalog Builder From Continuous Seismic Data Based on Machine Learning and Waveform Migration  
