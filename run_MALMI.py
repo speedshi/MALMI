@@ -11,16 +11,25 @@ import sys
 sys.path.append('/home/peidong/xresearch/code/MALMI/src')
 from main import MALMI
 import gc
+import datetime
+import os
 
 
-dir_seismic = "../data/seismic_data_raw/seismic_raw_20181206"  # path to seismic data set
+dir_seismic = "../data/seismic_data/SDS"  # path to the SDS archive directory or parent directory where seismic data are stored all in one folder
 dir_output = "../data/region1"  # path for outputs
 dir_tt = '../data/traveltime/tt_150m'  # path to travetime data set
 tt_ftage = 'layer'  # traveltime data set filename tage
 n_processor = 6  # number of CPU processors for parallel processing
 seismic_channels = ["*HE", "*HN", "*HZ"]  # channels of the input seismic data
-seisdatastru = 'AIO'  # the input seismic data file structure, and be 'AIO' or 'SDS'
-seisdate = None  # the date of seismic data to be precessed, only needed when seisdatastru is 'SDS'
+if sys.argv[1] == 'SDS':
+    seisdatastru = 'SDS'  # the input seismic data file structure, and be 'AIO' or 'SDS'
+    seisdate = datetime.datetime.strptime(sys.argv[2], "%Y%m%d").date()  # the date of seismic data to be precessed, for example "20181205", only needed when seisdatastru is 'SDS'
+elif sys.argv[1] =='AIO':
+    seisdatastru = 'AIO'  # the input seismic data file structure, and be 'AIO' or 'SDS'
+    seisdate = None  # the date of seismic data to be precessed, only needed when seisdatastru is 'SDS', otherwize use 'None'
+    dir_seismic = os.path.join(dir_seismic, sys.argv[2])
+else:
+    raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
 coseismiq = MALMI(dir_seismic, dir_output, dir_tt, tt_ftage, n_processor, seismic_channels, seisdatastru, seisdate)
 gc.collect()
 
