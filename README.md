@@ -34,10 +34,13 @@ git clone https://github.com/speedshi/MALMI.git
 ```
 
 ### Input Dataset
-**MALMI** generally requires two kinds of input dataset: continuous raw seismic data and station inventory.  
-*continuous raw data* can be in any format that is recognizable by [ObsPy read](https://docs.obspy.org/packages/autogen/obspy.core.stream.read.html). The continuous data files can be organized in two structures: (1) store all data files in the same folder (suitable for small dateset); (2) SeisComP Data Structure ([SDS](https://www.seiscomp.de/doc/base/concepts/waveformarchives.html)) (suitable for large dateset). Simply set the input parameter: seisdatastru as 'AIO' or 'SDS' for these two dataset structures.  
+**MALMI** generally requires three kinds of input dataset: continuous raw seismic data, station inventory and velocity model (or traveltime table).  
+#### continuous raw seismic data
+*continuous raw data* can be in any format that is recognizable by [ObsPy read](https://docs.obspy.org/packages/autogen/obspy.core.stream.read.html). The continuous data files can be organized in two structures: (1) store all data files in the same folder (suitable for small dateset); (2) SeisComP Data Structure ([SDS](https://www.seiscomp.de/doc/base/concepts/waveformarchives.html)) (suitable for large dateset). Simply set the input parameter: seisdatastru as 'AIO' or 'SDS' for these two dataset structures.
+#### station inventory
 *station inventory* can be in any format that is recognizable by [ObsPy read_inventory](https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html). The required infomation of stations are: newwork code, staiton code, latitude, longitude, latitude, elevation.
-
+#### velocity model
+*velocity model* is
 
 ### Usage
 Fellow the example script: 'run_MALMI.py' to use the code. You could copy it anywhere in the system. Open the file to change the input parameters at your preference. Good Luck!
