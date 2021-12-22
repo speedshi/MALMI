@@ -1,7 +1,6 @@
 # MALMI (MAchine Learning Migration Imaging)
 
 ## Installation
-
 We suggest to create and work in a new python environment for MALMI. The installation is done via Anaconda. For more information see [conda](https://docs.conda.io/en/latest/).
 
 Currently **MALMI** utilize [*EQTransformer*](https://github.com/speedshi/EQTransformer) as the ML engine and [*loki*](https://github.com/speedshi/LOKI) as the migration engine. So the two softwares should be installed as well. We will guide you step by step in this section to install all the required packages.
@@ -33,16 +32,18 @@ pip install .
 git clone https://github.com/speedshi/MALMI.git
 ```
 
-### Input Dataset
+## Input Dataset
 **MALMI** generally requires three kinds of input dataset: continuous raw seismic data, station inventory and velocity model (or traveltime table).  
 #### continuous raw seismic data
 *continuous raw data* can be in any format that is recognizable by [ObsPy read](https://docs.obspy.org/packages/autogen/obspy.core.stream.read.html). The continuous data files can be organized in two structures: (1) store all data files in the same folder (suitable for small dateset); (2) SeisComP Data Structure ([SDS](https://www.seiscomp.de/doc/base/concepts/waveformarchives.html)) (suitable for large dateset). Simply set the input parameter: seisdatastru as 'AIO' or 'SDS' for these two dataset structures.
-#### station inventory
+
+### station inventory
 *station inventory* can be in any format that is recognizable by [ObsPy read_inventory](https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html). The required infomation of stations are: newwork code, staiton code, latitude, longitude, latitude, elevation.
-#### velocity model
+
+### velocity model
 *velocity model* is
 
-### Usage
+## Usage
 Fellow the example script: 'run_MALMI.py' to use the code. You could copy it anywhere in the system. Open the file to change the input parameters at your preference. Good Luck!
 ```bash
 cd WHERE_MALMI_IS_STORED
@@ -51,19 +52,13 @@ python run_MALMI.py
 ```
 
 ## Reference
-We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you use MALMI.  
-We will give a talk about the MALMI system and real data applications at AGU 2021 Fall Meeting. Detail information as below:  
+We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you use MALMI. We currently have a manuscript on Archive, will update the information here soon.
+We had a talk about the MALMI system and real data applications at AGU 2021 Fall Meeting. Detail information as below:  
 Abstract ID: 932446  
 Abstract Title: An End-to-end Seismic Catalog Builder From Continuous Seismic Data Based on Machine Learning and Waveform Migration  
 Final Paper Number: S31A-06  
 Presentation Type: Oral Session  
-Session Number and Title: S31A: Decoding Geophysical Signatures With Machine Learning: Novel Methods and Results I Oral  
-Session Date and Time: Wednesday, 15 December 2021; 08:00 - 09:15 CST  
-Presentation Length: 08:28 - 08:33 CST  
-Online Only Session: No  
-If Hybrid Session, Location: Convention Center Room 343-345  
-
-If you are interested, please do come to our session.
+Session Number and Title: S31A: Decoding Geophysical Signatures With Machine Learning: Novel Methods and Results I Oral (S31A-06)
 
 ## License
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. For more details, see in the license file.
@@ -72,7 +67,6 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 Copyright(C) 2021 Peidong Shi
 
 Author: Peidong Shi
-
 Email: peidong.shi@sed.ethz.ch or speedshi@hotmail.com
 
 
