@@ -66,7 +66,9 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 
 ## Contact information 
 Copyright(C) 2021 Peidong Shi
+
 Author: Peidong Shi
+
 Email: peidong.shi@sed.ethz.ch or speedshi@hotmail.com
 
 
