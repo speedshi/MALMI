@@ -21,30 +21,69 @@ import warnings
 
 class MALMI:
 
-    def __init__(self, dir_seismic, dir_output, dir_tt, tt_ftage='layer', n_processor=1, seismic_channels=["*HE", "*HN", "*HZ"], seisdatastru='AIO', seisdate=None):
+    def __init__(self, seismic, tt, grid=None, control=None):
         """
         Initilize global input and output paramaters, configure MALMI.
         Parameters
         ----------
-        dir_seismic : str
-            path to raw continuous seismic data.
-        dir_output : str
-            path for outputs.
-        dir_tt : str
-            path to travetime data set.
-        tt_ftage : str, optional
-            traveltime data set filename tage. The default is 'layer'.
-        n_processor : int, default: 1
-            number of CPU processors for parallel processing.
-        seismic_channels : list of str, default: ["*HE", "*HN", "*HZ"]
-            specify the channels of the input seismic data.
-        seisdatastru : str
-            specify the input seismic data file structure.
-            'AIO' : continuous seismic data are organized All In One folder;
-            'SDS' : continuous seismic data are organized in SeisComP Data Structure.
-        seisdate : datetime.date
-            When seisdatastru is 'SDS', seismic data set are processed daily, 
-            therefore an input date is needed to specify the date for processing.
+        seismic parameters (For input seismic data set):
+            seismic['dir']: str, required.
+                path to raw continuous seismic data.
+            seismic['channels']: list of str, optional, default: ["*HE", "*HN", "*HZ"].
+                the used channels of the input seismic data.
+            seismic['datastru']: str, optional, default: 'AIO'.
+                the input seismic data file structure.
+                'AIO' : continuous seismic data are organized All In One folder;
+                'SDS' : continuous seismic data are organized in SeisComP Data Structure.
+            seismic['date']: datetime.date, optional, default is None.
+                When seisdatastru is 'SDS', seismic data set are processed daily, 
+                therefore this parameter is used to specify the date for processing.
+            seismic['stainvf']: str, required.
+                station inventory file including path. The data format should be 
+                recognizable by ObsPy, such as:
+                    FDSNWS station text format: *.txt,
+                    FDSNWS StationXML format: *.xml.
+                or a simply CSV file using ',' as the delimiter in which the first row 
+                is column name and must contain: 'network', 'station', 'latitude', 
+                'longitude', 'elevation'. Latitude and longitude are in decimal degree 
+                and elevation in meters relative to the sea-level (positive for up). 
+        
+        traveltime parameters (For loading or generating traveltime tables):
+            tt['vmodel']: str, optional, default is None.
+                filename including path of the velocity model.    
+                None means directly load existing traveltime table of NonLinLoc format.
+            tt['dir']: str, optional, default is './data/traveltime'.
+                path to travetime data directory or for saving generated traveltime tabels.
+            tt['ftage']: str, optional, default is 'layer'. 
+                traveltime data set filename tage as used for NonLinLoc.
+        
+        grid parameters (Primarily used in migration):
+            Note all input stations must lie within the grid.
+            If load existing traveltime tables of NonLinLoc format, 
+            grid is then not needed, use None instead.
+            grid['LatOrig']: latitude in decimal degrees of the origin point of
+                             the rectangular migration region. 
+                             Required. (float, min:-90.0, max:90.0)
+            grid['LongOrig']: longitude in decimal degrees of the origin point of
+                              the rectangular migration region.
+                              Required. (float, min:-180.0, max:180.0)
+            grid['rotAngle']: rotation angle in decimal degrees of the rectrangular region 
+                              in degrees clockwise relative to the Y-axis.
+                              Default is 0.0. (float, min:-360.0, max:360.0)
+            grid['zOrig']: Z location of the grid origin in km relative to the 
+                           sea-level. Nagative value means above the sea-level; 
+                           Positive values for below the sea-level;
+                           Required. 
+            grid['xNum']: number of grid nodes in the X direction. Required.
+            grid['yNum']: number of grid nodes in the Y direction. Required.
+            grid['zNum']: number of grid nodes in the Z direction. Required.
+            grid['dgrid']: grid spacing in kilometers. Required.
+
+        control parameters (For control outputs and processing):
+            control['dir_output'] : str, optional, default: './data'.
+                directory for outputs.
+            control['n_processor'] : int, optional, default: 1.
+                number of CPU processors for parallel processing.   
 
         Returns
         -------
@@ -52,9 +91,52 @@ class MALMI:
 
         """
         
-        self.seisdatastru = copy.deepcopy(seisdatastru)
-        self.dir_seismic = copy.deepcopy(dir_seismic)
-        self.seismic_channels = copy.deepcopy(seismic_channels)  # the channels of the input seismic data
+        from traveltime import build_traveltime
+        from ioformatting import read_stationinfo
+        
+        # set default parameters----------------------------------------------- 
+        if 'channels' not in seismic:
+            seismic['channels'] = ["*HE", "*HN", "*HZ"]
+        
+        if 'datastru' not in seismic:
+            seismic['datastru'] = 'AIO'
+        
+        if 'date' not in seismic:
+            seismic['date'] = None
+        
+        if 'vmodel' not in tt:
+            tt['vmodel'] = None
+        
+        if 'dir' not in tt:
+            tt['dir'] = './data/traveltime'
+        
+        if 'ftage' not in tt:
+            tt['ftage'] = 'layer'
+        
+        tt['hdr_filename'] = 'header.hdr'  # travetime data set header filename
+        
+        if (grid is not None) and ('rotAngle' not in grid):
+            grid['rotAngle'] = 0.0
+        
+        if control is None:
+            control = {}
+        
+        if 'dir_output' not in control:
+            control['dir_output'] = './data'
+        
+        if 'n_processor' not in control:
+            control['n_processor'] = 1
+        #----------------------------------------------------------------------
+        
+        # read in station invertory and obtain station information
+        self.stainv = read_stationinfo(seismic['stainvf'])  # obspy station inventory 
+        
+        # build travel-time data set
+        build_traveltime(grid, tt, self.stainv)
+        
+        self.seisdatastru = copy.deepcopy(seismic['datastru'])
+        self.dir_seismic = copy.deepcopy(seismic['dir'])
+        self.seismic_channels = copy.deepcopy(seismic['channels'])  # the channels of the input seismic data
         
         if self.seisdatastru == 'AIO':
             # input seismic data files are stored simply in one folder
@@ -66,43 +148,39 @@ class MALMI:
         elif self.seisdatastru == 'SDS':
             # input seismic data files are organized in SDS
             # use the date as the identifer of the input data set
-            self.seisdate = copy.deepcopy(seisdate)
+            self.seisdate = copy.deepcopy(seismic['date'])
             fd_seismic = datetime.datetime.strftime(self.seisdate, "%Y%m%d")
         else:
             raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
             
-        self.dir_ML = dir_output + "/data_EQT/" + fd_seismic  # directory for ML outputs
-        self.dir_prob = self.dir_ML + '/prob_and_detection'  # output directory for ML probability outputs
-        self.dir_migration = dir_output + '/data_loki/' + fd_seismic  # directory for migration outputs
-        self.n_processor = copy.deepcopy(n_processor)  # number of threads for parallel processing
+        self.dir_ML = os.path.join(control['dir_output'], 'data_ML', fd_seismic)  # directory for ML outputs
+        self.dir_prob = os.path.join(self.dir_ML, 'prob_and_detection')  # output directory for ML probability outputs
+        self.dir_migration = os.path.join(control['dir_output'], 'data_MIG', fd_seismic)  # directory for migration outputs
+        self.n_processor = copy.deepcopy(control['n_processor'])  # number of threads for parallel processing
         
-        self.dir_tt = copy.deepcopy(dir_tt)  # path to travetime data set
+        self.dir_tt = copy.deepcopy(tt['dir'])  # path to travetime data set
         self.tt_precision = 'single'  # persicion for traveltime data set, 'single' or 'double'
-        self.tt_hdr_filename = 'header.hdr'  # travetime data set header filename
-        self.tt_ftage = copy.deepcopy(tt_ftage)  # traveltime data set filename tage
+        self.tt_hdr_filename = copy.deepcopy(tt['hdr_filename'])  # travetime data set header filename
+        self.tt_ftage = copy.deepcopy(tt['ftage'])  # traveltime data set filename tage
         if self.dir_tt.split('/')[-1] == '':
             tt_folder = self.dir_tt.split('/')[-2]
         else:
             tt_folder = self.dir_tt.split('/')[-1]
 
-        self.dir_mseed = self.dir_ML + "/mseeds"  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
+        self.dir_mseed = os.path.join(self.dir_ML, 'mseeds')  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
         self.dir_hdf5 = self.dir_mseed + '_processed_hdfs'  # path to the hdf5 and csv files
-        self.dir_EQTjson = self.dir_ML + "/json"  # directory for outputting station json file for EQT
-        self.dir_lokiprob = self.dir_migration + '/prob_evstream'  # directory for probability outputs of different events in SEED format
-        self.dir_lokiseis = self.dir_migration + '/seis_evstream'  # directory for raw seismic outputs of different events in SEED format
-        self.dir_lokiout = self.dir_migration + '/result_MLprob_{}'.format(tt_folder)  # path for loki final outputs
+        self.dir_EQTjson = os.path.join(self.dir_ML, 'json')  # directory for outputting station json file for EQT
+        self.dir_lokiprob = os.path.join(self.dir_migration, 'prob_evstream')  # directory for probability outputs of different events in SEED format
+        self.dir_lokiseis = os.path.join(self.dir_migration, 'seis_evstream')  # directory for raw seismic outputs of different events in SEED format
+        self.dir_lokiout = os.path.join(self.dir_migration, 'result_MLprob_{}'.format(tt_folder))  # path for loki final outputs
 
 
-    def format_ML_inputs(self, file_station):
+    def format_ML_inputs(self):
         """
         Format input data set for ML models.
         Parameters
         ----------
-        file_station : str
-            station metadata file including path. The data format should be 
-            recognizable by ObsPy, such as:
-                FDSNWS station text format: *.txt,
-                FDSNWS StationXML format: *.xml.
+        None.
         
         Returns
         -------
@@ -110,15 +188,10 @@ class MALMI:
 
         """
         
-        from ioformatting import read_stationinfo, read_seismic_fromfd, stream2EQTinput, stainv2json
+        from ioformatting import read_seismic_fromfd, stream2EQTinput, stainv2json
         import obspy
         
         print('MALMI starts to format input data set for ML models:')
-        
-        self.file_station = copy.deepcopy(file_station)  # path to the station metadata to get station invertory
-        
-        # read in station invertory and obtain station information
-        stainfo = read_stationinfo(self.file_station)
         
         if self.seisdatastru == "AIO":
             # input seismic data files are stored simply in one folder
@@ -138,7 +211,7 @@ class MALMI:
             tyear = tdate.year  # year
             tday = tdate.timetuple().tm_yday  # day of the year
         
-            for network in stainfo:
+            for network in self.stainv:
                 for station in network:
                     # loop over each station for formatting input date set
                     # and outputting correct input formats for adopted ML models   
@@ -161,7 +234,7 @@ class MALMI:
             raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
         
         # create station jason file for EQT------------------------------------
-        stainv2json(stainfo, self.dir_mseed, self.dir_EQTjson)
+        stainv2json(self.stainv, self.dir_mseed, self.dir_EQTjson)
         gc.collect()
         print('MALMI_format_ML_inputs complete!')
 

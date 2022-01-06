@@ -33,8 +33,13 @@ def read_stationinfo(file_station):
     ----------
     file_station : str
         filename (inclusing path) of the station metadata. 
-        Must be in FDSNWS station text file format: *.txt;
-        or StationXML format: *.xml.
+        The data format should be recognizable by ObsPy, such as:
+            FDSNWS station text format: *.txt,
+            FDSNWS StationXML format: *.xml.
+        or a simply CSV file using ',' as the delimiter in which the first row 
+        is column name and must contain: 'network', 'station', 'latitude', 
+        'longitude', 'elevation'. Latitude and longitude are in decimal degree 
+        and elevation in meters relative to the sea-level (positive for up). 
 
     Returns
     -------
@@ -53,13 +58,13 @@ def read_stationinfo(file_station):
         # input are in FDSNWS station text file format
         stainfo = read_inventory(file_station, format="STATIONTXT")
     elif stafile_suffix == 'csv' or stafile_suffix == 'CSV':
-        # SED COSEISMIQ CSV format, temporary format
+        # simple CSV format
         stainfo = Inventory(networks=[])
         stadf = pd.read_csv(file_station, delimiter=',', encoding='utf-8', 
-                            names=['net','agency','sta code','description','lat','lon','altitude','type','up since','details'])
+                            header="infer", skipinitialspace=True)  # names=['net','agency','sta code','description','lat','lon','altitude','type','up since','details']
         for rid, row in stadf.iterrows():
-            net = Network(code=row['net'], stations=[])
-            sta = Station(code=row['sta code'],latitude=row['lat'],longitude=row['lon'],elevation=row['altitude'])
+            net = Network(code=row['network'], stations=[])
+            sta = Station(code=row['station'],latitude=row['latitude'],longitude=row['longitude'],elevation=row['elevation'])
             net.stations.append(sta)
             stainfo.networks.append(net)
     
