@@ -41,6 +41,7 @@ Follow [NonLinLoc Home Page](http://alomax.free.fr/nlloc/) for installing the No
 *continuous raw data* can be in any format that is recognizable by [ObsPy read](https://docs.obspy.org/packages/autogen/obspy.core.stream.read.html). The continuous data files can be organized in two structures: 
 1. store all data files in the same folder (suitable for small dateset); 
 2. SeisComP Data Structure ([SDS](https://www.seiscomp.de/doc/base/concepts/waveformarchives.html)) (suitable for large dateset).  
+
 Simply set the input parameter: seisdatastru as 'AIO' or 'SDS' for these two dataset structures.
 
 ### Station inventory 
