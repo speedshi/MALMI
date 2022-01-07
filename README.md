@@ -57,7 +57,7 @@ Simply set the input parameter: seisdatastru as 'AIO' or 'SDS' for these two dat
 *station inventory* can be in any format that is recognizable by [ObsPy read_inventory](https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html) or a simple CSV file. The required infomation of stations are: newwork code, staiton code, latitude, longitude, latitude, elevation. If the input is a CSV file, the delimiter must be ',' and the first row is the column name which must contain: 'network', 'station', 'latitude', 'longitude', 'elevation'.
 
 ### Velocity model 
-*velocity model* is used to generate traveltime tables for migration location (NonLinLoc must be installed beforehand).  
+*velocity model* is used to generate traveltime tables for migration location (NonLinLoc must be installed beforehand and also need to set the 'grid' parameters).  
 The text format velocity file can specify a constant or gradient velocity layer (conform with NonLinLoc velocity model format).  
 Format of the velocity model file: "depth Vp_top Vp_grad Vs_top Vs_grad rho_top rho_grad"  
 - depth: (float) depth to top of layer (use negative values for layers above z=0)  
@@ -82,7 +82,7 @@ Velocity model example (velocity.txt):
 9.80 6.97 0.0 3.92 0.0 2.7 0.0
 ```
 
-Existing traveltime tables of NonLinLoc format can be directly loaded into MALMI. In this way, a velocity model is not needed anymore. Simply set tt['vmodel'] = None
+Existing traveltime tables of NonLinLoc format can be directly loaded into MALMI. In this way, a velocity model is not needed anymore. Simply set tt['vmodel'] = None.
 
 ## Usage 
 Fellow the example script: 'run_MALMI.py' to use the code. You could copy it anywhere in the system. Open the file to change the input parameters at your preference. Good Luck!
