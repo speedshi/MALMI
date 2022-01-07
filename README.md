@@ -105,6 +105,10 @@ Session Number and Title: S31A: Decoding Geophysical Signatures With Machine Lea
 ## License 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. For more details, see in the license file.
 
+## Contributing
+If you would like to contribute to the project or have any suggestions about the code, please feel free to create Pull Requests, raise issues and contact me.  
+If you have any questions about the usage of this package or find bugs in the code, please also feel free to contact me.
+
 ## Contact information 
 Copyright(C) 2021 Peidong Shi  
 Author: Peidong Shi  
