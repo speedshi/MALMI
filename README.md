@@ -20,7 +20,7 @@ cd WHERE_EQTransformer_IS_STORED
 python setup.py install
 ```
 
-### Install loki 
+### Install loki (GNU gcc compiler and openmp required)
 ```bash
 git clone https://github.com/speedshi/LOKI.git
 cd WHERE_LOKI_IS_STORED
@@ -33,7 +33,15 @@ git clone https://github.com/speedshi/MALMI.git
 ```
 
 ### Install NonLinLoc if you want to generate travetime tables in MALMI (optional)
-Follow [NonLinLoc Home Page](http://alomax.free.fr/nlloc/) for installing the NonLinLoc software. Only *Vel2Grid* and *Grid2Time* programs are used, and remember to put them in a executable path after compiling NonLinLoc.
+Follow [NonLinLoc Home Page](http://alomax.free.fr/nlloc/) for installing the NonLinLoc software. Only *Vel2Grid* and *Grid2Time* programs are used, and remember to put them in a executable path after compiling NonLinLoc.  
+Install example:
+```bash
+wget http://alomax.free.fr/nlloc/soft7.00/tar/NLL7.00_src.tgz
+tar -xzvf NLL7.00_src.tgz -C ./NLL
+cd ./NLL/src
+make -R distrib
+echo 'export PATH="WHERE_CODE_IS_STORED/NLL/src:$PATH"' >> ~/.bashrc
+```
 
 ## Input Dataset 
 **MALMI** generally requires three kinds of input dataset: continuous raw seismic data, station inventory and velocity model (or traveltime tables).  
