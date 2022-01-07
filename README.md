@@ -33,7 +33,7 @@ git clone https://github.com/speedshi/MALMI.git
 ```
 
 ### Install NonLinLoc if you want to generate travetime tables in MALMI (optional)
-Follow [NonLinLoc Home Page](http://alomax.free.fr/nlloc/) for installing the NonLinLoc software. Only *Vel2Grid* and *Grid2Time* programs are used.
+Follow [NonLinLoc Home Page](http://alomax.free.fr/nlloc/) for installing the NonLinLoc software. Only *Vel2Grid* and *Grid2Time* programs are used, and remember to put them in a executable path after compiling NonLinLoc.
 
 ## Input Dataset 
 **MALMI** generally requires three kinds of input dataset: continuous raw seismic data, station inventory and velocity model (or traveltime tables).  
