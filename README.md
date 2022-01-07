@@ -82,7 +82,7 @@ Velocity model example (velocity.txt):
 9.80 6.97 0.0 3.92 0.0 2.7 0.0
 ```
 
-Existing traveltime tables of NonLinLoc format can be directly loaded into MALMI. In this way, a velocity model is not needed anymore. 
+Existing traveltime tables of NonLinLoc format can be directly loaded into MALMI. In this way, a velocity model is not needed anymore. Simply set tt['vmodel'] = None
 
 ## Usage 
 Fellow the example script: 'run_MALMI.py' to use the code. You could copy it anywhere in the system. Open the file to change the input parameters at your preference. Good Luck!
