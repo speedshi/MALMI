@@ -41,6 +41,7 @@ tar -xzvf NLL7.00_src.tgz -C ./NLL
 cd ./NLL/src
 make -R distrib
 echo 'export PATH="WHERE_CODE_IS_STORED/NLL/src:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 ```
 
 ## Input Dataset 
