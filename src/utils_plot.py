@@ -752,7 +752,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     return
 
 
-def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=True):
+def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=True, rlf_resolution=None):
     """
     To plot the basemap with station and/or a regtangular area.
     
@@ -771,6 +771,12 @@ def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plo
         filename of the output figure. The default is "./basemap.png".
     plot_stationname : boolen, optional
         specify whether to plot the station names on the map. Default is yes.
+    rlf_resolution : str, optional
+        The grid resolution. The suffix ``d``, ``m`` and ``s`` stand for
+        arc-degree, arc-minute and arc-second. It can be ``'01d'``, ``'30m'``,
+        ``'20m'``, ``'15m'``, ``'10m'``, ``'06m'``, ``'05m'``, ``'04m'``,
+        ``'03m'``, ``'02m'``, ``'01m'``, ``'30s'``, ``'15s'``, ``'03s'``,
+        or ``'01s'``.
         
     Returns
     -------
@@ -782,9 +788,10 @@ def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plo
            
     # plot and save map---------------------------------------------------------
     # load topography dataset
-    grid = pygmt.datasets.load_earth_relief('03s', region=region, registration="gridline")
     fig = pygmt.Figure()
-    fig.grdimage(region=region, projection="M15c", grid=grid, cmap="grayC", shading="l+d", dpi=600)  # plot topography
+    if rlf_resolution is not None:
+        grid = pygmt.datasets.load_earth_relief(rlf_resolution, region=region, registration="gridline")
+        fig.grdimage(region=region, projection="M15c", grid=grid, cmap="grayC", shading="l+d", dpi=600)  # plot topography
     fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
               projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
               water="skyblue",  # Set the color of the land t

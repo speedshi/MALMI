@@ -55,7 +55,8 @@ class MALMI:
             tt['dir']: str, optional, default is './data/traveltime'.
                 path to travetime data directory or for saving generated traveltime tabels.
             tt['ftage']: str, optional, default is 'layer'. 
-                traveltime data set filename tage as used for NonLinLoc.
+                traveltime data set filename tage as used for NonLinLoc,
+                used at the file root name.
         
         grid parameters (Primarily used in migration):
             Note all input stations must lie within the grid.
@@ -93,6 +94,8 @@ class MALMI:
         
         from traveltime import build_traveltime
         from ioformatting import read_stationinfo
+        from xcoordinate import get_lokicoord
+        from utils_plot import plot_basemap
         
         # set default parameters----------------------------------------------- 
         if 'channels' not in seismic:
@@ -128,11 +131,20 @@ class MALMI:
             control['n_processor'] = 1
         #----------------------------------------------------------------------
         
+        # make sure output directory exist
+        if not os.path.exists(control['dir_output']):
+            os.makedirs(control['dir_output'], exist_ok=True)
+        
         # read in station invertory and obtain station information
         self.stainv = read_stationinfo(seismic['stainvf'])  # obspy station inventory 
         
         # build travel-time data set
         build_traveltime(grid, tt, self.stainv)
+        
+        # plot stations and migration region for checking
+        sta_inv1, region1, mgregion1 = get_lokicoord(tt['dir'], tt['hdr_filename'], 0.05)
+        fname1 = os.path.join(control['dir_output'], "basemap_stations_mgarea.png")
+        plot_basemap(region1, sta_inv1, mgregion1, fname1, False, '30s')
         
         self.seisdatastru = copy.deepcopy(seismic['datastru'])
         self.dir_seismic = copy.deepcopy(seismic['dir'])
@@ -371,8 +383,10 @@ class MALMI:
         
         inputs = {}
         inputs['model'] = self.tt_ftage  # traveltime data set filename tage
-        # inputs['npr'] = self.n_processor  # number of cores to run
-        inputs['npr'] = (os.cpu_count()-2)  # number of cores to run
+        if self.n_processor < 1:
+            inputs['npr'] = (os.cpu_count()-2)  # number of cores to run
+        else:
+            inputs['npr'] = self.n_processor  # number of cores to run
         inputs['normthrd'] = self.probthrd  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
         inputs['ppower'] = self.ppower  # compute array element wise power over the input probabilities before stacking
         comp = ['P','S']  # when input data are probabilities of P- and S-picks, comp must be ['P', 'S']

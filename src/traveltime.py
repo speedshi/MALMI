@@ -57,7 +57,7 @@ def check_NLLtt(ttfileroot, stainv):
     Parameters
     ----------
     ttfileroot : str
-        path and file root name travel-time tables.
+        path and file root name of travel-time tables.
     stainv : obspy station inventory object.
         obspy station inventory containing the station information.
 
@@ -82,39 +82,64 @@ def check_NLLtt(ttfileroot, stainv):
 
 
 def build_tthdr(ttdir, ttftage, stainv, filename='header.hdr'):
+    """
+    To build the header file from NonLinLoc traveltime data set. The header file
+    is needed for the LOKI migration module.
+
+    Parameters
+    ----------
+    ttdir : str
+        dirctory of the traveltime data set.
+    ttftage : str
+        traveltime data set filename tage as used for NonLinLoc,
+        used at the file root name.
+    stainv : obspy station inventory object.
+        obspy station inventory containing the station information.
+    filename : str, optional, default is 'header.hdr'.
+        filename of the generated hearder file. 
+
+    Raises
+    ------
+    ValueError
+        DESCRIPTION.
+
+    Returns
+    -------
+    None.
+
+    """
+    
     
     # check if the input file already exist or not.
     ofile = os.path.join(ttdir, filename)
     if os.path.isfile(ofile):
-        raise ValueError('File: {} already exist!'.format(ofile))
-    
-    ofile = open(ofile, 'a')
-    ii = 0
-    for network in stainv:
-        for station in network:
-            # loop over each station
-            statthdr = os.path.join(ttdir, ttftage+'.P.{}.time.hdr'.format(station.code))
-            if os.path.isfile(statthdr):
-                f = open(statthdr)
-                lines = f.readlines()
-                f.close()
-                if ii == 0:
-                    line0 = lines[0].split()
-                    ofile.write('{} {} {}\n'.format(line0[0], line0[1], line0[2]))  # xNum, yNum, zNum
-                    ofile.write('{} {} {}\n'.format(line0[3], line0[4], line0[5]))  # xOrig, yOrig, zOrig
-                    ofile.write('{} {} {}\n'.format(line0[6], line0[7], line0[8]))  # dx, dy, dz
-                    line2 = lines[2].split()
-                    ofile.write('{} {}\n'.format(line2[3], line2[5]))  # LatOrig, LongOrig
-                    line1 = lines[1].split()
-                    ofile.write('{} {} {} {}\n'.format(line1[0], line1[1], line1[2], line1[3]))  # station_code, station_lat, station_lon, station_ele
+        warnings.warn('Header file: {} already exist! Skip header file generation, use the exist header file.'.format(ofile))
+    else:
+        # construct header file
+        ofile = open(ofile, 'a')
+        ii = 0
+        for network in stainv:
+            for station in network:
+                # loop over each station
+                statthdr = os.path.join(ttdir, ttftage+'.P.{}.time.hdr'.format(station.code))
+                if os.path.isfile(statthdr):
+                    f = open(statthdr)
+                    lines = f.readlines()
+                    f.close()
+                    if ii == 0:
+                        line0 = lines[0].split()
+                        ofile.write('{} {} {}\n'.format(line0[0], line0[1], line0[2]))  # xNum, yNum, zNum
+                        ofile.write('{} {} {}\n'.format(line0[3], line0[4], line0[5]))  # xOrig, yOrig, zOrig
+                        ofile.write('{} {} {}\n'.format(line0[6], line0[7], line0[8]))  # dx, dy, dz
+                        line2 = lines[2].split()
+                        ofile.write('{} {}\n'.format(line2[3], line2[5]))  # LatOrig, LongOrig
+
+                    ofile.write('{} {} {} {}\n'.format(station.code, station.latitude, station.longitude, station.elevation/1000.0))  # station_code, station_lat, station_lon, station_ele
+                    ofile.flush()
+                    ii += 1
                 else:
-                    line1 = lines[1].split()
-                    ofile.write('{} {} {} {}\n'.format(line1[0], line1[1], line1[2], line1[3]))  # station_code, station_lat, station_lon, station_ele
-                ofile.flush()
-                ii += 1
-            else:
-                warnings.warn('Traveltime file: {} does not exist!'.format(statthdr))
-    ofile.close()
+                    warnings.warn('Traveltime file: {} does not exist!'.format(statthdr))
+        ofile.close()
     return
 
 
@@ -132,7 +157,7 @@ def build_traveltime(grid, tt, stainv):
     if (tt['vmodel'] is not None) and (grid is not None):
         print("Start to compile NonLinLoc input file for generating traveltime tables.")
         if not os.path.exists(tt['dir']):
-            os.mkdir(tt['dir'])
+            os.makedirs(tt['dir'], exist_ok=True)
         vmodel = read_NLLvel(tt['vmodel'])
         inpara = {}
         inpara['VGOUT'] = os.path.join(tt['dir'], tt['ftage'])
@@ -164,7 +189,7 @@ def build_traveltime(grid, tt, stainv):
         subprocess.run(["Grid2Time", inpara['filename']])  # call NonLinLoc Grid2Time program to generate S traveltime tables
     
     # check traveltime tables are correct and complete
-    check_NLLtt(inpara['ttfileroot'], stainv)
+    check_NLLtt(os.path.join(tt['dir'], tt['ftage']), stainv)
         
     # compile traveltime table header file
     build_tthdr(tt['dir'], tt['ftage'], stainv, filename=tt['hdr_filename'])
