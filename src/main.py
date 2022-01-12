@@ -233,8 +233,12 @@ class MALMI:
                         for icha in self.seismic_channels:
                             # loop over each channel to load data of the current station
                             datapath2 = glob.glob(os.path.join(datapath1, '*'+icha+'*'))
-                            assert(len(datapath2)==1)
-                            stream += obspy.read(os.path.join(datapath2[0], '*'+str(tday)))
+                            if len(datapath2)==0:
+                                print("No data found for component: {}! Pass!".format(icha))
+                            elif len(datapath2)==1:
+                                stream += obspy.read(os.path.join(datapath2[0], '*'+str(tday)))
+                            else:
+                                raise ValueError("More than one path exist: {} for the component: {}!".format(datapath2, icha))
                         
                         # ouput data for the current station
                         stream2EQTinput(stream, self.dir_mseed, self.seismic_channels) 
