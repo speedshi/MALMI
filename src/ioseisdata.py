@@ -52,7 +52,7 @@ def format_AIO(dir_seismic, seismic_channels, dir_output):
     return
 
 
-def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output):
+def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output, location_code=['','00']):
     """
     Format seismic data organized in SDS data structure so that the ouput data
     can be feed to various ML models.
@@ -73,6 +73,10 @@ def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output):
     dir_output : str
         directory for outputting seismic data, 
         NOTE do not add '/' at the last.
+    location_code : list of str, optional, default is ['','00']
+        if multiple files found for the same component (because different
+        station code could exist), this is then used to select which data should 
+        be used in the prefered order.
 
     Raises
     ------
@@ -98,9 +102,9 @@ def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output):
                 stream = obspy.Stream()  # initilize an empty obspy stream
                 for icha in seismic_channels:
                     # loop over each channel to load data of the current station
-                    datapath2 = glob.glob(os.path.join(datapath1, '*'+icha+'*'))  # component level
+                    datapath2 = glob.glob(os.path.join(datapath1, '*'+icha+'*'))  # channel level
                     if len(datapath2)==0:
-                        print("No data found for component: {}! Pass!".format(icha))
+                        print("No data found for channel: {}! Pass!".format(icha))
                     elif len(datapath2)==1:
                         datapath3 = os.path.join(datapath2[0], '*'+str(tday))  # date level
                         sdatafile = glob.glob(datapath3)  # final seismic data filename for the specified station, component and date
@@ -109,9 +113,29 @@ def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output):
                         elif len(sdatafile)==1:
                             stream += obspy.read(sdatafile[0])
                         else:
-                            raise ValueError("More than one file exist: {} for date: {}!".format(sdatafile, seisdate))
+                            print("More than one file exist: {} for the channel: {} and date: {}!".format(sdatafile, icha, seisdate))
+                            data_location_code = []
+                            for isdf in sdatafile:
+                                dfilename = isdf.split(os.sep)[-1]
+                                data_location_code.append(dfilename.split('.')[2])
+                            jdf = None  # index indicate while data file will be selected and used
+                            for ilcode in location_code:
+                                # loop over each perfered station location code in order to check if there is data
+                                if ilcode in data_location_code:
+                                    # data exist for the current station location code 
+                                    print('Find data at the prefered station location code: {}.'.format(ilcode))
+                                    jdf = data_location_code.index(ilcode)
+                                    break
+                            if jdf is None:
+                                # prefered station location code not match with any files
+                                # by default using the first data file as input
+                                warnings.warn('Input prefered station location code: {} not found in data files: {}. By default, use the first file as input!'
+                                              .fromat(location_code, sdatafile))
+                                jfd = 0
+                            print('Load data: {}.'.format(sdatafile[jfd]))
+                            stream += obspy.read(sdatafile[jfd])
                     else:
-                        raise ValueError("More than one path exist: {} for the component: {}!".format(datapath2, icha))
+                        raise ValueError("More than one path exist: {} for channel: {}!".format(datapath2, icha))
                 
                 # ouput data for the current station
                 if stream.count() > 0:
