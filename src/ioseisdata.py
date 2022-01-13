@@ -131,9 +131,9 @@ def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output, loca
                                 # by default using the first data file as input
                                 warnings.warn('Input prefered station location code: {} not found in data files: {}. By default, use the first file as input!'
                                               .fromat(location_code, sdatafile))
-                                jfd = 0
-                            print('Load data: {}.'.format(sdatafile[jfd]))
-                            stream += obspy.read(sdatafile[jfd])
+                                jdf = 0
+                            print('Load data: {}.'.format(sdatafile[jdf]))
+                            stream += obspy.read(sdatafile[jdf])
                     else:
                         raise ValueError("More than one path exist: {} for channel: {}!".format(datapath2, icha))
                 
