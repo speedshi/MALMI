@@ -200,51 +200,20 @@ class MALMI:
 
         """
         
-        from ioformatting import read_seismic_fromfd, stream2EQTinput, stainv2json
-        import obspy
+        from ioformatting import stainv2json
+        from ioseisdata import format_AIO, format_SDS
         
         print('MALMI starts to format input data set for ML models:')
         
         if self.seisdatastru == "AIO":
             # input seismic data files are stored simply in one folder
-            
-            # read in all continuous seismic data in the input folder as an obspy stream
-            stream = read_seismic_fromfd(self.dir_seismic)
-            # output to the seismic data format that QET can handle 
-            stream2EQTinput(stream, self.dir_mseed, self.seismic_channels)
-            del stream
-            gc.collect()
+            # suitable for formatting small data set
+            format_AIO(self.dir_seismic, self.seismic_channels, self.dir_mseed)
             
         elif self.seisdatastru == 'SDS':
             # input seismic data files are organized in SDS
-            # data set could be very large, need to process per station
-
-            tdate = self.seisdate  # the date to be processed for SDS data files
-            tyear = tdate.year  # year
-            tday = tdate.timetuple().tm_yday  # day of the year
-        
-            for network in self.stainv:
-                for station in network:
-                    # loop over each station for formatting input date set
-                    # and outputting correct input formats for adopted ML models   
-                    datapath1 = os.path.join(self.dir_seismic, str(tyear), network.code, station.code)
-                    if os.path.exists(datapath1):
-                        stream = obspy.Stream()  # initilize an empty obspy stream
-                        for icha in self.seismic_channels:
-                            # loop over each channel to load data of the current station
-                            datapath2 = glob.glob(os.path.join(datapath1, '*'+icha+'*'))
-                            if len(datapath2)==0:
-                                print("No data found for component: {}! Pass!".format(icha))
-                            elif len(datapath2)==1:
-                                stream += obspy.read(os.path.join(datapath2[0], '*'+str(tday)))
-                            else:
-                                raise ValueError("More than one path exist: {} for the component: {}!".format(datapath2, icha))
-                        
-                        # ouput data for the current station
-                        stream2EQTinput(stream, self.dir_mseed, self.seismic_channels) 
-                        del stream
-                    else:
-                        warnings.warn('No data found for: {}!'.format(datapath1))
+            # suitable for formatting large or long-duration data set
+            format_SDS(self.seisdate, self.stainv, self.dir_seismic, self.seismic_channels, self.dir_mseed)
             
         else:
             raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
