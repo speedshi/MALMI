@@ -142,9 +142,10 @@ class MALMI:
         build_traveltime(grid, tt, self.stainv)
         
         # plot stations and migration region for checking
-        sta_inv1, region1, mgregion1 = get_lokicoord(tt['dir'], tt['hdr_filename'], 0.05)
         fname1 = os.path.join(control['dir_output'], "basemap_stations_mgarea.png")
-        plot_basemap(region1, sta_inv1, mgregion1, fname1, False, '30s')
+        if not os.path.isfile(fname1):
+            sta_inv1, region1, mgregion1 = get_lokicoord(tt['dir'], tt['hdr_filename'], 0.05)
+            plot_basemap(region1, sta_inv1, mgregion1, fname1, False, '30s')
         
         self.seisdatastru = copy.deepcopy(seismic['datastru'])
         self.dir_seismic = copy.deepcopy(seismic['dir'])
