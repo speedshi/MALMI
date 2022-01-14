@@ -37,6 +37,9 @@ Follow [NonLinLoc Home Page](http://alomax.free.fr/nlloc/) for installing the No
 Install example:
 ```bash
 wget http://alomax.free.fr/nlloc/soft7.00/tar/NLL7.00_src.tgz
+mv NLL7.00_src.tgz WHERE_CODE_IS_STORED
+cd WHERE_CODE_IS_STORED
+mkdir NLL
 tar -xzvf NLL7.00_src.tgz -C ./NLL
 cd ./NLL/src
 make -R distrib
