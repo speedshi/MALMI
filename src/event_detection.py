@@ -14,7 +14,6 @@ import datetime
 import numpy as np
 from ioformatting import vector2trace, output_seissegment
 import copy
-import gc
 
 
 # define some common parameters that will be used accross different functions
@@ -117,13 +116,11 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
             pbdf['probabilities'][idsg].read_direct(pbdata)  # EQT probability data set, shape: 6000*3
             prob_D.append(pbdata[:,0])  # detection probability
             del pbdata
-            gc.collect()
             
         db[station_name] = [dsg_starttime, dsg_endtime, prob_D, dsg_name]  # starting datetime of each data segement and the corresponding detection probability
         stanames.append(station_name)  # all avaliable station names
             
         del station_name, pbfile, pbdf, dsg_name, dsg_starttime, dsg_endtime, prob_D
-        gc.collect()
         
     
     # scan data from 'dsg_sttmin' to 'dsg_sttmax' to search for all potential events/triggers
@@ -205,7 +202,7 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
                                     tts_temp = data_times[0] - datetime.timedelta(seconds=spttdf_ssmax)  # note move the starttime ahead 
                                     
                                 del ddinx
-                                gc.collect()
+
                             elif (data_probD[idfirst] >= d_thrd) and (idfirst == 0):
                                 # starttime is above the threshold and also is the first point of this segment
                                 tts_temp = data_times[0] - datetime.timedelta(seconds=spttdf_ssmax)  # note move the starttime ahead
@@ -242,7 +239,6 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
                                 tt2 = copy.deepcopy(dsg_sttmax)
                             
                             del tts_temp
-                            gc.collect()
                             
                             # set ttd, and update tt2
                             if (data_probD[idlast] >= d_thrd) and (idlast < data_size_EQT-1) and (data_probD[idlast+1] >= d_thrd):
@@ -256,7 +252,7 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
                                     ttd_temp = data_times[-1] + datetime.timedelta(seconds=spttdf_ssmax)  # note move the endtime after
                                     
                                 del ddinx
-                                gc.collect()
+
                             elif (data_probD[idlast] >= d_thrd) and (idlast == data_size_EQT-1):
                                 # endtime is above the threshold and also is the last point of this segment
                                 ttd_temp = data_times[-1] + datetime.timedelta(seconds=spttdf_ssmax)  # note move the endtime after
@@ -290,15 +286,13 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
                                 tt2 = copy.deepcopy(dsg_sttmax)    
                             
                             del idfirst, idlast, ttd_temp, dprobD_max
-                            gc.collect()
                             
                         # clear memory
                         del data_sgindex, data_starttime, data_times, data_probD, data_pdindex, detecid
-                        gc.collect()
+
                     del isgindex
-                    gc.collect()
+
                 del dindx, prob_det_max
-                gc.collect()
         
             if (nsta_trig < nsta_thrd):
                 break
@@ -368,12 +362,10 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
                     # clear memory
                     del mdtimesdf, data_sgindex, data_sgname, data_starttime, data_times, data_pdindex, odata_time
                     del pbfile, pbdf, pbdata, oprob_D, oprob_P, oprob_S
-                    gc.collect()
                 
                 del dindx
-                gc.collect()
+
             del tt_mid, dir_output_ev
-            gc.collect()
         
             # updata 'ttd_previous'
             ttd_previous = copy.deepcopy(ttd)
@@ -385,8 +377,7 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
             tt1 = tt2 + datetime.timedelta(seconds=dt_EQT)
 
         del tts_sta, ttd_sta, tts, ttd, nsta_trig
-        gc.collect()
-    gc.collect()    
+  
     return    
         
         
@@ -567,7 +558,6 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
                                 event_info[station_name]['P']['mxptime'][evid] = copy.deepcopy(temp_mxptime)
                                 event_info[station_name]['P']['sgname'][evid] = copy.deepcopy(idsg)
                             del evid
-                            # gc.collect()
                             
                         elif (len(evid_s) + len(evid_e) + len(evid_se) > 1):
                             # more than one event in the event list are overlaping with the detected event
@@ -593,7 +583,6 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
                                 del event_info[station_name]['P']['mxptime'][jjj]
                                 del event_info[station_name]['P']['sgname'][jjj]
                             del evid, xxid
-                            # gc.collect()
                             
                         else:
                             # do not have time overlaping with any event, directly insert into the event list
@@ -612,9 +601,9 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
                                 event_info[station_name]['P']['mxptime'].append(copy.deepcopy(temp_mxptime))
                                 event_info[station_name]['P']['sgname'].append(copy.deepcopy(idsg))
                             del insertid
-                            # gc.collect()
+
                         del evid_s, evid_e, evid_se, evid_in
-                        # gc.collect()
+
                     else:
                         # no detected events yet, append the detected event to the empty event list directly
                         event_info[station_name]['P']['starttime'].append(copy.deepcopy(temp_startime))
@@ -624,11 +613,9 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
                         event_info[station_name]['P']['sgname'].append(copy.deepcopy(idsg))
                     
                     del temp_startime, temp_endtime, temp_maxprob, temp_mxptime, start_did, end_did
-                    # gc.collect()
                     assert(event_info[station_name]['P']['mxptime'][-1] >= event_info[station_name]['P']['starttime'][-1])
                     assert(event_info[station_name]['P']['mxptime'][-1] <= event_info[station_name]['P']['endtime'][-1])
             del epindx
-            # gc.collect()
             
             # perform detection based on S-phase probabilites: pbdata[:,2]
             epindx = np.flatnonzero((pbdata[:,2] >= S_thrd))  # the indices of all data points with probability larger than threshold
@@ -705,7 +692,6 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
                                 event_info[station_name]['S']['mxptime'][evid] = copy.deepcopy(temp_mxptime)
                                 event_info[station_name]['S']['sgname'][evid] = copy.deepcopy(idsg)
                             del evid
-                            # gc.collect()
                             
                         elif (len(evid_s) + len(evid_e) + len(evid_se) > 1):
                             # more than one event in the event list are overlaping with the detected event
@@ -731,7 +717,6 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
                                 del event_info[station_name]['S']['mxptime'][jjj]
                                 del event_info[station_name]['S']['sgname'][jjj]
                             del evid, xxid
-                            # gc.collect()
                             
                         else:
                             # do not have time overlaping with any event, directly insert into the event list
@@ -750,9 +735,9 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
                                 event_info[station_name]['S']['mxptime'].append(copy.deepcopy(temp_mxptime))
                                 event_info[station_name]['S']['sgname'].append(copy.deepcopy(idsg))
                             del insertid
-                            # gc.collect()
+
                         del evid_s, evid_e, evid_se, evid_in
-                        # gc.collect()
+
                     else:
                         # no detected events yet, append the detected event to the empty event list directly
                         event_info[station_name]['S']['starttime'].append(copy.deepcopy(temp_startime))
@@ -762,14 +747,11 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
                         event_info[station_name]['S']['sgname'].append(copy.deepcopy(idsg))
                     
                     del temp_startime, temp_endtime, temp_maxprob, temp_mxptime, start_did, end_did
-                    # gc.collect()
                     assert(event_info[station_name]['S']['mxptime'][-1] >= event_info[station_name]['S']['starttime'][-1])
                     assert(event_info[station_name]['S']['mxptime'][-1] <= event_info[station_name]['S']['endtime'][-1])
             del epindx 
-            # gc.collect()
-            
             del pbdata, pbtime
-            # gc.collect()
+
         assert(len(event_info[station_name]['P']['starttime']) == len(event_info[station_name]['P']['endtime']))
         assert(len(event_info[station_name]['P']['endtime']) == len(event_info[station_name]['P']['maxprob']))
         assert(len(event_info[station_name]['P']['maxprob']) == len(event_info[station_name]['P']['mxptime']))
@@ -779,9 +761,7 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
         assert(len(event_info[station_name]['S']['maxprob']) == len(event_info[station_name]['S']['mxptime']))
         assert(len(event_info[station_name]['S']['mxptime']) == len(event_info[station_name]['S']['sgname']))
         del station_name, pbfile, pbdf, dsg_name, dsg_starttime, dsg_endtime 
-        # gc.collect()
     
-    gc.collect()
     return event_info
 
 
@@ -865,7 +845,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
     time_min = copy.deepcopy(min(etime_sta))  # the earliest starttime of all events, used to set the start point of the searched time range
     time_max = copy.deepcopy(max(ltime_sta))  # the latest endtime of all events, used to limit the searched time range
     del etime_sta, ltime_sta, sta
-    # gc.collect()
         
     # scan the whole array for locatable events
     srchtime_start = copy.deepcopy(time_min)  # use the earliest starttime of all events as the start time for searching
@@ -907,7 +886,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                     etime_amax = copy.deepcopy(max(etime_amax, max(np.max(np.array(event_info[ista]['P']['endtime'])[Pevidx]), np.max(np.array(event_info[ista]['S']['endtime'])[Sevidx]))))
                 
                 del mxpeid, mxseid
-                # gc.collect()
                 
             elif (len(Pevidx) > 0) and (len(Sevidx) == 0):
                 # only have P detection in this time range
@@ -926,7 +904,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                     etime_amax = copy.deepcopy(max(etime_amax, np.max(np.array(event_info[ista]['P']['endtime'])[Pevidx])))
                 
                 del mxpeid
-                # gc.collect()
                 
             elif (len(Pevidx) == 0) and (len(Sevidx) > 0):
                 # only have S detection in this time range
@@ -945,7 +922,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                     etime_amax = copy.deepcopy(max(etime_amax, np.max(np.array(event_info[ista]['S']['endtime'])[Sevidx])))
                 
                 del mxseid
-                # gc.collect()
                 
             else:
                 # no P and S detection in this time range
@@ -956,9 +932,9 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                 output_info[ista]['S']['sgname'] = None
             
             del Pevidx, Sevidx
-            # gc.collect()
+
         del ista
-        # gc.collect()
+
         
         # determine the earliest starttime of all the remaining detections
         for ista in stations:
@@ -972,9 +948,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                 etime_sta.append(copy.deepcopy(min(temp_st)))
                 
             del temp_pt, temp_st
-            # gc.collect()
         del ista
-        # gc.collect()
         
         # determine if the event is locatable, 
         # i.e. detected by many stations (>= nsta_thrd), have enough phases (>= npha_thrd)
@@ -1034,7 +1008,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                             datainfo['channel_name'] = 'PBP'  # note maximum three characters, the last one must be 'P'
                             vector2trace(datainfo, oprob, dir_output_ev)
                             del data_times, data_pdindex, odata_time, pbdata, oprob
-                            # gc.collect()
                         
                         elif (dsg_starttime[csg_indx] - datetime.timedelta(seconds=dt_EQT) >= tt1) and (dsg_endtime[csg_indx] + datetime.timedelta(seconds=dt_EQT) > tt2):  
                             # starttime of event time range is earlier than the starttime of the chosen data segment
@@ -1048,7 +1021,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                             odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
                             oprob_P = copy.deepcopy(pbdata[data_pdindex,1])  # P-phase picking probability
                             del pbdata, data_times, data_pdindex
-                            # gc.collect()
                             assert(odata_time[0] >= tt1)
                             assert(odata_time[-1] <= tt2)
                             
@@ -1061,7 +1033,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                                 odata_time_a = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
                                 oprob_P_a = copy.deepcopy(pbdata[data_pdindex,1])  # P-phase picking probability
                                 del pbdata, data_times, data_pdindex
-                                # gc.collect()
                                 assert(odata_time_a[0] >= tt1)
                                 assert(odata_time_a[-1] <= tt2)
                                 assert((odata_time[0] - odata_time_a[-1]).total_seconds() == dt_EQT)
@@ -1069,20 +1040,17 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                                 oprob = copy.deepcopy(np.concatenate((oprob_P_a, oprob_P)))
                                 datainfo['starttime'] = copy.deepcopy(odata_time_a[0])
                                 del odata_time_a, oprob_P_a, oprob_P, odata_time
-                                # gc.collect()
                                 
                             else:
                                 # csg_indx = 0, first segment, no previous one
                                 oprob = copy.deepcopy(oprob_P)
                                 datainfo['starttime'] = copy.deepcopy(odata_time[0])
                                 del odata_time, oprob_P
-                                # gc.collect()
                             
                             # output phase probability
                             datainfo['channel_name'] = 'PBP'  # note maximum three characters, the last one must be 'P'
                             vector2trace(datainfo, oprob, dir_output_ev)
                             del oprob
-                            # gc.collect()
                         
                         elif (dsg_starttime[csg_indx] - datetime.timedelta(seconds=dt_EQT) < tt1) and (dsg_endtime[csg_indx] + datetime.timedelta(seconds=dt_EQT) <= tt2):
                             # endtime of event time range is later than the endtime of the chosen data segment
@@ -1096,7 +1064,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                             odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
                             oprob_P = copy.deepcopy(pbdata[data_pdindex,1])  # P-phase picking probability
                             del pbdata, data_times, data_pdindex
-                            # gc.collect()
                             assert(odata_time[0] >= tt1)
                             assert(odata_time[-1] <= tt2)
                             
@@ -1109,7 +1076,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                                 odata_time_a = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
                                 oprob_P_a = copy.deepcopy(pbdata[data_pdindex,1])  # P-phase picking probability
                                 del pbdata, data_times, data_pdindex
-                                # gc.collect()
                                 assert(odata_time_a[0] >= tt1)
                                 assert(odata_time_a[-1] <= tt2)
                                 assert((odata_time_a[0] - odata_time[-1]).total_seconds() == dt_EQT)
@@ -1117,23 +1083,19 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                                 oprob = copy.deepcopy(np.concatenate((oprob_P, oprob_P_a)))
                                 datainfo['starttime'] = copy.deepcopy(odata_time[0])
                                 del odata_time_a, oprob_P_a, oprob_P, odata_time
-                                # gc.collect()
                                 
                             else:
                                 # csg_indx = len(dsg_name)-1, last segment, no after one
                                 oprob = copy.deepcopy(oprob_P)
                                 datainfo['starttime'] = copy.deepcopy(odata_time[0])
                                 del odata_time, oprob_P
-                                # gc.collect()
                             
                             # output phase probability
                             datainfo['channel_name'] = 'PBP'  # note maximum three characters, the last one must be 'P'
                             vector2trace(datainfo, oprob, dir_output_ev)
                             del oprob   
-                            # gc.collect()
                         
                         del csg_indx
-                        # gc.collect()
                         
                         # output for S probabilities
                         csg_indx = dsg_name.index(output_info[ista]['S']['sgname'])  # the index of the chosen data segment for S
@@ -1153,7 +1115,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                             datainfo['channel_name'] = 'PBS'  # note maximum three characters, the last one must be 'S'
                             vector2trace(datainfo, oprob, dir_output_ev)
                             del data_times, data_pdindex, odata_time, pbdata, oprob
-                            # gc.collect()
                         
                         elif (dsg_starttime[csg_indx] - datetime.timedelta(seconds=dt_EQT) >= tt1) and (dsg_endtime[csg_indx] + datetime.timedelta(seconds=dt_EQT) > tt2):  
                             # starttime of event time range is earlier than the starttime of the chosen data segment
@@ -1167,7 +1128,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                             odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
                             oprob_S = copy.deepcopy(pbdata[data_pdindex,2])  # S-phase picking probability
                             del pbdata, data_times, data_pdindex
-                            # gc.collect()
                             assert(odata_time[0] >= tt1)
                             assert(odata_time[-1] <= tt2)
                             
@@ -1180,7 +1140,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                                 odata_time_a = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
                                 oprob_S_a = copy.deepcopy(pbdata[data_pdindex,2])  # S-phase picking probability
                                 del pbdata, data_times, data_pdindex
-                                # gc.collect()
                                 assert(odata_time_a[0] >= tt1)
                                 assert(odata_time_a[-1] <= tt2)
                                 assert((odata_time[0] - odata_time_a[-1]).total_seconds() == dt_EQT)
@@ -1188,20 +1147,17 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                                 oprob = copy.deepcopy(np.concatenate((oprob_S_a, oprob_S)))
                                 datainfo['starttime'] = copy.deepcopy(odata_time_a[0])
                                 del odata_time_a, oprob_S_a, oprob_S, odata_time
-                                # gc.collect()
                                 
                             else:
                                 # csg_indx = 0, first segment, no previous one
                                 oprob = copy.deepcopy(oprob_S)
                                 datainfo['starttime'] = copy.deepcopy(odata_time[0])
                                 del odata_time, oprob_S
-                                # gc.collect()
                             
                             # output phase probability
                             datainfo['channel_name'] = 'PBS'  # note maximum three characters, the last one must be 'S'
                             vector2trace(datainfo, oprob, dir_output_ev)
                             del oprob
-                            # gc.collect()
                         
                         elif (dsg_starttime[csg_indx] - datetime.timedelta(seconds=dt_EQT) < tt1) and (dsg_endtime[csg_indx] + datetime.timedelta(seconds=dt_EQT) <= tt2):
                             # endtime of event time range is later than the endtime of the chosen data segment
@@ -1215,7 +1171,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                             odata_time = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
                             oprob_S = copy.deepcopy(pbdata[data_pdindex,2])  # S-phase picking probability
                             del pbdata, data_times, data_pdindex
-                            # gc.collect()
                             assert(odata_time[0] >= tt1)
                             assert(odata_time[-1] <= tt2)
                             
@@ -1228,7 +1183,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                                 odata_time_a = copy.deepcopy(data_times[data_pdindex])  # the timestampe of output data
                                 oprob_S_a = copy.deepcopy(pbdata[data_pdindex,2])  # S-phase picking probability
                                 del pbdata, data_times, data_pdindex
-                                # gc.collect()
                                 assert(odata_time_a[0] >= tt1)
                                 assert(odata_time_a[-1] <= tt2)
                                 assert((odata_time_a[0] - odata_time[-1]).total_seconds() == dt_EQT)
@@ -1236,23 +1190,19 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                                 oprob = copy.deepcopy(np.concatenate((oprob_S, oprob_S_a)))
                                 datainfo['starttime'] = copy.deepcopy(odata_time[0])
                                 del odata_time_a, oprob_S_a, oprob_S, odata_time
-                                # gc.collect()
                                 
                             else:
                                 # csg_indx = len(dsg_name)-1, last segment, no after one
                                 oprob = copy.deepcopy(oprob_S)
                                 datainfo['starttime'] = copy.deepcopy(odata_time[0])
                                 del odata_time, oprob_S
-                                # gc.collect()
                             
                             # output phase probability
                             datainfo['channel_name'] = 'PBS'  # note maximum three characters, the last one must be 'S'
                             vector2trace(datainfo, oprob, dir_output_ev)
                             del oprob 
-                            # gc.collect()
                         
                         del csg_indx
-                        # gc.collect()
                         
                     else:
                         # segment name not assigned, determine according to 'tt1' and 'tt2' 
@@ -1286,13 +1236,11 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                             
                             del tt_mid, mdtimesdf, data_sgindex, data_sgname, data_starttime, data_times 
                             del data_pdindex, odata_time, pbdata, oprob_P, oprob_S
-                            # gc.collect()
+
                         del dindx
-                        # gc.collect()
                         
         
                     del pbdf, dsg_name, dsg_starttime, dsg_endtime
-                    # gc.collect()
                 
                     # check if need to output raw seismic data segments for the detected event
                     if dir_seisdataset is not None:
@@ -1312,7 +1260,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
                         del stream
                 
             del twl_evres, twlex_a, tt1, tt2, dir_output_ev, ista
-            # gc.collect()
                 
         if (len(etime_sta) > 0):
             srchtime_start = copy.deepcopy(min(etime_sta)) # update the start of the searched time range
@@ -1320,10 +1267,8 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
             break
         
         del srchtime_end, nsta_trig, npha_trig, etime_sta, output_info, etime_amax
-        # gc.collect()
     
-    fepinfo.close()
-    gc.collect()    
+    fepinfo.close()  
     return
 
 

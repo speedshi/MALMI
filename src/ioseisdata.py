@@ -14,7 +14,6 @@ import obspy
 import glob
 import warnings
 from ioformatting import read_seismic_fromfd, stream2EQTinput
-import gc
 
 
 def format_AIO(dir_seismic, seismic_channels, dir_output):
@@ -47,7 +46,6 @@ def format_AIO(dir_seismic, seismic_channels, dir_output):
     # output to the seismic data format that QET can handle 
     stream2EQTinput(stream, dir_output, seismic_channels)
     del stream
-    gc.collect()
     
     return
 

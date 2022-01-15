@@ -8,7 +8,6 @@ Created on Tue Jul 13 14:26:55 2021
 
 
 import numpy as np
-import gc
 
 
 def stream_resampling(stream, sampling_rate=100.0):
@@ -112,7 +111,6 @@ def maxP2Stt(db_path, hdr_filename, model, precision):
     tt_psmax = np.amax(ts_redmax - tp_redmin)  # maximal P to S arrivaltime difference over different stations in second among all imaging points
     tt_ppmax = np.amax(tp_redmax - tp_redmin)  # maximal P to P arrivaltime difference over different stations in second among all imaging points
     
-    gc.collect()
     return tt_psmax, tt_ppmax, tt_psmax_ss
 
 
