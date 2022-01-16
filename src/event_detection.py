@@ -765,7 +765,7 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
     return event_info
 
 
-def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4, dir_output='./MAILMI_events_prob/', dir_output_seis='./MAILMI_events_seis/', dir_seisdataset=None, seismic_channels=None, output_allsta=True):
+def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4, dir_output='./MAILMI_events_prob/', dir_output_seis='./MAILMI_events_seis/', dir_seisdataset=None, seismic_channels=None, output_allsta=False):
     """
     This function is used to detect locatable event accross the whole arrary.
     If there are more triggered stations than the threshold (>=nsta_thrd) 
@@ -978,7 +978,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
             
             # loop over each station and ouput data
             for ista in stations:
-                if output_allsta or ((not output_allsta) and (output_info[ista]['P']['detected'] or output_info[ista]['S']['detected'])):
+                if output_allsta or ((output_info[ista]['P']['detected'] or output_info[ista]['S']['detected'])):
                     datainfo['station_name'] = copy.deepcopy(ista)
                     
                     # load probability data set for the current station
