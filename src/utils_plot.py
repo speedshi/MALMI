@@ -18,6 +18,7 @@ import obspy
 import pandas as pd
 from utils_dataprocess import dnormlz
 import matplotlib.ticker as ticker
+from obspy import UTCDateTime
 
 
 def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magnitude_cumulative_number.png', ydata_thrd=4.5, figsize=(12,4)):
@@ -432,8 +433,12 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
             tr = stream.select(station=staname[ii], component=icomp)
             if tr.count() > 0:
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                if (max(abs(tr[0].data)) > 0):
-                    vdata = tr[0].data / max(abs(tr[0].data))
+                if timerg is not None:
+                    dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
+                else:
+                    dampmax = max(abs(tr[0].data))
+                if dampmax > 0:
+                    vdata = tr[0].data / dampmax
                 else:
                     vdata = tr[0].data
                 ax.plot(tt, vdata+ydev[ii], 'k', linewidth=linewd)
@@ -444,8 +449,12 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
             tr = charfs.select(station=staname[ii], component="P")
             if tr.count() > 0:
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                if (normv is not None) and (max(abs(tr[0].data)) >= normv):
-                    vdata = tr[0].data / max(abs(tr[0].data))
+                if timerg is not None:
+                    dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
+                else:
+                    dampmax = max(abs(tr[0].data))
+                if (normv is not None) and (dampmax >= normv):
+                    vdata = tr[0].data / dampmax
                 else:
                     vdata = tr[0].data
                 if ppower:
@@ -465,8 +474,12 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
             tr = charfs.select(station=staname[ii], component="S")
             if tr.count() > 0:
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                if (normv is not None) and (max(abs(tr[0].data)) >= normv):
-                    vdata = tr[0].data / max(abs(tr[0].data))
+                if timerg is not None:
+                    dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
+                else:
+                    dampmax = max(abs(tr[0].data))
+                if (normv is not None) and (dampmax >= normv):
+                    vdata = tr[0].data / dampmax
                 else:
                     vdata = tr[0].data
                 if ppower:
@@ -494,6 +507,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
         
         if timerg is not None:
             ax.set_xlim(timerg)
+            ax.set_ylim([ydev[0]-1.1, ydev[-1]+1.1])
         myFmt = mdates.DateFormatter("%H:%M:%S")
         ax.xaxis.set_major_formatter(myFmt)
         ax.set_yticks(ydev)
