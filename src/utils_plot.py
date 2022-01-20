@@ -344,6 +344,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
     dir_char : str
         path to the input characteristic functions, input data should be stored 
         in a format that obspy can read.
+        If None, not plotting characteristic functions.
     dir_output : str
         prth to the output figure.
     figsize : tuple
@@ -397,10 +398,13 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
         stream += obspy.read(os.path.join(dir_seis, dfile))
     
     # load characteristic function data set
-    file_charfin = sorted([fname for fname in os.listdir(dir_char) if os.path.isfile(os.path.join(dir_char, fname))])
-    charfs = obspy.Stream()
-    for indx, dfile in enumerate(file_charfin):
-        charfs += obspy.read(os.path.join(dir_char, dfile))
+    if dir_char is not None:
+        file_charfin = sorted([fname for fname in os.listdir(dir_char) if os.path.isfile(os.path.join(dir_char, fname))])
+        charfs = obspy.Stream()
+        for indx, dfile in enumerate(file_charfin):
+            charfs += obspy.read(os.path.join(dir_char, dfile))
+    else:
+        charfs = None
     
     # get the date info of data set
     this_date = stream[0].stats.starttime.date
@@ -432,6 +436,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
             # plot input seismic data of one component
             tr = stream.select(station=staname[ii], component=icomp)
             if tr.count() > 0:
+                tr.merge(fill_value=0)
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
                 if timerg is not None:
                     dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
@@ -446,54 +451,55 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
             del tr
             
             # plot P-phase characteristic function
-            tr = charfs.select(station=staname[ii], component="P")
-            if tr.count() > 0:
-                tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                if timerg is not None:
-                    dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
-                else:
-                    dampmax = max(abs(tr[0].data))
-                if (normv is not None) and (dampmax >= normv):
-                    vdata = tr[0].data / dampmax
-                else:
-                    vdata = tr[0].data
-                if ppower:
-                    vdata = vdata**ppower
-                if process is not None:
-                    vdata = vdata - process(vdata)
-                if plotthrd is None:
-                    ax.plot(tt, vdata+ydev[ii], 'r', linewidth=linewd)
-                else:
-                    for ipp in range(1, len(vdata)):
-                        if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
-                            ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'r', linewidth=linewd)
-                del vdata, tt
-            del tr
-            
-            # plot S-phase characteristic function
-            tr = charfs.select(station=staname[ii], component="S")
-            if tr.count() > 0:
-                tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                if timerg is not None:
-                    dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
-                else:
-                    dampmax = max(abs(tr[0].data))
-                if (normv is not None) and (dampmax >= normv):
-                    vdata = tr[0].data / dampmax
-                else:
-                    vdata = tr[0].data
-                if ppower:
-                    vdata = vdata**ppower
-                if process is not None:
-                    vdata = vdata - process(vdata)
-                if plotthrd is None:
-                    ax.plot(tt, vdata+ydev[ii], 'b', linewidth=linewd)
-                else:
-                    for ipp in range(1, len(vdata)):
-                        if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
-                            ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'b', linewidth=linewd)
-                del vdata, tt
-            del tr
+            if charfs is not None:
+                tr = charfs.select(station=staname[ii], component="P")
+                if tr.count() > 0:
+                    tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
+                    if timerg is not None:
+                        dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
+                    else:
+                        dampmax = max(abs(tr[0].data))
+                    if (normv is not None) and (dampmax >= normv):
+                        vdata = tr[0].data / dampmax
+                    else:
+                        vdata = tr[0].data
+                    if ppower:
+                        vdata = vdata**ppower
+                    if process is not None:
+                        vdata = vdata - process(vdata)
+                    if plotthrd is None:
+                        ax.plot(tt, vdata+ydev[ii], 'r', linewidth=linewd)
+                    else:
+                        for ipp in range(1, len(vdata)):
+                            if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
+                                ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'r', linewidth=linewd)
+                    del vdata, tt
+                del tr
+                
+                # plot S-phase characteristic function
+                tr = charfs.select(station=staname[ii], component="S")
+                if tr.count() > 0:
+                    tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
+                    if timerg is not None:
+                        dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
+                    else:
+                        dampmax = max(abs(tr[0].data))
+                    if (normv is not None) and (dampmax >= normv):
+                        vdata = tr[0].data / dampmax
+                    else:
+                        vdata = tr[0].data
+                    if ppower:
+                        vdata = vdata**ppower
+                    if process is not None:
+                        vdata = vdata - process(vdata)
+                    if plotthrd is None:
+                        ax.plot(tt, vdata+ydev[ii], 'b', linewidth=linewd)
+                    else:
+                        for ipp in range(1, len(vdata)):
+                            if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
+                                ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'b', linewidth=linewd)
+                    del vdata, tt
+                del tr
             
             # plot phase arrivaltimes
             if arrvtt is not None:

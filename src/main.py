@@ -239,9 +239,10 @@ class MALMI:
         ML['number_of_cpus'] : int, default: 5
             Number of CPUs used for the parallel preprocessing and feeding of 
             data for prediction.
-            Better not too large, otherwise prediction tends to be very slow.
-            I have tested using a number of 96 on a server, which makes the 
-            prediction process 20 times slower than using just 1 cpus.
+            If no GPU to use, this value shoud not be set too large, 
+            otherwise prediction tends to be very slow.
+            I have tested using a number of 96 on a server with only cpus avaliable,
+            this makes the prediction process 20 times slower than using just 1 cpus.
 
         Returns
         -------
@@ -443,16 +444,41 @@ class MALMI:
         print('MALMI_rsprocess_view complete!')
 
     
-    def clear_interm(self):
+    def clear_interm(self, CL=None):
+        """
+        Clear some gegerated data set such as seismic data or porbability data
+        for saving disk space.
+        Parameters
+        ----------
+        CL : dict, parameters.
+        CL['mseed'] : boolean
+            whether to delete the mseed directory which are the formateed 
+            continuous seismic data set for ML inputs.
+        CL['hdf5_seis'] : boolean
+            whether to delete the hdf5 directory which are formatted overlapping 
+            data segments of seismic data set for ML predictions.
+        CL['hdf5_prob'] : boolean
+            whether to delete the continuous probability hdf5 files.
+        """
+        
+        if (CL is None) or ('mseed' not in CL):
+            CL['mseed'] = True
+        if (CL is None) or ('hdf5_seis' not in CL):
+            CL['hdf5_seis'] = True
+        if (CL is None) or ('hdf5_prob' not in CL):
+            CL['hdf5_prob'] = True
         
         print('MALMI starts to clear some intermediate results for saving disk space:')
-        shutil.rmtree(self.dir_mseed)  # remove the mseed directory which are the formateed continuous seismic data set for ML inputs
-        shutil.rmtree(self.dir_hdf5)  # remove the hdf5 directory which are formatted overlapping data segments of seismic data set for ML_EQT predictions
+        if CL['mseed']:
+            shutil.rmtree(self.dir_mseed)  # remove the mseed directory which are the formateed continuous seismic data set for ML inputs
+        if CL['hdf5_seis']:
+            shutil.rmtree(self.dir_hdf5)  # remove the hdf5 directory which are formatted overlapping data segments of seismic data set for ML_EQT predictions
         
-        # remove the generated continuous probability hdf5 files
-        prob_h5files = glob.glob(self.dir_prob + '/**/*.hdf5', recursive=True)
-        for ipf in prob_h5files:
-            os.remove(ipf)
+        if CL['hdf5_prob']:
+            # remove the generated continuous probability hdf5 files
+            prob_h5files = glob.glob(self.dir_prob + '/**/*.hdf5', recursive=True)
+            for ipf in prob_h5files:
+                os.remove(ipf)
         
         gc.collect()        
         print('MALMI_clear_interm complete!')
