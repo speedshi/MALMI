@@ -16,7 +16,6 @@ import copy
 import shutil
 import glob
 import datetime
-import warnings
         
 
 class MALMI:
@@ -150,6 +149,7 @@ class MALMI:
         self.seisdatastru = copy.deepcopy(seismic['datastru'])
         self.dir_seismic = copy.deepcopy(seismic['dir'])
         self.seismic_channels = copy.deepcopy(seismic['channels'])  # the channels of the input seismic data
+        self.seisdate = copy.deepcopy(seismic['date'])  # date of seismic data
         
         if self.seisdatastru == 'AIO':
             # input seismic data files are stored simply in one folder
@@ -161,7 +161,6 @@ class MALMI:
         elif self.seisdatastru == 'SDS':
             # input seismic data files are organized in SDS
             # use the date as the identifer of the input data set
-            self.seisdate = copy.deepcopy(seismic['date'])
             fd_seismic = datetime.datetime.strftime(self.seisdate, "%Y%m%d")
         else:
             raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
@@ -186,6 +185,8 @@ class MALMI:
         self.dir_lokiprob = os.path.join(self.dir_migration, 'prob_evstream')  # directory for probability outputs of different events in SEED format
         self.dir_lokiseis = os.path.join(self.dir_migration, 'seis_evstream')  # directory for raw seismic outputs of different events in SEED format
         self.dir_lokiout = os.path.join(self.dir_migration, 'result_MLprob_{}'.format(tt_folder))  # path for loki final outputs
+        
+        return
 
 
     def format_ML_inputs(self):
@@ -209,7 +210,11 @@ class MALMI:
         if self.seisdatastru == "AIO":
             # input seismic data files are stored simply in one folder
             # suitable for formatting small data set
-            format_AIO(self.dir_seismic, self.seismic_channels, self.dir_mseed)
+            seisdate = format_AIO(self.dir_seismic, self.seismic_channels, self.dir_mseed)
+            if self.seisdate is None:
+                # retrive date of seismic data, NOTE might not be accurate 
+                # and if data longer than one day, this parameters is 
+                self.seisdate = seisdate
             
         elif self.seisdatastru == 'SDS':
             # input seismic data files are organized in SDS
@@ -223,6 +228,7 @@ class MALMI:
         stainv2json(self.stainv, self.dir_mseed, self.dir_EQTjson)
         gc.collect()
         print('MALMI_format_ML_inputs complete!')
+        return
 
 
     def generate_prob(self, ML):
@@ -284,6 +290,7 @@ class MALMI:
                   number_of_plots=100, plot_mode='time_frequency')
         gc.collect()
         print('MALMI_generate_prob complete!')
+        return
 
             
     def event_detect_ouput(self, twind_srch=None, twlex=1.0, P_thrd=0.1, S_thrd=0.1, nsta_thrd=3, npha_thrd=4, outseis=True):
@@ -344,6 +351,7 @@ class MALMI:
         arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob, self.dir_lokiseis, dir_seisdataset, self.seismic_channels, True)
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
+        return
 
 
     def migration(self, probthrd=0.001):
@@ -385,6 +393,7 @@ class MALMI:
         l1.location(extension, comp, self.tt_precision, **inputs)
         gc.collect()
         print('MALMI_migration complete!')
+        return
     
         
     def rsprocess_view(self, getMLpick=True, plotwaveforms=True):
@@ -442,6 +451,7 @@ class MALMI:
     
         gc.collect()
         print('MALMI_rsprocess_view complete!')
+        return
 
     
     def clear_interm(self, CL=None):
@@ -461,16 +471,22 @@ class MALMI:
             whether to delete the continuous probability hdf5 files.
         """
         
-        if (CL is None) or ('mseed' not in CL):
+        if CL is None:
+            CL = {}
+            
+        if 'mseed' not in CL:
             CL['mseed'] = True
-        if (CL is None) or ('hdf5_seis' not in CL):
+            
+        if 'hdf5_seis' not in CL:
             CL['hdf5_seis'] = True
-        if (CL is None) or ('hdf5_prob' not in CL):
+            
+        if 'hdf5_prob' not in CL:
             CL['hdf5_prob'] = True
         
         print('MALMI starts to clear some intermediate results for saving disk space:')
         if CL['mseed']:
             shutil.rmtree(self.dir_mseed)  # remove the mseed directory which are the formateed continuous seismic data set for ML inputs
+        
         if CL['hdf5_seis']:
             shutil.rmtree(self.dir_hdf5)  # remove the hdf5 directory which are formatted overlapping data segments of seismic data set for ML_EQT predictions
         
@@ -482,5 +498,62 @@ class MALMI:
         
         gc.collect()        
         print('MALMI_clear_interm complete!')
+        return
+    
         
+    def phase_associate(self, ASSO=None):
+        """
+        Associate the picked phases for event location.
+
+        Parameters
+        ----------
+        ASSO : dict, optional
+            phase association parameters. The default is None.
+            ASSO['engine'] : str, can be 'EQT'
+                the phase associate approach.
+            ASSO['window'] : float, default is 15.
+                The length of time window used for association in second.
+            ASSO['Nmin'] : int, default is 3.
+                The minimum number of stations used for the association.
+            ASSO['starttime'] : datetime.datetime, default is None.
+                Start of a time period of interest.
+            ASSO['endtime'] : datetime.datetime, default is None.
+                End of a time period of interest.
+        Returns
+        -------
+        None.
+
+        """
         
+        dtfmt = '%Y-%m-%d %H:%M:%S.%f'  # to produce 'YYYY-MM-DD hh:mm:ss.f'
+        
+        if ASSO is None:
+            ASSO = {}
+        
+        if 'engine' not in ASSO:
+            ASSO['engine'] = 'EQT'
+            
+        if 'window' not in ASSO:
+            ASSO['window'] = 15
+        
+        if 'Nmin' not in ASSO:
+            ASSO['Nmin'] = 3
+        
+        if ('starttime' not in ASSO) or (ASSO['starttime'] is None):
+            starttime = (datetime.datetime.combine(self.date, datetime.time.min)).strftime(dtfmt)
+            
+        if ('endtime' not in ASSO) or (ASSO['endtime'] is None):
+            endtime = (datetime.datetime.combine(self.date, datetime.time.max)).strftime(dtfmt)
+        
+        self.dir_asso = os.path.join(self.dir_ML, 'association')  # output directory for phase association outputs    
+        os.makedirs(self.dir_asso)
+        
+        if ASSO['engine'] == 'EQT':
+            from EQTransformer.utils.associator import run_associator as associator
+            associator(input_dir=self.dir_prob, output_dir=self.dir_asso,
+                       start_time= starttime, end_time=endtime,  
+                       moving_window=ASSO['window'], pair_n=ASSO['Nmin'])
+        
+        return
+
+

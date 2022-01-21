@@ -42,12 +42,13 @@ def format_AIO(dir_seismic, seismic_channels, dir_output):
 
     # read in all continuous seismic data in the input folder as an obspy stream
     stream = read_seismic_fromfd(dir_seismic)
+    seisdate = (stream[0].stats.starttime + (stream[0].stats.endtime - stream[0].stats.starttime)*0.5).date  # date when data exist
     
     # output to the seismic data format that QET can handle 
     stream2EQTinput(stream, dir_output, seismic_channels)
     del stream
     
-    return
+    return seisdate
 
 
 def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output, location_code=['','00']):

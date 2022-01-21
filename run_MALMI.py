@@ -47,7 +47,6 @@ tt['dir'] = '../data/traveltime/tt_150m'  # path to travetime data directory
 grid = {}
 grid['LatOrig'] = 63.5  # latitude in decimal degrees of the origin point of the rectangular migration region (float, min:-90.0, max:90.0)
 grid['LongOrig'] = -22.0  # longitude in decimal degrees of the origin point of the rectangular migration region (float, min:-180.0, max:180.0)
-grid['rotAngle'] = 0.0  # rotation angle in decimal degrees of the rectrangular region in degrees clockwise relative to the Y-axis
 grid['zOrig'] = -2.0  # Z location of the grid origin in km relative to the sea-level. Nagative value means above the sea-level; Positive values for below the sea-level;
 grid['xNum'] = 250  # number of grid nodes in the X direction
 grid['yNum'] = 250  # number of grid nodes in the Y direction
@@ -65,9 +64,10 @@ coseismiq.format_ML_inputs()
 
 
 # %% Run ML models to get continuous phase probabilities
-input_MLmodel = '/home/peidong/xresearch/code/EQTransformer/ModelsAndSampleData/EqT_model.h5'  # path to a trained EQT model
-overlap = 0.8  # overlap rate of time window for generating probabilities. e.g. 0.6 means 60% of time window are overlapped
-coseismiq.generate_prob(input_MLmodel, overlap)
+ML = {}
+ML['model'] = '/home/peidong/xresearch/code/EQTransformer/ModelsAndSampleData/EqT_model.h5'  # path to a trained EQT model
+ML['overlap'] = 0.8  # overlap rate of time window for generating probabilities. e.g. 0.6 means 60% of time window are overlapped
+coseismiq.generate_prob(ML)
 
 
 # %% Detect locatable events from continuous phase probabilities
@@ -90,6 +90,12 @@ coseismiq.rsprocess_view()
 
 
 # %% Delete the input continuous seismic data for ML models for saving disk space
-coseismiq.clear_interm()
+CL = {}
+CL['hdf5_prob'] = False
+coseismiq.clear_interm(CL)
+
+
+# %% try associate detected phases
+coseismiq.phase_associate()
 
 
