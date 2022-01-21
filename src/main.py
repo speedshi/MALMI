@@ -83,7 +83,9 @@ class MALMI:
             control['dir_output'] : str, optional, default: './data'.
                 directory for outputs.
             control['n_processor'] : int, optional, default: 1.
-                number of CPU processors for parallel processing.   
+                number of CPU processors for parallel processing.
+            control['plot_map'] : boolean, optional, default: True.
+                whether plot the station basemap.
 
         Returns
         -------
@@ -128,6 +130,9 @@ class MALMI:
         
         if 'n_processor' not in control:
             control['n_processor'] = 1
+            
+        if 'plot_map' not in control:
+            control['plot_map'] = True
         #----------------------------------------------------------------------
         
         # make sure output directory exist
@@ -141,10 +146,11 @@ class MALMI:
         build_traveltime(grid, tt, self.stainv)
         
         # plot stations and migration region for checking
-        fname1 = os.path.join(control['dir_output'], "basemap_stations_mgarea.png")
-        if not os.path.isfile(fname1):
-            sta_inv1, region1, mgregion1 = get_lokicoord(tt['dir'], tt['hdr_filename'], 0.05)
-            plot_basemap(region1, sta_inv1, mgregion1, fname1, False, '30s')
+        if control['plot_map']:
+            fname1 = os.path.join(control['dir_output'], "basemap_stations_mgarea.png")
+            if not os.path.isfile(fname1):
+                sta_inv1, region1, mgregion1 = get_lokicoord(tt['dir'], tt['hdr_filename'], 0.05)
+                plot_basemap(region1, sta_inv1, mgregion1, fname1, False, '30s')
         
         self.seisdatastru = copy.deepcopy(seismic['datastru'])
         self.dir_seismic = copy.deepcopy(seismic['dir'])
