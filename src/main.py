@@ -546,10 +546,10 @@ class MALMI:
             ASSO['Nmin'] = 3
         
         if ('starttime' not in ASSO) or (ASSO['starttime'] is None):
-            starttime = (datetime.datetime.combine(self.date, datetime.time.min)).strftime(dtfmt)
+            starttime = (datetime.datetime.combine(self.seisdate, datetime.time.min)).strftime(dtfmt)
             
         if ('endtime' not in ASSO) or (ASSO['endtime'] is None):
-            endtime = (datetime.datetime.combine(self.date, datetime.time.max)).strftime(dtfmt)
+            endtime = (datetime.datetime.combine(self.seisdate, datetime.time.max)).strftime(dtfmt)
         
         self.dir_asso = os.path.join(self.dir_ML, 'association')  # output directory for phase association outputs    
         os.makedirs(self.dir_asso)
