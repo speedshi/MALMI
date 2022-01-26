@@ -225,7 +225,8 @@ class MALMI:
         if self.seisdatastru == "AIO":
             # input seismic data files are stored simply in one folder
             # suitable for formatting small data set
-            seisdate = format_AIO(self.dir_seismic, self.seismic_channels, self.dir_mseed, self.freqband)
+            seisdate = format_AIO(dir_seismic=self.dir_seismic, seismic_channels=self.seismic_channels, 
+                                  dir_output=self.dir_mseed, freqband=self.freqband)
             if self.seisdate is None:
                 # retrive date of seismic data, NOTE might not be accurate 
                 # and if data longer than one day, this parameters is 
@@ -234,7 +235,9 @@ class MALMI:
         elif self.seisdatastru == 'SDS':
             # input seismic data files are organized in SDS
             # suitable for formatting large or long-duration data set
-            format_SDS(self.seisdate, self.stainv, self.dir_seismic, self.seismic_channels, self.dir_mseed, self.freqband)
+            format_SDS(seisdate=self.seisdate, stainv=self.stainv, 
+                       dir_seismic=self.dir_seismic, seismic_channels=self.seismic_channels, 
+                       dir_output=self.dir_mseed, freqband=self.freqband)
             
         else:
             raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')

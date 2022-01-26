@@ -137,7 +137,7 @@ def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output, loca
                                 # prefered station location code not match with any files
                                 # by default using the first data file as input
                                 warnings.warn('Input prefered station location code: {} not found in data files: {}. By default, use the first file as input!'
-                                              .fromat(location_code, sdatafile))
+                                              .format(location_code, sdatafile))
                                 jdf = 0
                             print('Load data: {}.'.format(sdatafile[jdf]))
                             stream += obspy.read(sdatafile[jdf])
