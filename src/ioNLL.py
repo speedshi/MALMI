@@ -89,7 +89,7 @@ def gene_NLLinputs(inpara):
     if 'filename' in inpara:
         filename = inpara['filename']
     else:
-        filename = './nlloc_sample.in'
+        filename = './nlloc.in'
     
     if 'TRANS' in inpara:
         TRANS = inpara['TRANS']
@@ -172,6 +172,7 @@ def gene_NLLinputs(inpara):
     
     # Control
     ofile.write('# =============================================================================\n')
+    ofile.write('# =============================================================================\n')
     ofile.write('# Generic control file statements\n')
     ofile.write('# =============================================================================\n')
     ofile.write('CONTROL 1 54321\n')
@@ -185,10 +186,12 @@ def gene_NLLinputs(inpara):
     ofile.write('# =============================================================================\n')
     ofile.write('# END of Generic control file statements\n')
     ofile.write('# =============================================================================\n')
+    ofile.write('# =============================================================================\n')
     ofile.write('\n')
     ofile.flush()
     
     # For Vel2Grid Program
+    ofile.write('# =============================================================================\n')
     ofile.write('# =============================================================================\n')
     ofile.write('# Vel2Grid control file statements\n')
     ofile.write('# =============================================================================\n')
@@ -207,10 +210,12 @@ def gene_NLLinputs(inpara):
     ofile.write('# =============================================================================\n')
     ofile.write('# END of Vel2Grid control file statements\n')
     ofile.write('# =============================================================================\n')
+    ofile.write('# =============================================================================\n')
     ofile.write('\n')
     ofile.flush()
     
     # For Grid2Time Program
+    ofile.write('# =============================================================================\n')
     ofile.write('# =============================================================================\n')
     ofile.write('# Grid2Time control file statements\n')
     ofile.write('# =============================================================================\n')
@@ -225,6 +230,7 @@ def gene_NLLinputs(inpara):
     ofile.write('# =============================================================================\n')
     ofile.write('# END of Grid2Time control file statements\n')
     ofile.write('# =============================================================================\n')
+    ofile.write('# =============================================================================\n')
     ofile.write('\n')
     ofile.flush()
     
@@ -235,6 +241,37 @@ def gene_NLLinputs(inpara):
     return
 
 
+def gene_NLLinputs_NLLoc(inpara):
+    
+    # input parameters
+    if 'filename' in inpara:
+        filename = inpara['filename']
+    else:
+        filename = './nlloc.in'
+        
+    # check if the input file already exist or not.
+    if os.path.exists(filename):
+        print('Append NLLoc control file statements to NLLInputfile: {}.'.format(filename))
+    else:
+        print('Create NLLInputfile: {} for NLLoc control file statements.'.format(filename))
+    
+    ofile = open(filename, 'a')    
+    
+    ofile.write('# =============================================================================\n')
+    ofile.write('# =============================================================================\n')
+    ofile.write('# NLLoc control file statements\n')
+    ofile.write('# =============================================================================\n')
 
+    ### TO BE CONTINUE
+
+    ofile.write('# =============================================================================\n')
+    ofile.write('# END of NLLoc control file statements\n')
+    ofile.write('# =============================================================================\n')
+    ofile.write('# =============================================================================\n')
+    ofile.write('\n')
+    ofile.flush()
+    
+    ofile.close()
+    return
 
 

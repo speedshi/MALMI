@@ -16,7 +16,7 @@ import warnings
 from ioformatting import read_seismic_fromfd, stream2EQTinput
 
 
-def format_AIO(dir_seismic, seismic_channels, dir_output):
+def format_AIO(dir_seismic, seismic_channels, dir_output, freqband=None):
     """
     Format seismic data stored simply in one folder so that the ouput data
     can be feed to various ML models.
@@ -33,6 +33,10 @@ def format_AIO(dir_seismic, seismic_channels, dir_output):
     dir_output : str
         directory for outputting seismic data, 
         NOTE do not add '/' at the last.
+    freqband : list of float
+        frequency range in Hz for filtering seismic data, 
+        e.g. [3, 45] meaning filter seismic data to 3-45 Hz.
+        default is None, means no filtering.
 
     Returns
     -------
@@ -45,13 +49,13 @@ def format_AIO(dir_seismic, seismic_channels, dir_output):
     seisdate = (stream[0].stats.starttime + (stream[0].stats.endtime - stream[0].stats.starttime)*0.5).date  # date when data exist
     
     # output to the seismic data format that QET can handle 
-    stream2EQTinput(stream, dir_output, seismic_channels)
+    stream2EQTinput(stream, dir_output, seismic_channels, freqband)
     del stream
     
     return seisdate
 
 
-def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output, location_code=['','00']):
+def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output, location_code=['','00'], freqband=None):
     """
     Format seismic data organized in SDS data structure so that the ouput data
     can be feed to various ML models.
@@ -76,7 +80,11 @@ def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output, loca
         if multiple files found for the same component (because different
         station code could exist), this is then used to select which data should 
         be used in the prefered order.
-
+    freqband : list of float
+        frequency range in Hz for filtering seismic data, 
+        e.g. [3, 45] meaning filter seismic data to 3-45 Hz.
+        default is None, means no filtering.
+        
     Raises
     ------
     ValueError
@@ -138,7 +146,7 @@ def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output, loca
                 
                 # ouput data for the current station
                 if stream.count() > 0:
-                    stream2EQTinput(stream, dir_output, seismic_channels)
+                    stream2EQTinput(stream, dir_output, seismic_channels, freqband)
                 else:
                     warnings.warn('No data found at station {} for the specified components: {} or date: {}!'
                                   .format(station.code, seismic_channels, seisdate))

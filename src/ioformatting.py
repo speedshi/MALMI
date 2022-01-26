@@ -110,7 +110,7 @@ def read_seismic_fromfd(dir_seismic, channels=None):
     return stream
 
 
-def output_seissegment(stream, dir_output, starttime, endtime):
+def output_seissegment(stream, dir_output, starttime, endtime, freqband=None):
     """
     This function is used to output seismic data segment accroding to input time
     range.
@@ -125,6 +125,10 @@ def output_seissegment(stream, dir_output, starttime, endtime):
         starttime of data segment.
     endtime : datetime
         endtime of data segment.
+    freqband : list of float
+        frequency range in Hz for filtering seismic data, 
+        e.g. [3, 45] meaning filter seismic data to 3-45 Hz.
+        default is None, means no filtering.
 
     Returns
     -------
@@ -159,6 +163,13 @@ def output_seissegment(stream, dir_output, starttime, endtime):
         for ichan in channels:
             stdata = (stream.select(station=ista, channel=ichan)).copy()
             if stdata.count() > 0:
+                if freqband is not None:
+                    # filter data in specified frequency range
+                    # note need to process in this way to avoide glitch after filtering
+                    stdata.detrend('demean')
+                    stdata.detrend('simple')
+                    stdata.filter('bandpass', freqmin=freqband[0], freqmax=freqband[1], corners=2, zerophase=True)
+                    stdata.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
                 stdata.trim(UTCDateTime(starttime), UTCDateTime(endtime), pad=False, fill_value=0)
                 stdata.merge(fill_value=0)
                 if stdata.count() > 0:
@@ -175,7 +186,7 @@ def output_seissegment(stream, dir_output, starttime, endtime):
     return
 
 
-def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*H2", "*H3"]):
+def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*H2", "*H3"], freqband=None):
     """
     This function is used to format the input obspy stream into the EQ-Transformer 
     acceptable seismic data inputs.
@@ -205,6 +216,10 @@ def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*
     channels : str
         channel name for outputting, default: ["*HE", "*HN", "*HZ", "*H1", "*H2", "*H3"];
         if None or [], then searching for all channels in the input stream.
+    freqband : list of float
+        frequency range in Hz for filtering seismic data, 
+        e.g. [3, 45] meaning filter seismic data to 3-45 Hz.
+        default is None, means no filtering.
 
     Returns
     -------
@@ -266,10 +281,18 @@ def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*
         
         # Output data for each station and each channel
         # For a particular station, the three channel (if there are) share
-        # the same time range in the final filename.
+        # the same time range in the final output filename.
         for ichan in channels:
             stdata = stream.select(station=ista, channel=ichan)
             if stdata.count() > 0:
+                if freqband is not None:
+                    # filter data in specified frequency range
+                    # note need to process in this way to avoide glitch after filtering
+                    stdata.detrend('demean')
+                    stdata.detrend('simple')
+                    stdata.filter('bandpass', freqmin=freqband[0], freqmax=freqband[1], corners=2, zerophase=True)
+                    stdata.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
+                
                 OfileName = stdata[0].id + '__' + starttime_str + '__' + endtime_str + '.mseed'
                 stdata.write(os.path.join(dir_output_sta, OfileName), format="MSEED")
             del stdata

@@ -45,7 +45,11 @@ class MALMI:
                 or a simply CSV file using ',' as the delimiter in which the first row 
                 is column name and must contain: 'network', 'station', 'latitude', 
                 'longitude', 'elevation'. Latitude and longitude are in decimal degree 
-                and elevation in meters relative to the sea-level (positive for up). 
+                and elevation in meters relative to the sea-level (positive for up).
+            seismic['freqband']: list of folat, optional
+                frequency range in Hz for filtering seismic data for ML inputs, 
+                such as [3, 45] meaning filter seismic data to 3-45 Hz before input to ML models.
+                default is None, means no filtering.
         
         traveltime parameters (For loading or generating traveltime tables):
             tt['vmodel']: str, optional, default is None.
@@ -73,11 +77,11 @@ class MALMI:
             grid['zOrig']: Z location of the grid origin in km relative to the 
                            sea-level. Nagative value means above the sea-level; 
                            Positive values for below the sea-level;
-                           Required. 
-            grid['xNum']: number of grid nodes in the X direction. Required.
-            grid['yNum']: number of grid nodes in the Y direction. Required.
-            grid['zNum']: number of grid nodes in the Z direction. Required.
-            grid['dgrid']: grid spacing in kilometers. Required.
+                           Required. (float)
+            grid['xNum']: number of grid nodes in the X direction. Required. (int, >=2)
+            grid['yNum']: number of grid nodes in the Y direction. Required. (int, >=2)
+            grid['zNum']: number of grid nodes in the Z direction. Required. (int, >=2)
+            grid['dgrid']: grid spacing in kilometers. Required. (float, >0)
 
         control parameters (For control outputs and processing):
             control['dir_output'] : str, optional, default: './data'.
@@ -107,6 +111,9 @@ class MALMI:
         
         if 'date' not in seismic:
             seismic['date'] = None
+        
+        if 'freqband' not in seismic:
+            seismic['freqband'] = None
         
         if 'vmodel' not in tt:
             tt['vmodel'] = None
@@ -143,7 +150,8 @@ class MALMI:
         self.stainv = read_stationinfo(seismic['stainvf'])  # obspy station inventory 
         
         # build travel-time data set
-        build_traveltime(grid, tt, self.stainv)
+        grid = build_traveltime(grid, tt, self.stainv)
+        self.grid = copy.deepcopy(grid)
         
         # plot stations and migration region for checking
         if control['plot_map']:
@@ -156,6 +164,7 @@ class MALMI:
         self.dir_seismic = copy.deepcopy(seismic['dir'])
         self.seismic_channels = copy.deepcopy(seismic['channels'])  # the channels of the input seismic data
         self.seisdate = copy.deepcopy(seismic['date'])  # date of seismic data
+        self.freqband = copy.deepcopy(seismic['freqband'])  # frequency band in Hz for filtering seismic data
         
         if self.seisdatastru == 'AIO':
             # input seismic data files are stored simply in one folder
@@ -216,7 +225,7 @@ class MALMI:
         if self.seisdatastru == "AIO":
             # input seismic data files are stored simply in one folder
             # suitable for formatting small data set
-            seisdate = format_AIO(self.dir_seismic, self.seismic_channels, self.dir_mseed)
+            seisdate = format_AIO(self.dir_seismic, self.seismic_channels, self.dir_mseed, self.freqband)
             if self.seisdate is None:
                 # retrive date of seismic data, NOTE might not be accurate 
                 # and if data longer than one day, this parameters is 
@@ -225,7 +234,7 @@ class MALMI:
         elif self.seisdatastru == 'SDS':
             # input seismic data files are organized in SDS
             # suitable for formatting large or long-duration data set
-            format_SDS(self.seisdate, self.stainv, self.dir_seismic, self.seismic_channels, self.dir_mseed)
+            format_SDS(self.seisdate, self.stainv, self.dir_seismic, self.seismic_channels, self.dir_mseed, self.freqband)
             
         else:
             raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
@@ -267,7 +276,7 @@ class MALMI:
             ML['overlap'] = 0.5
         
         if 'number_of_cpus' not in ML:
-            ML['number_of_cpus'] = 5
+            ML['number_of_cpus'] = 4
         #----------------------------------------------------------------------
         
         from EQTransformer.utils.hdf5_maker import preprocessor
@@ -516,7 +525,7 @@ class MALMI:
         ASSO : dict, optional
             phase association parameters. The default is None.
             ASSO['engine'] : str, can be 'EQT'
-                the phase associate approach.
+                the phase associate approach, default is 'EQT'.
             ASSO['window'] : float, default is 15.
                 The length of time window used for association in second.
             ASSO['Nmin'] : int, default is 3.
@@ -563,3 +572,64 @@ class MALMI:
         return
 
 
+    def event_location(self, LOC):
+        """
+        Perform event location from phase association results.
+
+        Parameters
+        ----------
+        LOC : dict
+            Parameters regarding to event location.
+            LOC['engine'] : str, option: 'NonLinLoc'
+                the event location approach, default is 'NonLinLoc'.
+            LOC['dir_tt'] : str, default is None.
+                the directory of traveltime date set for event location.
+                If None, using the default traveltime directory of MALMI.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        
+        from obspy.core.event import read_events
+        
+        if 'engine' not in LOC:
+            LOC['engine'] = 'NonLinLoc'
+            
+        if 'dir_tt' not in LOC:
+            LOC['dir_tt'] = None
+        
+        self.dir_evloc = os.path.join(self.dir_ML, 'event_location')  # output directory for event locations   
+        
+        if LOC['engine'] == 'NonLinLoc':
+            
+            # prepare the input picking files for NonLinLoc
+            self.dir_NLLocobs = os.path.join(self.dir_evloc, 'NLLocobs')
+            os.makedirs(self.dir_NLLocobs)
+            
+            # read the phase association results
+            file_association = os.path.join(self.dir_asso, 'associations.xml')
+            pickcatlog = read_events(file_association)
+            
+            # output the NonLinLoc Phase file format 
+            filename_obs = os.path.join(self.dir_NLLocobs, 'NLLoc.obs')
+            pickcatlog.write(filename_obs, format="NLLOC_OBS")
+        
+            # generate NonLinLoc InputControlFile
+            if LOC['dir_tt'] == None:
+                dir_tt = self.dir_tt
+                #self.grid
+            else:
+                dir_tt = LOC['dir_tt']
+                
+        
+        return
+    
+    
+    
+    
+    
+    
+    

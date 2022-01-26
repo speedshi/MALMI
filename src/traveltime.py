@@ -194,10 +194,44 @@ def build_traveltime(grid, tt, stainv):
     # compile traveltime table header file
     build_tthdr(tt['dir'], tt['ftage'], stainv, filename=tt['hdr_filename'])
     
-    return
+    # retive grid parameter from header file
+    if (grid is None):
+        grid = header2grid(os.path.join(tt['dir'], tt['hdr_filename']))
+    
+    return grid
     
     
+def header2grid(file_header):
+    """
+    Retrive the grid information from the header file of traveltime data set.
+
+    Parameters
+    ----------
+    file_header : str
+        filename including full path of the header file.
+
+    Returns
+    -------
+    grid : dict
+        grid parameters.
+        
+    """
     
+    f = open(file_header)
+    lines = f.readlines()
+    f.close()
+
+    grid = {}
+    grid['xNum'] = int(lines[0].split()[0])
+    grid['yNum'] = int(lines[0].split()[1])
+    grid['zNum'] = int(lines[0].split()[2])
+    grid['zOrig'] = float(lines[1].split()[2])
+    assert(lines[2].split()[0] == lines[2].split()[1] == lines[2].split()[2])  # currently NonLinLoc requires dx=dy=dz
+    grid['dgrid'] = float(lines[2].split()[0]) 
+    grid['LatOrig'] = float(lines[3].split()[0])
+    grid['LongOrig'] = float(lines[3].split()[1])
+    
+    return grid
 
 
 

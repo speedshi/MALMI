@@ -282,8 +282,8 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     
     if fband:
         stream.detrend('simple')
-        stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1])
-        stream.taper(max_percentage=0.05, max_length=2)  # to avoid anormaly at bounday
+        stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1], corners=2, zerophase=True)
+        stream.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
     
     for icomp in comp:
         # plot data of all stations for each component
@@ -331,7 +331,7 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     return
 
 
-def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=None, linewd=0.6):
+def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=None, linewd=0.6, problabel=True):
     """
     To plot the input seismic data of different stations with the characteristic 
     functions overlayed on the seismogram.
@@ -384,6 +384,8 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
     linewd : float
         the plot line width for plotting.
         default is 0.6.
+    problabel : boolen, default is True.
+        whether to annotate the maximum phase probability on each trace.
 
     Returns
     -------
@@ -423,8 +425,8 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
     
     if fband:
         stream.detrend('simple')
-        stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1])
-        stream.taper(max_percentage=0.05, max_length=2)  # to avoid anormaly at bounday
+        stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1], corners=2, zerophase=True)
+        stream.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
     
     for icomp in comp:
         # plot data of all stations for each component
@@ -473,6 +475,11 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
                         for ipp in range(1, len(vdata)):
                             if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
                                 ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'r', linewidth=linewd)
+                    if problabel:
+                        if timerg is not None:
+                            ax.text(timerg[-1], ydev[ii]+0.35*dyy, 'P_prob_max: {:.3f}'.format(dampmax), color='r', fontsize=13, fontweight='bold', va='bottom', ha='right')
+                        else:
+                            ax.text(tt[-1], ydev[ii]+0.35*dyy, 'P_prob_max: {:.3f}'.format(dampmax), color='r', fontsize=13, fontweight='bold', va='bottom', ha='right')
                     del vdata, tt
                 del tr
                 
@@ -498,6 +505,11 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
                         for ipp in range(1, len(vdata)):
                             if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
                                 ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'b', linewidth=linewd)
+                    if problabel:
+                        if timerg is not None:
+                            ax.text(timerg[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=13, fontweight='bold', va='bottom', ha='right')
+                        else:
+                            ax.text(tt[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=13, fontweight='bold', va='bottom', ha='right')
                     del vdata, tt
                 del tr
             
@@ -805,6 +817,7 @@ def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plo
     """  
     
     import pygmt
+    pygmt.config(FORMAT_GEO_MAP="ddd.xx")  # show lat/lon in degree
            
     # plot and save map---------------------------------------------------------
     # load topography dataset
@@ -882,7 +895,7 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depthrg=None, cmap="p
     """  
     
     import pygmt
-    pygmt.config(FORMAT_GEO_MAP="ddd.xx")
+    pygmt.config(FORMAT_GEO_MAP="ddd.xx")  # show lat/lon in degree
 
     fig = pygmt.Figure()
     fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
@@ -975,7 +988,7 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     """  
     
     import pygmt
-    pygmt.config(FORMAT_GEO_MAP="ddd.xx")
+    pygmt.config(FORMAT_GEO_MAP="ddd.xx")  # show lat/lon in degree
 
     fig = pygmt.Figure()
     fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
