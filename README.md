@@ -64,9 +64,9 @@ If the input is a CSV file, the delimiter must be ',' and the first row is the c
 *velocity model* is used to generate traveltime tables for migration location (NonLinLoc must be installed beforehand and the 'grid' parameters must be set).  
 The text format velocity file can specify a constant or gradient velocity layer (conform with NonLinLoc velocity model format).  
 Format of the velocity model file: "depth Vp_top Vp_grad Vs_top Vs_grad rho_top rho_grad"  
-- depth: (float) depth to top of layer (use negative values for layers above z=0)  
-- Vp_top Vs_top rho_top: (float) P velocity, and S velocity in km/s and density in kg/m^3^ at the top of the layer.  
-- Vp_grad Vs_grad rho_grad: (float) Linear P velocity and S velocity gradients in km/s/km and density gradient in kg/m^3^/km increasing directly downwards from the top of the layer.  
+- depth: (float) depth to top of layer in km (use negative values for layers above z=0)  
+- Vp_top Vs_top rho_top: (float) P velocity, and S velocity in km/s and density in kg/m^3 at the top of the layer.  
+- Vp_grad Vs_grad rho_grad: (float) Linear P velocity and S velocity gradients in km/s/km and density gradient in kg/m^3/km increasing directly downwards from the top of the layer.  
 
 Notes:
 1. Multiple layers must be specified in order of increasing depth of top of layer.
