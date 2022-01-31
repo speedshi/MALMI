@@ -281,6 +281,7 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
         os.makedirs(dir_output)
     
     if fband:
+        stream.detrend('demean')
         stream.detrend('simple')
         stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1], corners=2, zerophase=True)
         stream.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
@@ -424,6 +425,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], d
         os.makedirs(dir_output)
     
     if fband:
+        stream.detrend('demean')
         stream.detrend('simple')
         stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1], corners=2, zerophase=True)
         stream.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
