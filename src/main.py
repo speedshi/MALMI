@@ -7,6 +7,7 @@ Created on Wed Aug 11 13:41:56 2021
 @email: speedshi@hotmail.com
 
 MALMI main function - building a whole framework.
+Coordinate convention: X-axis -> East; Y-axis -> North; Z-axis -> vertical down.
 """
 
 
@@ -394,7 +395,7 @@ class MALMI:
         print('MALMI starts to perform migration:')
         
         self.probthrd = copy.deepcopy(probthrd)
-        self.ppower = 4
+        self.ppower = 2  # compute element wise power over the phase probabilities before stacking, None for not powering
         
         inputs = {}
         inputs['model'] = self.tt_ftage  # traveltime data set filename tage

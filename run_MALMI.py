@@ -37,7 +37,7 @@ control['n_processor'] = 6  # number of CPU processors for parallel processing
 
 # %% traveltime parameters=====================================================
 tt = {}
-tt['vmodel'] = '../data/traveltime/velocity.txt'  # filename including path of the velocity model
+tt['vmodel'] = '../data/velocity/velocity.txt'  # filename including path of the velocity model
 tt['dir'] = '../data/traveltime/tt_150m'  # path to travetime data directory
 
 
@@ -48,9 +48,9 @@ grid = {}
 grid['LatOrig'] = 63.5  # latitude in decimal degrees of the origin point of the rectangular migration region (float, min:-90.0, max:90.0)
 grid['LongOrig'] = -22.0  # longitude in decimal degrees of the origin point of the rectangular migration region (float, min:-180.0, max:180.0)
 grid['zOrig'] = -2.0  # Z location of the grid origin in km relative to the sea-level. Nagative value means above the sea-level; Positive values for below the sea-level;
-grid['xNum'] = 250  # number of grid nodes in the X direction
-grid['yNum'] = 250  # number of grid nodes in the Y direction
-grid['zNum'] = 60  # number of grid nodes in the Z direction
+grid['xNum'] = 250  # number of grid nodes in the X direction (East)
+grid['yNum'] = 250  # number of grid nodes in the Y direction (North)
+grid['zNum'] = 60  # number of grid nodes in the Z direction (Vertical-down)
 grid['dgrid'] = 0.4  # grid spacing in kilometers
 # grid = None
 

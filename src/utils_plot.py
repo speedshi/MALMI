@@ -332,7 +332,7 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     return
 
 
-def seischar_plot(dir_seis, dir_char, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=None, linewd=0.6, problabel=True):
+def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=None, linewd=0.6, problabel=True):
     """
     To plot the input seismic data of different stations with the characteristic 
     functions overlayed on the seismogram.
