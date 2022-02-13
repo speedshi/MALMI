@@ -55,8 +55,23 @@ grid['dgrid'] = 0.4  # grid spacing in kilometers
 # grid = None
 
 
+# %% detection parameters======================================================
+detect = {}
+detect['twind_srch'] = None  # time window length in second where events will be searched in this range
+detect['twlex'] = 1.0  # time in second for extend the time window, roughly equal to the width of P- or S-probability envelope
+detect['P_thrd'] = 0.05  # probability threshold for detecting P-phases/events from the ML-predicted phase probabilities
+detect['S_thrd'] = 0.05  # probability threshold for detecting S-phases/events from the ML-predicted phase probabilities
+detect['nsta_thrd'] = 3  # minimal number of stations triggered during the specified event time period
+detect['npha_thrd'] = 6  # minimal number of phases triggered during the specified event time period
+
+
+# %% migration parameters======================================================
+MIG = {}
+MIG['probthrd'] = 0.01  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
+
+
 # %% Initialize MALMI
-coseismiq = MALMI(seismic, tt, grid, control)
+coseismiq = MALMI(seismic=seismic, tt=tt, grid=grid, control=control, detect=detect, MIG=MIG)
 
 
 # %% Format input data set
@@ -71,18 +86,11 @@ coseismiq.generate_prob(ML)
 
 
 # %% Detect locatable events from continuous phase probabilities
-twind_srch = None  # time window length in second where events will be searched in this range
-twlex = 1.0  # time in second for extend the time window, roughly equal to the width of P- or S-probability envelope
-P_thrd = 0.05  # probability threshold for detecting P-phases/events from the ML-predicted phase probabilities
-S_thrd = 0.05  # probability threshold for detecting S-phases/events from the ML-predicted phase probabilities
-nsta_thrd = 3  # minimal number of stations triggered during the specified event time period
-npha_thrd = 6  # minimal number of phases triggered during the specified event time period
-coseismiq.event_detect_ouput(twind_srch, twlex, P_thrd, S_thrd, nsta_thrd, npha_thrd)
+coseismiq.event_detect_ouput()
 
 
 # %% Migration location for each event
-probthrd = 0.01  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
-coseismiq.migration(probthrd)
+coseismiq.migration()
 
 
 # %% Generate waveform plots for each event

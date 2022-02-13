@@ -7,7 +7,7 @@ Created on Wed Aug 11 13:41:56 2021
 @email: speedshi@hotmail.com
 
 MALMI main function - building a whole framework.
-Coordinate convention: X-axis -> East; Y-axis -> North; Z-axis -> vertical down.
+Coordinate convention: X-axis -> East; Y-axis -> North; Z-axis -> Depth (vertical-down).
 """
 
 
@@ -21,7 +21,7 @@ import datetime
 
 class MALMI:
 
-    def __init__(self, seismic, tt, grid=None, control=None):
+    def __init__(self, seismic, tt, grid=None, control=None, detect=None, MIG=None):
         """
         Initilize global input and output paramaters, configure MALMI.
         Parameters
@@ -91,6 +91,46 @@ class MALMI:
                 number of CPU processors for parallel processing.
             control['plot_map'] : boolean, optional, default: True.
                 whether plot the station basemap.
+                
+        detection parameters (For detecting events):
+            detect['twind_srch'] : float, optional, the default is None.
+                time window length in second where events will be searched in this range.
+                How to determine this parameter:
+                Upper-value estimation: maximum P-S traveltime difference between 
+                different stations for the whole imaging area.
+                If None, then automatically determine it from traveltime table.
+            detect['twlex'] : float, optional
+                time window length in second for extending the output time range, 
+                usually set to be 1-2 second. The default is 1.0 second.
+            detect['P_thrd'] : float, optional
+                probability threshold for detecting P-phases/events from the ML-predicted 
+                phase probabilities. The default is 0.1.
+            detect['S_thrd'] : float, optional
+                probability threshold for detecting S-phases/events from the ML-predicted 
+                phase probabilities. The default is 0.1.
+            detect['nsta_thrd'] : int, optional
+                minimal number of stations triggered during the specified event time period.
+                The default is 3.
+            detect['npha_thrd'] : int, optional
+                minimal number of phases triggered during the specified event time period.
+                The default is 4.
+            detect['outseis'] : boolen, optional
+                whether to output raw seismic data segments for the detectd events.
+                The default is True.
+            detect['output_allsta'] : boolen, optional
+                If true: output data (probability and seismic) of all available stations;
+                If false: output data of triggered stations only;
+                The default is True.
+            
+        migration parameters (For using migration to locate events):
+            MIG['probthrd'] : float, optional
+                probability normalization threshold. If maximum value of the input 
+                phase probabilites is larger than this threshold, the input trace 
+                will be normalized (to 1). The default is 0.001.
+            MIG['ppower'] : float, optional
+                element wise power over the phase probabilities before stacking, 
+                if None, no powering is applied, and use original data for stacking.
+                The default is 4.
 
         Returns
         -------
@@ -141,6 +181,42 @@ class MALMI:
             
         if 'plot_map' not in control:
             control['plot_map'] = True
+            
+        if detect is None:
+            detect = {}
+        
+        if 'twind_srch' not in detect:
+            detect['twind_srch'] = None
+        
+        if 'twlex' not in detect:
+            detect['twlex'] = 1.0
+        
+        if 'P_thrd' not in detect:
+            detect['P_thrd'] = 0.1
+        
+        if 'S_thrd' not in detect:
+            detect['S_thrd'] = 0.1
+        
+        if 'nsta_thrd' not in detect:
+            detect['nsta_thrd'] = 3
+            
+        if 'npha_thrd' not in detect:    
+            detect['npha_thrd'] = 4
+        
+        if 'outseis' not in detect:
+            detect['outseis'] = True
+        
+        if 'output_allsta' not in detect:
+            detect['output_allsta'] = True
+            
+        if MIG is None:
+            MIG = {}
+            
+        if 'probthrd' not in MIG:
+            MIG['probthrd'] = 0.001
+        
+        if 'ppower' not in MIG:
+            MIG['ppower'] = 4
         #----------------------------------------------------------------------
         
         # make sure output directory exist
@@ -201,6 +277,9 @@ class MALMI:
         self.dir_lokiprob = os.path.join(self.dir_migration, 'prob_evstream')  # directory for probability outputs of different events in SEED format
         self.dir_lokiseis = os.path.join(self.dir_migration, 'seis_evstream')  # directory for raw seismic outputs of different events in SEED format
         self.dir_lokiout = os.path.join(self.dir_migration, 'result_MLprob_{}'.format(tt_folder))  # path for loki final outputs
+        
+        self.detect = detect.copy()  # detection parameters
+        self.MIG = MIG.copy()  # migration parameters
         
         return
 
@@ -312,37 +391,12 @@ class MALMI:
         return
 
             
-    def event_detect_ouput(self, twind_srch=None, twlex=1.0, P_thrd=0.1, S_thrd=0.1, nsta_thrd=3, npha_thrd=4, outseis=True):
+    def event_detect_ouput(self):
         """
         event detection based on the ML predicted event probabilites
         and output the corresponding phase probabilites of the detected events.
         Parameters
         ----------
-        twind_srch : float, optional
-            time window length in second where events will be searched in this range.
-            How to determine this parameter:
-            Conservative estimation: maximum P-S traveltime difference between 
-            different stations for the whole imaging area.
-            If None, then automatically determine it from traveltime table.
-        twlex : float, optional
-            time window length in second for extending the output time range, 
-            usually set to be 1-2 second. The default is 1.0 second.
-        P_thrd : float, optional
-            probability threshold for detecting P-phases/events from the ML-predicted 
-            phase probabilities. The default is 0.1.
-        S_thrd : float, optional
-            probability threshold for detecting S-phases/events from the ML-predicted 
-            phase probabilities. The default is 0.1.
-        nsta_thrd : int, optional
-            minimal number of stations triggered during the specified event time period.
-            The default is 3.
-        npha_thrd : int, optional
-            minimal number of phases triggered during the specified event time period.
-            The default is 4.
-        outseis : boolen, optional
-            whether to output raw seismic data segments for the detectd events.
-            The default is True.
-
         Returns
         -------
         None.
@@ -353,36 +407,31 @@ class MALMI:
         from event_detection import eqt_eventdetectfprob, arrayeventdetect
         from utils_dataprocess import maxP2Stt
         
-        self.P_thrd = P_thrd
-        self.S_thrd = S_thrd
-        
         print('MALMI starts to detect events based on the ML predicted phase probabilites and output the corresponding phase probabilites of the detected events:')
         # eqt_arrayeventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
-        event_info = eqt_eventdetectfprob(self.dir_prob, self.P_thrd, self.S_thrd)
+        event_info = eqt_eventdetectfprob(self.dir_prob, self.detect['P_thrd'], self.detect['S_thrd'])
         gc.collect()
-        if twind_srch is None:
-            twind_srch, _, _ = maxP2Stt(self.dir_tt, self.tt_hdr_filename, self.tt_ftage, self.tt_precision)
+        if self.detect['twind_srch'] is None:
+            self.detect['twind_srch'], _, _ = maxP2Stt(self.dir_tt, self.tt_hdr_filename, self.tt_ftage, self.tt_precision)
             
-        if outseis:
+        if self.detect['outseis']:
             dir_seisdataset = self.dir_mseed
         else:
             dir_seisdataset = None
-        arrayeventdetect(event_info, twind_srch, twlex, nsta_thrd, npha_thrd, self.dir_lokiprob, self.dir_lokiseis, dir_seisdataset, self.seismic_channels, True)
+        arrayeventdetect(event_info, self.detect['twind_srch'], self.detect['twlex'], 
+                         self.detect['nsta_thrd'], self.detect['npha_thrd'], 
+                         self.dir_lokiprob, self.dir_lokiseis, dir_seisdataset, self.seismic_channels, self.detect['output_allsta'])
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
         return
 
 
-    def migration(self, probthrd=0.001):
+    def migration(self):
         """
         Perform migration based on input phase probabilites
 
         Parameters
         ----------
-        probthrd : float, optional
-            probability normalization threshold. If maximum value of the input 
-            phase probabilites is larger than this threshold, the input trace 
-            will be normalized (to 1). The default is 0.001.
 
         Returns
         -------
@@ -394,17 +443,14 @@ class MALMI:
         
         print('MALMI starts to perform migration:')
         
-        self.probthrd = copy.deepcopy(probthrd)
-        self.ppower = 2  # compute element wise power over the phase probabilities before stacking, None for not powering
-        
         inputs = {}
         inputs['model'] = self.tt_ftage  # traveltime data set filename tage
         if self.n_processor < 1:
             inputs['npr'] = (os.cpu_count()-2)  # number of cores to run
         else:
             inputs['npr'] = self.n_processor  # number of cores to run
-        inputs['normthrd'] = self.probthrd  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
-        inputs['ppower'] = self.ppower  # compute array element wise power over the input probabilities before stacking
+        inputs['normthrd'] = self.MIG['probthrd']  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
+        inputs['ppower'] = self.MIG['ppower']  # compute array element wise power over the input probabilities before stacking
         comp = ['P','S']  # when input data are probabilities of P- and S-picks, comp must be ['P', 'S']
         extension = '*'  # seismic data filename for loading, accept wildcard input, for all data use '*'
         
@@ -453,7 +499,7 @@ class MALMI:
             # extract the ML picks according to theoretical arrivaltimes
             if getMLpick:
                 get_MLpicks_ftheart(dir_prob_ev, dir_output_ev, maxtd_p=3.0, maxtd_s=3.0, 
-                                    P_thrd=self.P_thrd, S_thrd=self.S_thrd, 
+                                    P_thrd=self.detect['P_thrd'], S_thrd=self.detect['S_thrd'], 
                                     thephase_ftage='.phs', ofname=None)
             
             # plot waveforms overlapped with ML probabilites and theoretical arrivaltimes
@@ -465,8 +511,8 @@ class MALMI:
                 else:
                     arrvtt = None
                 seischar_plot(dir_seis_ev, dir_prob_ev, dir_output_ev, figsize=(12, 12), 
-                              comp=['Z','N','E'], dyy=1.8, fband=[2, 30], normv=self.probthrd, 
-                              ppower=self.ppower, tag=None, staname=None, arrvtt=arrvtt)
+                              comp=['Z','N','E'], dyy=1.8, fband=[2, 30], normv=self.MIG['probthrd'], 
+                              ppower=self.MIG['ppower'], tag=None, staname=None, arrvtt=arrvtt)
     
         gc.collect()
         print('MALMI_rsprocess_view complete!')

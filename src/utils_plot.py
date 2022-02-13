@@ -332,7 +332,7 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     return
 
 
-def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=None, linewd=0.6, problabel=True):
+def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=None, linewd=0.6, problabel=True, yticks='station', ampscale=1.0):
     """
     To plot the input seismic data of different stations with the characteristic 
     functions overlayed on the seismogram.
@@ -387,6 +387,12 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
         default is 0.6.
     problabel : boolen, default is True.
         whether to annotate the maximum phase probability on each trace.
+    yticks : str, default is 'station'
+        if 'station', show station names as y-axis ticks;
+        if 'index', show station numerical index as y-axis ticks;
+    ampscale : float, default is 1.0
+        used to scale the seismic amplitude. 1.0 is no amplification.
+        2.0 is twice amplification.
 
     Returns
     -------
@@ -450,7 +456,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                     vdata = tr[0].data / dampmax
                 else:
                     vdata = tr[0].data
-                ax.plot(tt, vdata+ydev[ii], 'k', linewidth=linewd)
+                ax.plot(tt, vdata*ampscale+ydev[ii], 'k', linewidth=linewd)
                 del vdata, tt
             del tr
             
@@ -527,11 +533,19 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
         
         if timerg is not None:
             ax.set_xlim(timerg)
-            ax.set_ylim([ydev[0]-1.1, ydev[-1]+1.1])
+            ax.set_ylim([ydev[0]-1.1*ampscale, ydev[-1]+1.1*ampscale])
         myFmt = mdates.DateFormatter("%H:%M:%S")
         ax.xaxis.set_major_formatter(myFmt)
-        ax.set_yticks(ydev)
-        ax.set_yticklabels(staname, fontsize=14, fontweight ="bold")
+        plt.xticks(fontsize=14, fontweight ="bold")
+        if yticks == 'station':
+            ax.set_yticks(ydev)
+            ax.set_yticklabels(staname, fontsize=14, fontweight ="bold")
+        elif yticks == 'index':
+            ytck = ydev[0:-1:10]
+            ytck_lb = [int(iyk/dyy+1) for iyk in ytck]
+            ax.set_yticks(ytck)
+            ax.set_yticklabels(ytck_lb, fontsize=14, fontweight ="bold")
+            ax.set_ylabel('Station number', fontsize=14, fontweight ="bold")
         ax.tick_params(axis='x', labelsize=14)
         ax.set_title('Data [{}]'.format(this_date), fontsize=16, fontweight ="bold")
         if tag:
@@ -548,12 +562,12 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
     return
 
 
-def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap='RdBu_r', dir_output=None, figfmt='png', normrg=None):
+def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap='RdBu_r', dir_output=None, figfmt='png', normrg=None, plotstyle='contourf'):
     """
     This function is to visualize the migration volume, plot profiles along 
     X-, Y- and Z-directions, and display the isosurface along contour-value of 
     migration volume.
-
+    Coordinate convention: X-axis -> East; Y-axis -> North; Z-axis -> Depth (vertical-down).
     Parameters
     ----------
     file_corrmatrix : str
@@ -563,8 +577,9 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     hdr_filename : str, optional
         filename of the header file of traveltime date set. Header file is used
         to get the coordinate of the migration area. The default is 'header.hdr'.
-    colormap : str, optional
+    colormap : str or colormap, optional
         colormap name used for plotting. The default is 'RdBu_r'.
+        or can directly input colormap object.
     dir_output : str, optional
         output directory for the generated figures. The default is None, is the 
         same directory where the input migration volume stored.
@@ -573,7 +588,10 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     normrg : list of float, optional
         range for normalizing the migration volume. Default is None for not 
         apply normalization.
-
+    plotstyle : str, optional. The default is 'contourf'.
+        determine the plotting style of the 2D profile plot.
+        Can be: 'contourf', 'contour', 'pcolormesh'.
+    
     Returns
     -------
     None.
@@ -591,7 +609,13 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
         for ifd in file_corrmatrix.split('/')[:-1]:
             dir_output = os.path.join(dir_output, ifd)
     
-    cmap = plt.cm.get_cmap(colormap)  # set colormap
+    # set colormap
+    if isinstance(colormap, str):
+        # input are default colormap names
+        cmap = plt.cm.get_cmap(colormap)  
+    else:
+        # input are colormaps
+        cmap = colormap
     
     # load migration volume
     corrmatrix = np.load(file_corrmatrix)
@@ -619,8 +643,8 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.set_xlim(np.min(tobj.x), np.max(tobj.x))
     ax.set_ylim(np.min(tobj.y), np.max(tobj.y))
     ax.set_zlim(0, np.max(CXY))
-    ax.set_xlabel('X (Km)')
-    ax.set_ylabel('Y (Km)')
+    ax.set_xlabel('East (Km)', fontsize=14, fontweight='bold')
+    ax.set_ylabel('North (Km)', fontsize=14, fontweight='bold')
     # make the grid lines transparent
     ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
     ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
@@ -629,22 +653,29 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.set_title('Migration profile X-Y', fontsize=14, fontweight='bold') 
-    fname = os.path.join(dir_output, 'coherence_matrix_xy_surf.{}'.format(figfmt))
+    ax.set_title('Migration profile East-North', fontsize=14, fontweight='bold') 
+    fname = os.path.join(dir_output, 'coherence_matrix_EastNorth_surf.{}'.format(figfmt))
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
     plt.close(fig)
     
     fig = plt.figure(dpi=600)
-    fig.suptitle('Migration profile X-Y', fontsize=14, fontweight='bold')
+    fig.suptitle('Migration profile East-North', fontsize=14, fontweight='bold')
     ax = fig.gca()
-    cs = plt.contourf(tobj.x, tobj.y, CXY, 20, cmap=cmap, interpolation='bilinear')
-    ax.set_xlabel('X (km)')
-    ax.set_ylabel('Y (km)')
+    if plotstyle == 'contourf':
+        cs = plt.contourf(tobj.x, tobj.y, CXY, 20, cmap=cmap)
+    elif plotstyle == 'contour':
+        cs = plt.contourf(tobj.x, tobj.y, CXY, 10, cmap=cmap)
+        plt.contour(tobj.x, tobj.y, CXY, 10, colors='black', linewidths=1.0)
+    elif plotstyle == 'pcolormesh':
+        cs = plt.pcolormesh(tobj.x, tobj.y, CXY, cmap=cmap, shading='auto')
+    ax.tick_params(axis='both', labelsize=14)
+    ax.set_xlabel('East (km)', fontsize=14, fontweight='bold')
+    ax.set_ylabel('North (km)', fontsize=14, fontweight='bold')
     cbar = plt.colorbar(cs)
     ax.set_aspect('equal')
-    fname = os.path.join(dir_output, 'coherence_matrix_xy.{}'.format(figfmt))
+    fname = os.path.join(dir_output, 'coherence_matrix_EastNorth.{}'.format(figfmt))
     plt.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -668,8 +699,8 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.set_xlim(np.min(tobj.x), np.max(tobj.x))
     ax.set_ylim(np.min(tobj.z), np.max(tobj.z))
     ax.set_zlim(0, np.max(CXZ))
-    ax.set_xlabel('X (Km)')
-    ax.set_ylabel('Z (Km)')
+    ax.set_xlabel('East (Km)', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Depth (Km)', fontsize=14, fontweight='bold')
     # make the grid lines transparent
     ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
     ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
@@ -678,25 +709,32 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.set_title('Migration profile X-Z', fontsize=14, fontweight='bold') 
+    ax.set_title('Migration profile East-Depth', fontsize=14, fontweight='bold') 
     # zasp = ((np.max(tobj.z)-np.min(tobj.z)))/ (np.max(tobj.x)-np.min(tobj.x)) 
     # ax.set_box_aspect((1, zasp, 1))
-    fname = os.path.join(dir_output, 'coherence_matrix_xz_surf.{}'.format(figfmt))
+    fname = os.path.join(dir_output, 'coherence_matrix_EastDepth_surf.{}'.format(figfmt))
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
     plt.close(fig)
     
     fig = plt.figure(dpi=600)
-    fig.suptitle('Migration profile X-Z', fontsize=14, fontweight='bold')
+    fig.suptitle('Migration profile East-Depth', fontsize=14, fontweight='bold')
     ax = fig.gca()
-    cs = plt.contourf(tobj.x, tobj.z, CXZ, 20, cmap=cmap, interpolation='bilinear')
-    ax.set_xlabel('X (km)')
-    ax.set_ylabel('Z (km)')
+    if plotstyle == 'contourf':
+        cs = plt.contourf(tobj.x, tobj.z, CXZ, 20, cmap=cmap)
+    elif plotstyle == 'contour':
+        cs = plt.contourf(tobj.x, tobj.z, CXZ, 10, cmap=cmap)
+        plt.contour(tobj.x, tobj.z, CXZ, 10, colors='black', linewidths=1.0)
+    elif plotstyle == 'pcolormesh':
+        cs = plt.pcolormesh(tobj.x, tobj.z, CXZ, cmap=cmap, shading='auto')
+    ax.tick_params(axis='both', labelsize=14)
+    ax.set_xlabel('East (km)', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Depth (km)', fontsize=14, fontweight='bold')
     cbar = plt.colorbar(cs)
     ax.invert_yaxis()
     ax.set_aspect('equal')
-    fname = os.path.join(dir_output, 'coherence_matrix_xz.{}'.format(figfmt))
+    fname = os.path.join(dir_output, 'coherence_matrix_EastDepth.{}'.format(figfmt))
     plt.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
@@ -720,8 +758,8 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.set_xlim(np.min(tobj.y), np.max(tobj.y))
     ax.set_ylim(np.min(tobj.z), np.max(tobj.z))
     ax.set_zlim(0, np.max(CYZ))
-    ax.set_xlabel('Y (Km)')
-    ax.set_ylabel('Z (Km)')
+    ax.set_xlabel('North (Km)', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Depth (Km)', fontsize=14, fontweight='bold')
     # make the grid lines transparent
     ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
     ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
@@ -730,23 +768,30 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.set_title('Migration profile Y-Z', fontsize=14, fontweight='bold') 
-    fname = os.path.join(dir_output, 'coherence_matrix_yz_surf.{}'.format(figfmt))
+    ax.set_title('Migration profile North-Depth', fontsize=14, fontweight='bold') 
+    fname = os.path.join(dir_output, 'coherence_matrix_NorthDepth_surf.{}'.format(figfmt))
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
     plt.close(fig)
     
     fig = plt.figure(dpi=600)
-    fig.suptitle('Migration profile Y-Z', fontsize=14, fontweight='bold')
+    fig.suptitle('Migration profile North-Depth', fontsize=14, fontweight='bold')
     ax = fig.gca()
-    cs = plt.contourf(tobj.y, tobj.z, CYZ, 20, cmap=cmap, interpolation='bilinear')
-    ax.set_xlabel('Y (km)')
-    ax.set_ylabel('Z (km)')
+    if plotstyle == 'contourf':
+        cs = plt.contourf(tobj.y, tobj.z, CYZ, 20, cmap=cmap)
+    elif plotstyle == 'contour':
+        cs = plt.contourf(tobj.y, tobj.z, CYZ, 10, cmap=cmap)
+        plt.contour(tobj.y, tobj.z, CYZ, 10, colors='black', linewidths=1.0)
+    elif plotstyle == 'pcolormesh':
+        cs = plt.pcolormesh(tobj.y, tobj.z, CYZ, cmap=cmap, shading='auto')
+    ax.tick_params(axis='both', labelsize=14)
+    ax.set_xlabel('North (km)', fontsize=14, fontweight='bold')
+    ax.set_ylabel('Depth (km)', fontsize=14, fontweight='bold')
     cbar = plt.colorbar(cs)
     ax.invert_yaxis()
     ax.set_aspect('equal')
-    fname = os.path.join(dir_output, 'coherence_matrix_yz.{}'.format(figfmt))
+    fname = os.path.join(dir_output, 'coherence_matrix_NorthDepth.{}'.format(figfmt))
     plt.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
     fig.clear()
