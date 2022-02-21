@@ -257,9 +257,12 @@ class MALMI:
         else:
             raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
             
-        self.dir_ML = os.path.join(control['dir_output'], 'data_ML', fd_seismic)  # directory for ML outputs
+        self.dir_CML = os.path.join(control['dir_output'], 'data_ML')  # directory for common ML outputs
+        self.dir_MIG = os.path.join(control['dir_output'], 'data_MIG')  # directory for common migration outputs
+        
+        self.dir_ML = os.path.join(self.dir_CML, fd_seismic)  # directory for ML outputs of the currrent processing dataset
         self.dir_prob = os.path.join(self.dir_ML, 'prob_and_detection')  # output directory for ML probability outputs
-        self.dir_migration = os.path.join(control['dir_output'], 'data_MIG', fd_seismic)  # directory for migration outputs
+        self.dir_migration = os.path.join(self.dir_MIG, fd_seismic)  # directory for migration outputs of the current processing dataset
         self.n_processor = copy.deepcopy(control['n_processor'])  # number of threads for parallel processing
         
         self.dir_tt = copy.deepcopy(tt['dir'])  # path to travetime data set
@@ -276,7 +279,8 @@ class MALMI:
         self.dir_EQTjson = os.path.join(self.dir_ML, 'json')  # directory for outputting station json file for EQT
         self.dir_lokiprob = os.path.join(self.dir_migration, 'prob_evstream')  # directory for probability outputs of different events in SEED format
         self.dir_lokiseis = os.path.join(self.dir_migration, 'seis_evstream')  # directory for raw seismic outputs of different events in SEED format
-        self.dir_lokiout = os.path.join(self.dir_migration, 'result_MLprob_{}'.format(tt_folder))  # path for loki final outputs
+        self.fld_migresult = 'result_MLprob_{}'.format(tt_folder)  # folder name of the final migration results
+        self.dir_lokiout = os.path.join(self.dir_migration, self.fld_migresult)  # path for loki final outputs
         
         self.detect = detect.copy()  # detection parameters
         self.MIG = MIG.copy()  # migration parameters
@@ -550,7 +554,7 @@ class MALMI:
         
         print('MALMI starts to clear some intermediate results for saving disk space:')
         if CL['mseed']:
-            shutil.rmtree(self.dir_mseed)  # remove the mseed directory which are the formateed continuous seismic data set for ML inputs
+            shutil.rmtree(self.dir_mseed)  # remove the mseed directory which are the formated continuous seismic data set for ML inputs
         
         if CL['hdf5_seis']:
             shutil.rmtree(self.dir_hdf5)  # remove the hdf5 directory which are formatted overlapping data segments of seismic data set for ML_EQT predictions
@@ -678,6 +682,34 @@ class MALMI:
         return
     
     
+    def get_catalog(self, CAT={}):
+        """
+        Get earthquake catalog from the processing results.
+
+        Parameters
+        ----------
+        CAT : dict
+            parameters controlling the process of retriving catalog.
+            CAT['extract'] : boolen,
+                whether to extract the catalog from processing results.
+
+        Returns
+        -------
+        catalog : dict
+            Earthquake catalog.
+
+        """
+        
+        from ioformatting import retrive_catalog
+        
+        if 'extract' not in CAT:
+            CAT['extract'] = True
+        
+        if CAT['extract']:
+            catalog = retrive_catalog(dir_dateset=self.dir_MIG, cata_ftag='catalogue', 
+                                      dete_ftag='event_station_phase_info.txt', cata_fold=self.fld_migresult)
+        
+        return catalog
     
     
     

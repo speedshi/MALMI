@@ -107,3 +107,7 @@ coseismiq.clear_interm(CL)
 coseismiq.phase_associate()
 
 
+# %% retrive earthquake catalog from processing results
+catalog = coseismiq.get_catalog()
+
+
