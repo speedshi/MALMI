@@ -277,9 +277,10 @@ class MALMI:
         self.dir_mseed = os.path.join(self.dir_ML, 'mseeds')  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
         self.dir_hdf5 = self.dir_mseed + '_processed_hdfs'  # path to the hdf5 and csv files
         self.dir_EQTjson = os.path.join(self.dir_ML, 'json')  # directory for outputting station json file for EQT
-        self.dir_lokiprob = os.path.join(self.dir_migration, 'prob_evstream')  # directory for probability outputs of different events in SEED format
+        self.fld_prob = 'prob_evstream'  # foldername of the probability outputs of different events
+        self.dir_lokiprob = os.path.join(self.dir_migration, self.fld_prob)  # directory for probability outputs of different events in SEED format
         self.dir_lokiseis = os.path.join(self.dir_migration, 'seis_evstream')  # directory for raw seismic outputs of different events in SEED format
-        self.fld_migresult = 'result_MLprob_{}'.format(tt_folder)  # folder name of the final migration results
+        self.fld_migresult = 'result_MLprob_{}'.format(tt_folder)  # foldername of the final migration results
         self.dir_lokiout = os.path.join(self.dir_migration, self.fld_migresult)  # path for loki final outputs
         
         self.detect = detect.copy()  # detection parameters
@@ -706,8 +707,8 @@ class MALMI:
             CAT['extract'] = True
         
         if CAT['extract']:
-            catalog = retrive_catalog(dir_dateset=self.dir_MIG, cata_ftag='catalogue', 
-                                      dete_ftag='event_station_phase_info.txt', cata_fold=self.fld_migresult)
+            catalog = retrive_catalog(dir_dateset=self.dir_MIG, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', 
+                                      cata_fold=self.fld_migresult, dete_fold=self.fld_prob)
         
         return catalog
     

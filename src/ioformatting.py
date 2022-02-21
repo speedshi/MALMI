@@ -817,7 +817,7 @@ def read_arrivaltimes(file_arrvt):
     return arrvtt
 
 
-def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', cata_fold='*'):
+def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', cata_fold='*', dete_fold='*'):
     """
     This function is used to concatenate the catalogs together from the data base.
 
@@ -830,7 +830,9 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
     dete_ftag : str, optional
         Detection filename. The default is 'event_station_phase_info.txt'.
     cata_fold : str, optional
-        Catalog parent folder name. The default is '*'.
+        Catalog-file parent folder name. The default is '*'.
+    dete_fold : str, optional
+        Detection-file parent folder name. The default is '*'.
 
     Returns
     -------
@@ -854,7 +856,7 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
     assert(os.path.exists(dir_dateset))
 
     file_cata = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
-    file_dete = sorted(glob.glob(os.path.join(dir_dateset, '**/{}'.format(dete_ftag)), recursive = True))  # file list of detection files
+    file_dete = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(dete_fold,dete_ftag)), recursive = True))  # file list of detection files
     
     assert(len(file_cata) == len(file_dete))  # should correspond
     
