@@ -904,8 +904,14 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
             mcatalog['endtime'].append(dtemp['endtime'][iev])  # endtime of the event
             mcatalog['station_num'].append(dtemp['station'][iev])  # total number of stations triggered
             mcatalog['phase_num'].append(dtemp['phase'][iev])  # total number of phases triggered
-            dir_ers = ''
-            sss = file_cata[ii].split('/')
+            sss = file_cata[ii].split(os.path.sep)
+            if sss[0] == '':
+                # the input path: 'dir_dateset' is a absolute address
+                dir_ers = '{}'.format(os.path.sep)
+            else:
+                # the input path: 'dir_dateset' is a relative address
+                dir_ers = ''
+                
             for pstr in sss[:-1]:
                 dir_ers = os.path.join(dir_ers, pstr)
             dir_ers =  os.path.join(dir_ers, dtemp['starttime'][iev].isoformat())
