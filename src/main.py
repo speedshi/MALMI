@@ -283,6 +283,10 @@ class MALMI:
         self.fld_migresult = 'result_MLprob_{}'.format(tt_folder)  # foldername of the final migration results
         self.dir_lokiout = os.path.join(self.dir_migration, self.fld_migresult)  # path for loki final outputs
         
+        # create output directories
+        if not os.path.exists(self.dir_lokiout):
+            os.makedirs(self.dir_lokiout, exist_ok=True)
+        
         self.detect = detect.copy()  # detection parameters
         self.MIG = MIG.copy()  # migration parameters
         
