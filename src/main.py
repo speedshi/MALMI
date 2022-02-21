@@ -256,9 +256,10 @@ class MALMI:
             fd_seismic = datetime.datetime.strftime(self.seisdate, "%Y%m%d")
         else:
             raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
-            
-        self.dir_CML = os.path.join(control['dir_output'], 'data_ML')  # directory for common ML outputs
-        self.dir_MIG = os.path.join(control['dir_output'], 'data_MIG')  # directory for common migration outputs
+        
+        self.dir_projoutput = control['dir_output']  # project output direcotroy
+        self.dir_CML = os.path.join(self.dir_projoutput, 'data_ML')  # directory for common ML outputs
+        self.dir_MIG = os.path.join(self.dir_projoutput, 'data_MIG')  # directory for common migration outputs
         
         self.dir_ML = os.path.join(self.dir_CML, fd_seismic)  # directory for ML outputs of the currrent processing dataset
         self.dir_prob = os.path.join(self.dir_ML, 'prob_and_detection')  # output directory for ML probability outputs
@@ -697,6 +698,11 @@ class MALMI:
             parameters controlling the process of retriving catalog.
             CAT['extract'] : boolen,
                 whether to extract the catalog from processing results.
+            CAT['dir_output'] : str
+                directory for outputting catalogs.
+            CAT['fname'] : str
+                the output catalog filename.
+                The default is 'MALMI_catalog_original.pickle'.
 
         Returns
         -------
@@ -706,13 +712,28 @@ class MALMI:
         """
         
         from ioformatting import retrive_catalog
+        import pickle
         
         if 'extract' not in CAT:
             CAT['extract'] = True
+            
+        if 'dir_output' not in CAT:
+            CAT['dir_output'] = os.path.join(self.dir_projoutput, 'catalogs')
+            
+        if 'fname' not in CAT:
+            CAT['fname'] = 'MALMI_catalog_original.pickle'
         
+        # extract catlog from processing results
         if CAT['extract']:
             catalog = retrive_catalog(dir_dateset=self.dir_MIG, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', 
                                       cata_fold=self.fld_migresult, dete_fold=self.fld_prob)
+        
+        # save the original catalog
+        if not os.path.exists(CAT['dir_output']):
+            os.makedirs(CAT['dir_output'], exist_ok=True)
+        cfname = os.path.join(CAT['dir_output'], CAT['fname'])
+        with open(cfname, 'wb') as handle:
+            pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
         return catalog
     
