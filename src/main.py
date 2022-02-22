@@ -705,7 +705,7 @@ class MALMI:
             CAT['fname'] : str
                 the output catalog filename.
                 The default is 'MALMI_catalog_original.pickle'.
-            CAT['evselect'] : dict
+            CAT['evselect'] : dict, default is {}
                 parameters controlling the selection of events from original catalog,
                 i.e. quality control of the orgiginal catalog.
                 CAT['evselect']['rmrpev'] : boolen, default is 'True'
@@ -756,7 +756,7 @@ class MALMI:
             CAT['fname'] = 'MALMI_catalog_original.pickle'
             
         if 'evselect' not in CAT:
-            CAT['evselect'] = None
+            CAT['evselect'] = {}
             
         if (CAT['evselect'] is not None) and ('rmrpev' not in CAT['evselect']):
             CAT['evselect']['rmrpev'] = True
