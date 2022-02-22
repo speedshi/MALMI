@@ -229,13 +229,14 @@ class MALMI:
         # build travel-time data set
         grid = build_traveltime(grid, tt, self.stainv)
         self.grid = copy.deepcopy(grid)
+        sta_inv1, region1, mgregion = get_lokicoord(tt['dir'], tt['hdr_filename'], 0.05, consider_mgregion=True)  # obtain migration region lon/lat range
+        self.grid['mgregion'] = mgregion  # migration region lat/lon range, [lon_min, lon_max, lat_min, lat_max] in degree
         
         # plot stations and migration region for checking
         if control['plot_map']:
             fname1 = os.path.join(control['dir_output'], "basemap_stations_mgarea.png")
             if not os.path.isfile(fname1):
-                sta_inv1, region1, mgregion1 = get_lokicoord(tt['dir'], tt['hdr_filename'], 0.05)
-                plot_basemap(region1, sta_inv1, mgregion1, fname1, False, '30s')
+                plot_basemap(region1, sta_inv1, mgregion, fname1, False, '30s')
         
         self.seisdatastru = copy.deepcopy(seismic['datastru'])
         self.dir_seismic = copy.deepcopy(seismic['dir'])
@@ -696,23 +697,54 @@ class MALMI:
         ----------
         CAT : dict
             parameters controlling the process of retriving catalog.
-            CAT['extract'] : boolen,
+            CAT['extract'] : boolen, default is 'True'
                 whether to extract the catalog from processing results.
             CAT['dir_output'] : str
                 directory for outputting catalogs.
+                default value is related to the current project directory.
             CAT['fname'] : str
                 the output catalog filename.
                 The default is 'MALMI_catalog_original.pickle'.
+            CAT['evselect'] : dict
+                parameters controlling the selection of events from original catalog,
+                i.e. quality control of the orgiginal catalog.
+                CAT['evselect']['rmrpev'] : boolen, default is 'True'
+                    whether to remove the repeated events in the original catalog.
+                CAT['evselect']['fname'] : str
+                    the output filename of the quality-controlled catalog.
+                    The default is 'MALMI_catalog_QC.pickle'.
+                CAT['evselect']['thrd_cmax'] : float, default is 0.036
+                    threshold of minimal coherence.
+                CAT['evselect']['thrd_cstd'] : float, default is 0.119
+                    threshold of maximum standard variance of stacking volume.
+                CAT['evselect']['thrd_stanum'] : int, default is None
+                    threshold of minimal number of triggered stations.
+                CAT['evselect']['thrd_phsnum'] : int, default is None
+                    threshold of minimal number of triggered phases.
+                CAT['evselect']['thrd_llbd'] : float, default is 0.002    
+                    lat/lon in degree for excluding migration boundary.
+                    e.g. latitude boundary is [lat_min, lat_max], event coordinates 
+                    must then within [lat_min+thrd_llbd, lat_max-thrd_llbd].
+                CAT['evselect']['thrd_lat'] : list of float
+                    threshold of latitude range in degree, e.g. [63.88, 64.14].
+                    default values are determined by 'thrd_llbd' and 'mgregion'.
+                CAT['evselect']['thrd_lon'] : list of float
+                    threshold of longitude range in degree, e.g. [-21.67, -21.06].
+                    default values are determined by 'thrd_llbd' and 'mgregion'.
+                CAT['evselect']['thrd_depth'] : list of float, default is None
+                    threshold of depth range in km, e.g. [-1, 12].
+                
 
         Returns
         -------
         catalog : dict
-            Earthquake catalog.
+            original earthquake catalog.
 
         """
         
         from ioformatting import retrive_catalog
         import pickle
+        from catalogs import catalog_rmrpev, catalog_select
         
         if 'extract' not in CAT:
             CAT['extract'] = True
@@ -722,18 +754,78 @@ class MALMI:
             
         if 'fname' not in CAT:
             CAT['fname'] = 'MALMI_catalog_original.pickle'
+            
+        if 'evselect' not in CAT:
+            CAT['evselect'] = None
+            
+        if (CAT['evselect'] is not None) and ('rmrpev' not in CAT['evselect']):
+            CAT['evselect']['rmrpev'] = True
+            
+        if (CAT['evselect'] is not None) and ('fname' not in CAT['evselect']):
+            CAT['evselect']['fname'] = 'MALMI_catalog_QC.pickle'
+            
+        if (CAT['evselect'] is not None) and ('thrd_cmax' not in CAT['evselect']):    
+            CAT['evselect']['thrd_cmax'] = 0.036  
         
-        # extract catlog from processing results
-        if CAT['extract']:
-            catalog = retrive_catalog(dir_dateset=self.dir_MIG, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', 
-                                      cata_fold=self.fld_migresult, dete_fold=self.fld_prob)
+        if (CAT['evselect'] is not None) and ('thrd_cstd' not in CAT['evselect']):
+            CAT['evselect']['thrd_cstd'] = 0.119
+            
+        if (CAT['evselect'] is not None) and ('thrd_stanum' not in CAT['evselect']):
+            CAT['evselect']['thrd_stanum'] = None
+            
+        if (CAT['evselect'] is not None) and ('thrd_phsnum' not in CAT['evselect']):    
+            CAT['evselect']['thrd_phsnum'] = None
         
-        # save the original catalog
+        if (CAT['evselect'] is not None) and ('thrd_llbd' not in CAT['evselect']):
+            CAT['evselect']['thrd_llbd'] = 0.002
+        
+        if (CAT['evselect'] is not None) and ('thrd_lat' not in CAT['evselect']):    
+            CAT['evselect']['thrd_lat'] = [self.grid['mgregion'][2]+CAT['evselect']['thrd_llbd'], self.grid['mgregion'][3]-CAT['evselect']['thrd_llbd']]
+        
+        if (CAT['evselect'] is not None) and ('thrd_lon' not in CAT['evselect']):
+            CAT['evselect']['thrd_lon'] = [self.grid['mgregion'][0]+CAT['evselect']['thrd_llbd'], self.grid['mgregion'][1]-CAT['evselect']['thrd_llbd']]    
+        
+        if (CAT['evselect'] is not None) and ('thrd_depth' not in CAT['evselect']):    
+            CAT['evselect']['thrd_depth'] = None
+            
+        # catalog name
         if not os.path.exists(CAT['dir_output']):
             os.makedirs(CAT['dir_output'], exist_ok=True)
         cfname = os.path.join(CAT['dir_output'], CAT['fname'])
-        with open(cfname, 'wb') as handle:
-            pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        
+        if CAT['extract']:
+            # extract catlog from processing results
+            catalog = retrive_catalog(dir_dateset=self.dir_MIG, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', 
+                                      cata_fold=self.fld_migresult, dete_fold=self.fld_prob)
+        
+            # save the extracted original catalog
+            with open(cfname, 'wb') as handle:
+                pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        else:
+            # directly load existing catalog
+            with open(cfname, 'rb') as handle:
+                catalog = pickle.load(handle)
+        
+        if CAT['evselect'] is not None:
+            # select events from the original catalog using quality control parameters
+            
+            # remove repeated events
+            if CAT['evselect']['rmrpev']:
+                catalog_QC = catalog_rmrpev(catalog, 0.5, 5, 5, evkp='coherence_max')
+            
+            # quality control
+            catalog_QC = catalog_select(catalog_QC, thrd_cmax=CAT['evselect']['thrd_cmax'], 
+                                        thrd_stanum=CAT['evselect']['thrd_stanum'], 
+                                        thrd_phsnum=CAT['evselect']['thrd_phsnum'], 
+                                        thrd_lat=CAT['evselect']['thrd_lat'], 
+                                        thrd_lon=CAT['evselect']['thrd_lon'], 
+                                        thrd_cstd=CAT['evselect']['thrd_cstd'], 
+                                        thrd_depth=CAT['evselect']['thrd_depth'])
+        
+            # save the catalog after quality control
+            cfname_QC = os.path.join(CAT['dir_output'], CAT['evselect']['fname'])
+            with open(cfname_QC, 'wb') as handle:
+                pickle.dump(catalog_QC, handle, protocol=pickle.HIGHEST_PROTOCOL)
         
         return catalog
     
