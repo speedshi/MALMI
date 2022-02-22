@@ -808,20 +808,18 @@ class MALMI:
         
         if CAT['evselect'] is not None:
             # select events from the original catalog using quality control parameters
-            
-            # remove repeated events
-            if CAT['evselect']['rmrpev']:
-                catalog_QC = catalog_rmrpev(catalog, 0.5, 5, 5, evkp='coherence_max')
-            
-            # quality control
-            catalog_QC = catalog_select(catalog_QC, thrd_cmax=CAT['evselect']['thrd_cmax'], 
+            catalog_QC = catalog_select(catalog, thrd_cmax=CAT['evselect']['thrd_cmax'], 
                                         thrd_stanum=CAT['evselect']['thrd_stanum'], 
                                         thrd_phsnum=CAT['evselect']['thrd_phsnum'], 
                                         thrd_lat=CAT['evselect']['thrd_lat'], 
                                         thrd_lon=CAT['evselect']['thrd_lon'], 
                                         thrd_cstd=CAT['evselect']['thrd_cstd'], 
                                         thrd_depth=CAT['evselect']['thrd_depth'])
-        
+            
+            # remove repeated events
+            if CAT['evselect']['rmrpev']:
+                catalog_QC = catalog_rmrpev(catalog_QC, 0.5, 5, 5, evkp='coherence_max')
+            
             # save the catalog after quality control
             cfname_QC = os.path.join(CAT['dir_output'], CAT['evselect']['fname'])
             with open(cfname_QC, 'wb') as handle:
