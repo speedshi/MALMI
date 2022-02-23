@@ -450,7 +450,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
         fig = plt.figure(figsize=figsize, dpi=dpi)
         ax = fig.add_subplot(111)
         
-        for ii in range():
+        for ii in range(Nsta):
             
             # plot input seismic data of one component
             tr = stream.select(station=staname[ii], component=icomp)

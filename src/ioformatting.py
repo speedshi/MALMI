@@ -698,7 +698,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
         ofname = file_thephase[0].split('/')[-1].split(thephase_ftage)[0] + '.MLpicks'
     
     # initialize the output file
-    ofile = open(os.path.join(dir_io, ofname), 'a')
+    ofile = open(os.path.join(dir_io, ofname), 'w')
     ofile.write('# station P_arrivaltime S_arrivaltime \n')
     ofile.flush()
     
