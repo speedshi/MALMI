@@ -332,7 +332,7 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
     return
 
 
-def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=None, linewd=0.6, problabel=False, yticks='station', ampscale=1.0):
+def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N','E'], dyy=1.8, fband=None, normv=None, ppower=None, tag=None, staname=None, arrvtt=None, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=None, linewd=0.6, problabel=False, yticks='auto', ampscale=1.0):
     """
     To plot the input seismic data of different stations with the characteristic 
     functions overlayed on the seismogram.
@@ -390,6 +390,9 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
     yticks : str, default is 'station'
         if 'station', show station names as y-axis ticks;
         if 'index', show station numerical index as y-axis ticks;
+        if 'auto', automatically determine the y-axis ticks according to total
+        number of stations. If station number > 40, use 'index' style; if station
+        number <= 40, use 'station' style.
     ampscale : float, default is 1.0
         used to scale the seismic amplitude. 1.0 is no amplification.
         2.0 is twice amplification.
@@ -425,7 +428,13 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
             if tr.stats.station not in staname:
                 staname.append(tr.stats.station)
     
-    ydev = [ii*dyy for ii in range(len(staname))]  # set y-axis ticks
+    Nsta = len(staname)  # total number of stations for plotting
+    ydev = [ii*dyy for ii in range(Nsta)]  # set y-axis ticks
+    if yticks == 'auto':
+        if Nsta > 40:
+            yticks = 'index'
+        else:
+            yticks = 'station'
     
     if not os.path.exists(dir_output):
         os.makedirs(dir_output)
@@ -441,7 +450,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
         fig = plt.figure(figsize=figsize, dpi=dpi)
         ax = fig.add_subplot(111)
         
-        for ii in range(len(staname)):
+        for ii in range():
             
             # plot input seismic data of one component
             tr = stream.select(station=staname[ii], component=icomp)

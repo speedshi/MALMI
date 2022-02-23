@@ -509,7 +509,7 @@ class MALMI:
             
             # extract the ML picks according to theoretical arrivaltimes
             if getMLpick:
-                get_MLpicks_ftheart(dir_prob_ev, dir_output_ev, maxtd_p=3.0, maxtd_s=3.0, 
+                get_MLpicks_ftheart(dir_prob=dir_prob_ev, dir_io=dir_output_ev, maxtd_p=2.0, maxtd_s=2.0, 
                                     P_thrd=self.detect['P_thrd'], S_thrd=self.detect['S_thrd'], 
                                     thephase_ftage='.phs', ofname=None)
             
@@ -521,9 +521,12 @@ class MALMI:
                     arrvtt = read_arrivaltimes(file_arrvt)
                 else:
                     arrvtt = None
-                seischar_plot(dir_seis_ev, dir_prob_ev, dir_output_ev, figsize=(12, 12), 
-                              comp=['Z','N','E'], dyy=1.8, fband=[2, 30], normv=self.MIG['probthrd'], 
-                              ppower=self.MIG['ppower'], tag=None, staname=None, arrvtt=arrvtt)
+                comp = [ich[-1] for ich in self.seismic_channels]  # get components of seismic data
+                seischar_plot(dir_seis=dir_seis_ev, dir_char=dir_prob_ev, dir_output=dir_output_ev, 
+                              figsize=(12, 12), comp=comp, dyy=1.8, fband=self.freqband, 
+                              normv=self.MIG['probthrd'], ppower=self.MIG['ppower'], tag=None, staname=None, 
+                              arrvtt=arrvtt, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=0.001, 
+                              linewd=1.5, problabel=False, yticks='auto', ampscale=1.0)
     
         gc.collect()
         print('MALMI_rsprocess_view complete!')
