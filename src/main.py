@@ -707,7 +707,10 @@ class MALMI:
                 default value is related to the current project directory.
             CAT['fname'] : str
                 the output catalog filename.
-                The default is 'MALMI_catalog_original.pickle'.
+                The default is 'MALMI_catalog_original'.
+            CAT['fformat'] : str
+                the format of the output catalog file, can be 'pickle' and 'csv'.
+                The default is 'pickle'.
             CAT['evselect'] : dict, default is {}
                 parameters controlling the selection of events from original catalog,
                 i.e. quality control of the orgiginal catalog.
@@ -745,7 +748,7 @@ class MALMI:
 
         """
         
-        from ioformatting import retrive_catalog
+        from ioformatting import retrive_catalog, dict2csv
         import pickle
         from catalogs import catalog_rmrpev, catalog_select
         
@@ -756,7 +759,10 @@ class MALMI:
             CAT['dir_output'] = os.path.join(self.dir_projoutput, 'catalogs')
             
         if 'fname' not in CAT:
-            CAT['fname'] = 'MALMI_catalog_original.pickle'
+            CAT['fname'] = 'MALMI_catalog_original'
+            
+        if 'fformat' not in CAT:
+            CAT['fformat'] = 'pickle'
             
         if 'evselect' not in CAT:
             CAT['evselect'] = {}
@@ -765,7 +771,7 @@ class MALMI:
             CAT['evselect']['rmrpev'] = True
             
         if (CAT['evselect'] is not None) and ('fname' not in CAT['evselect']):
-            CAT['evselect']['fname'] = 'MALMI_catalog_QC.pickle'
+            CAT['evselect']['fname'] = 'MALMI_catalog_QC'
             
         if (CAT['evselect'] is not None) and ('thrd_cmax' not in CAT['evselect']):    
             CAT['evselect']['thrd_cmax'] = 0.036  
@@ -794,16 +800,20 @@ class MALMI:
         # catalog name
         if not os.path.exists(CAT['dir_output']):
             os.makedirs(CAT['dir_output'], exist_ok=True)
-        cfname = os.path.join(CAT['dir_output'], CAT['fname'])
+        cfname = os.path.join(CAT['dir_output'], CAT['fname']+'.'+CAT['fformat'])
         
         if CAT['extract']:
             # extract catlog from processing results
             catalog = retrive_catalog(dir_dateset=self.dir_MIG, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', 
                                       cata_fold=self.fld_migresult, dete_fold=self.fld_prob)
         
-            # save the extracted original catalog
-            with open(cfname, 'wb') as handle:
-                pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            if CAT['fformat'] == 'pickle':
+                # save the extracted original catalog in pickle format
+                with open(cfname, 'wb') as handle:
+                    pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            elif CAT['fformat'] == 'csv':
+                # save the extracted original catalog in csv format
+                dict2csv(catalog, cfname)
         else:
             # directly load existing catalog
             with open(cfname, 'rb') as handle:
@@ -824,9 +834,14 @@ class MALMI:
                 catalog_QC = catalog_rmrpev(catalog_QC, 0.5, 5, 5, evkp='coherence_max')
             
             # save the catalog after quality control
-            cfname_QC = os.path.join(CAT['dir_output'], CAT['evselect']['fname'])
-            with open(cfname_QC, 'wb') as handle:
-                pickle.dump(catalog_QC, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            cfname_QC = os.path.join(CAT['dir_output'], CAT['evselect']['fname']+'.'+CAT['fformat'])
+            if CAT['fformat'] == 'pickle':
+                # save the extracted QC catalog in pickle format
+                with open(cfname_QC, 'wb') as handle:
+                    pickle.dump(catalog_QC, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            elif CAT['fformat'] == 'csv':
+                # save the extracted QC catalog in csv format
+                dict2csv(catalog_QC, cfname)
         
         return catalog
     
