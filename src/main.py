@@ -17,11 +17,13 @@ import copy
 import shutil
 import glob
 import datetime
+import pickle
+from ioformatting import csv2dict
         
 
 class MALMI:
 
-    def __init__(self, seismic, tt, grid=None, control=None, detect=None, MIG=None):
+    def __init__(self, seismic, tt=None, grid=None, control={}, detect={}, MIG={}):
         """
         Initilize global input and output paramaters, configure MALMI.
         Parameters
@@ -156,19 +158,21 @@ class MALMI:
         if 'freqband' not in seismic:
             seismic['freqband'] = None
         
-        if 'vmodel' not in tt:
-            tt['vmodel'] = None
+        if (tt is not None):
+            if ('vmodel' not in tt):
+                tt['vmodel'] = None
         
-        if 'dir' not in tt:
-            tt['dir'] = './data/traveltime'
+            if ('dir' not in tt):
+                tt['dir'] = './data/traveltime'
         
-        if 'ftage' not in tt:
-            tt['ftage'] = 'layer'
+            if ('ftage' not in tt):
+                tt['ftage'] = 'layer'
         
-        tt['hdr_filename'] = 'header.hdr'  # travetime data set header filename
+            tt['hdr_filename'] = 'header.hdr'  # travetime data set header filename
         
-        if (grid is not None) and ('rotAngle' not in grid):
-            grid['rotAngle'] = 0.0
+        if (grid is not None):
+            if ('rotAngle' not in grid):
+                grid['rotAngle'] = 0.0
         
         if control is None:
             control = {}
@@ -226,17 +230,24 @@ class MALMI:
         # read in station invertory and obtain station information
         self.stainv = read_stationinfo(seismic['stainvf'])  # obspy station inventory 
         
-        # build travel-time data set
-        grid = build_traveltime(grid, tt, self.stainv)
-        self.grid = copy.deepcopy(grid)
-        sta_inv1, region1, mgregion = get_lokicoord(tt['dir'], tt['hdr_filename'], 0.05, consider_mgregion=True)  # obtain migration region lon/lat range
-        self.grid['mgregion'] = mgregion  # migration region lat/lon range, [lon_min, lon_max, lat_min, lat_max] in degree
+        # travel-time dataset
+        if (tt is None) and (grid is None):
+            # grid and travel-time information are only required during the migration process
+            # if migration part is not performed, then no need to sep up grid and travel-time information
+            print('Skip grid set up and skip travel-time table building!')
+        else:
+            # set up grid
+            # build or check travel-time data set
+            grid = build_traveltime(grid, tt, self.stainv)
+            self.grid = copy.deepcopy(grid)
+            sta_inv1, region1, mgregion = get_lokicoord(tt['dir'], tt['hdr_filename'], 0.05, consider_mgregion=True)  # obtain migration region lon/lat range
+            self.grid['mgregion'] = mgregion  # migration region lat/lon range, [lon_min, lon_max, lat_min, lat_max] in degree
         
-        # plot stations and migration region for checking
-        if control['plot_map']:
-            fname1 = os.path.join(control['dir_output'], "basemap_stations_mgarea.png")
-            if not os.path.isfile(fname1):
-                plot_basemap(region1, sta_inv1, mgregion, fname1, False, '30s')
+            # plot stations and migration region for checking
+            if control['plot_map']:
+                fname1 = os.path.join(control['dir_output'], "basemap_stations_mgarea.png")
+                if not os.path.isfile(fname1):
+                    plot_basemap(region1, sta_inv1, mgregion, fname1, False, '30s')
         
         self.seisdatastru = copy.deepcopy(seismic['datastru'])
         self.dir_seismic = copy.deepcopy(seismic['dir'])
@@ -351,7 +362,7 @@ class MALMI:
         ML['overlap'] : float, default: 0.5
             overlap rate of time window for generating probabilities. 
             e.g. 0.6 means 60% of time window are overlapped.
-        ML['number_of_cpus'] : int, default: 5
+        ML['number_of_cpus'] : int, default: 2
             Number of CPUs used for the parallel preprocessing and feeding of 
             data for prediction.
             If no GPU to use, this value shoud not be set too large, 
@@ -370,7 +381,7 @@ class MALMI:
             ML['overlap'] = 0.5
         
         if 'number_of_cpus' not in ML:
-            ML['number_of_cpus'] = 4
+            ML['number_of_cpus'] = 2
         #----------------------------------------------------------------------
         
         from EQTransformer.utils.hdf5_maker import preprocessor
@@ -394,7 +405,7 @@ class MALMI:
         # generate event and phase probabilities-------------------------------
         predictor(input_dir=self.dir_hdf5, input_model=ML['model'], output_dir=self.dir_prob,
                   output_probabilities=True, estimate_uncertainty=False,
-                  detection_threshold=0.1, P_threshold=0.1, S_threshold=0.1, 
+                  detection_threshold=min(self.detect['P_thrd'], self.detect['S_thrd']), P_threshold=self.detect['P_thrd'], S_threshold=self.detect['S_thrd'], 
                   keepPS=False, number_of_cpus=ML['number_of_cpus'],
                   number_of_plots=100, plot_mode='time_frequency')
         gc.collect()
@@ -533,7 +544,7 @@ class MALMI:
         return
 
     
-    def clear_interm(self, CL=None):
+    def clear_interm(self, CL={}):
         """
         Clear some gegerated data set such as seismic data or porbability data
         for saving disk space.
@@ -644,8 +655,9 @@ class MALMI:
         ----------
         LOC : dict
             Parameters regarding to event location.
-            LOC['engine'] : str, option: 'NonLinLoc'
-                the event location approach, default is 'NonLinLoc'.
+            LOC['engine'] : str, default is 'NonLinLoc'
+                the event location approach, 
+                can be: 'NonLinLoc'.
             LOC['dir_tt'] : str, default is None.
                 the directory of traveltime date set for event location.
                 If None, using the default traveltime directory of MALMI.
@@ -749,7 +761,6 @@ class MALMI:
         """
         
         from ioformatting import retrive_catalog, dict2csv
-        import pickle
         from catalogs import catalog_rmrpev, catalog_select
         
         if 'extract' not in CAT:
@@ -816,8 +827,11 @@ class MALMI:
                 dict2csv(catalog, cfname)
         else:
             # directly load existing catalog
-            with open(cfname, 'rb') as handle:
-                catalog = pickle.load(handle)
+            if CAT['fformat'] == 'pickle':
+                with open(cfname, 'rb') as handle:
+                    catalog = pickle.load(handle)
+            elif CAT['fformat'] == 'csv':
+                catalog = csv2dict(cfname, delimiter=',')
         
         if CAT['evselect'] is not None:
             # select events from the original catalog using quality control parameters
@@ -846,6 +860,57 @@ class MALMI:
         return catalog
     
     
-    
+    def catalog_relocate(self, RELOC={}):
+        """
+        Obtain relative relocated catalog.
+
+        Parameters
+        ----------
+        RELOC : dict
+            parameters related to event relocation.
+            RELOC['catalog'] : str
+                the filename including path of the catalog to be relocated.
+                Default is the quality-controlled catalog.
+            RELOC['engine'] : str, default is 'rtdd'
+                the event relative relocation approach, 
+                can be: 'rtdd'.
+            RELOC['dir_output'] : str
+                directory for outputting files.
+                default value is related to the current project directory.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        from ioformatting import output_rtddstation, output_rtddeventphase
+        
+        if 'catalog' not in RELOC:
+            RELOC['catalog'] = os.path.join(self.dir_projoutput, 'catalogs', 'MALMI_catalog_QC.pickle')
+            
+        if 'engine' not in RELOC:
+            RELOC['engine'] = 'rtdd'
+        
+        if 'dir_output' not in RELOC:
+            RELOC['dir_output'] = os.path.join(self.dir_projoutput, 'catalogs')
+        
+        # load the catalog to be relocated
+        cat_fmt = RELOC['catalog'].split('.')[-1]  # format of the catalog file
+        if cat_fmt == 'pickle':
+            with open(RELOC['catalog'], 'rb') as handle:
+                catalog = pickle.load(handle)
+        elif cat_fmt == 'txt':
+            catalog = csv2dict(RELOC['catalog'], delimiter=',')
+        
+        # perform relative relocation or prepare files for relative relocation
+        if RELOC['engine'] == 'rtdd':
+            # generate files for rtdd relocation
+            output_rtddstation(stainv=self.stainv, dir_output=RELOC['dir_output'], filename='station_rtdd.csv')
+            output_rtddeventphase(catalog=catalog, stainv=self.stainv, dir_output=RELOC['dir_output'], 
+                                  filename_event='event_rtdd.csv', filename_phase='phase_rtdd.csv',
+                                  phaseart_ftage='.MLpicks')  # Note must use '.MLpicks' to use ML picks, theoratical arrivaltimes do not work
+        
+        return
     
     
