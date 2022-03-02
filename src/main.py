@@ -223,14 +223,48 @@ class MALMI:
             MIG['ppower'] = 4
         #----------------------------------------------------------------------
         
-        # make sure output directory exist
-        if not os.path.exists(control['dir_output']):
-            os.makedirs(control['dir_output'], exist_ok=True)
+        self.seisdatastru = copy.deepcopy(seismic['datastru'])
+        self.dir_seismic = copy.deepcopy(seismic['dir'])
+        self.seismic_channels = copy.deepcopy(seismic['channels'])  # the channels of the input seismic data
+        self.seisdate = copy.deepcopy(seismic['date'])  # date of seismic data
+        self.freqband = copy.deepcopy(seismic['freqband'])  # frequency band in Hz for filtering seismic data
+        self.n_processor = copy.deepcopy(control['n_processor'])  # number of threads for parallel processing
+        if self.seisdatastru == 'AIO':
+            # input seismic data files are stored simply in one folder
+            # get the foldername of the input seismic data, used as the identifer of the input data set
+            if self.dir_seismic[-1] == '/':
+                fd_seismic = self.dir_seismic.split('/')[-2]
+            else:
+                fd_seismic = self.dir_seismic.split('/')[-1]
+        elif self.seisdatastru == 'SDS':
+            # input seismic data files are organized in SDS
+            # use the date as the identifer of the input data set
+            fd_seismic = datetime.datetime.strftime(self.seisdate, "%Y%m%d")
+        else:
+            raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
+        
+        self.dir_projoutput = control['dir_output']  # project output direcotroy
+        self.dir_CML = os.path.join(self.dir_projoutput, 'data_ML')  # directory for common ML outputs
+        self.dir_ML = os.path.join(self.dir_CML, fd_seismic)  # directory for ML outputs of the currrent processing dataset
+        self.dir_mseed = os.path.join(self.dir_ML, 'mseeds')  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
+        self.dir_hdf5 = self.dir_mseed + '_processed_hdfs'  # path to the hdf5 and csv files
+        self.dir_EQTjson = os.path.join(self.dir_ML, 'json')  # directory for outputting station json file for EQT
+        self.dir_prob = os.path.join(self.dir_ML, 'prob_and_detection')  # output directory for ML probability outputs
+        
+        self.dir_MIG = os.path.join(self.dir_projoutput, 'data_MIG')  # directory for common migration outputs
+        self.dir_migration = os.path.join(self.dir_MIG, fd_seismic)  # directory for migration outputs of the current processing dataset
+        self.fld_prob = 'prob_evstream'  # foldername of the probability outputs of different events
+        self.dir_lokiprob = os.path.join(self.dir_migration, self.fld_prob)  # directory for probability outputs of different events in SEED format
+        self.dir_lokiseis = os.path.join(self.dir_migration, 'seis_evstream')  # directory for raw seismic outputs of different events in SEED format
+        
+        # make sure the project output directory exist
+        if not os.path.exists(self.dir_projoutput):
+            os.makedirs(self.dir_projoutput, exist_ok=True)
         
         # read in station invertory and obtain station information
         self.stainv = read_stationinfo(seismic['stainvf'])  # obspy station inventory 
         
-        # travel-time dataset
+        # config travel-time dataset and migration output directories
         if (tt is None) and (grid is None):
             # grid and travel-time information are only required during the migration process
             # if migration part is not performed, then no need to sep up grid and travel-time information
@@ -249,56 +283,23 @@ class MALMI:
                 if not os.path.isfile(fname1):
                     plot_basemap(region1, sta_inv1, mgregion, fname1, False, '30s')
         
-        self.seisdatastru = copy.deepcopy(seismic['datastru'])
-        self.dir_seismic = copy.deepcopy(seismic['dir'])
-        self.seismic_channels = copy.deepcopy(seismic['channels'])  # the channels of the input seismic data
-        self.seisdate = copy.deepcopy(seismic['date'])  # date of seismic data
-        self.freqband = copy.deepcopy(seismic['freqband'])  # frequency band in Hz for filtering seismic data
-        
-        if self.seisdatastru == 'AIO':
-            # input seismic data files are stored simply in one folder
-            # get the foldername of the input seismic data, used as the identifer of the input data set
-            if self.dir_seismic[-1] == '/':
-                fd_seismic = self.dir_seismic.split('/')[-2]
+            # travetime dataset related information
+            self.dir_tt = copy.deepcopy(tt['dir'])  # path to travetime data set
+            self.tt_precision = 'single'  # persicion for traveltime data set, 'single' or 'double'
+            self.tt_hdr_filename = copy.deepcopy(tt['hdr_filename'])  # travetime data set header filename
+            self.tt_ftage = copy.deepcopy(tt['ftage'])  # traveltime data set filename tage
+            if self.dir_tt.split('/')[-1] == '':
+                tt_folder = self.dir_tt.split('/')[-2]
             else:
-                fd_seismic = self.dir_seismic.split('/')[-1]
-        elif self.seisdatastru == 'SDS':
-            # input seismic data files are organized in SDS
-            # use the date as the identifer of the input data set
-            fd_seismic = datetime.datetime.strftime(self.seisdate, "%Y%m%d")
-        else:
-            raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
+                tt_folder = self.dir_tt.split('/')[-1]
         
-        self.dir_projoutput = control['dir_output']  # project output direcotroy
-        self.dir_CML = os.path.join(self.dir_projoutput, 'data_ML')  # directory for common ML outputs
-        self.dir_MIG = os.path.join(self.dir_projoutput, 'data_MIG')  # directory for common migration outputs
+            # config the final migration output directories
+            self.fld_migresult = 'result_MLprob_{}'.format(tt_folder)  # foldername of the final migration results
+            self.dir_lokiout = os.path.join(self.dir_migration, self.fld_migresult)  # path for loki final outputs
         
-        self.dir_ML = os.path.join(self.dir_CML, fd_seismic)  # directory for ML outputs of the currrent processing dataset
-        self.dir_prob = os.path.join(self.dir_ML, 'prob_and_detection')  # output directory for ML probability outputs
-        self.dir_migration = os.path.join(self.dir_MIG, fd_seismic)  # directory for migration outputs of the current processing dataset
-        self.n_processor = copy.deepcopy(control['n_processor'])  # number of threads for parallel processing
-        
-        self.dir_tt = copy.deepcopy(tt['dir'])  # path to travetime data set
-        self.tt_precision = 'single'  # persicion for traveltime data set, 'single' or 'double'
-        self.tt_hdr_filename = copy.deepcopy(tt['hdr_filename'])  # travetime data set header filename
-        self.tt_ftage = copy.deepcopy(tt['ftage'])  # traveltime data set filename tage
-        if self.dir_tt.split('/')[-1] == '':
-            tt_folder = self.dir_tt.split('/')[-2]
-        else:
-            tt_folder = self.dir_tt.split('/')[-1]
-
-        self.dir_mseed = os.path.join(self.dir_ML, 'mseeds')  # directory for outputting seismic data for EQT, NOTE do not add '/' at the last part
-        self.dir_hdf5 = self.dir_mseed + '_processed_hdfs'  # path to the hdf5 and csv files
-        self.dir_EQTjson = os.path.join(self.dir_ML, 'json')  # directory for outputting station json file for EQT
-        self.fld_prob = 'prob_evstream'  # foldername of the probability outputs of different events
-        self.dir_lokiprob = os.path.join(self.dir_migration, self.fld_prob)  # directory for probability outputs of different events in SEED format
-        self.dir_lokiseis = os.path.join(self.dir_migration, 'seis_evstream')  # directory for raw seismic outputs of different events in SEED format
-        self.fld_migresult = 'result_MLprob_{}'.format(tt_folder)  # foldername of the final migration results
-        self.dir_lokiout = os.path.join(self.dir_migration, self.fld_migresult)  # path for loki final outputs
-        
-        # create output directories
-        if not os.path.exists(self.dir_lokiout):
-            os.makedirs(self.dir_lokiout, exist_ok=True)
+            # create the final migration output directories
+            if not os.path.exists(self.dir_lokiout):
+                os.makedirs(self.dir_lokiout, exist_ok=True)
         
         self.detect = detect.copy()  # detection parameters
         self.MIG = MIG.copy()  # migration parameters
