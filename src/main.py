@@ -915,3 +915,30 @@ class MALMI:
         return
     
     
+    def para_testing(self):
+        """
+        Test various parameters such as triggered station number and phase number
+        for running MALMI on continuous data.
+        Tests are usually perform on smaller dataset such as one day's data,
+        once parameters are optimised and determined through testing, they 
+        can be directly applied to continous data.
+
+        Returns
+        -------
+        None.
+
+        """
+        
+        from xparameters import staphs_trigger_ana
+        
+        # statistical analysis of the number of station and phase triggered
+        file_detection = os.path.join(self.dir_lokiprob, 'event_station_phase_info.txt')
+        dir_out = os.path.join(self.dir_migration, 'tested_figure')
+        if not os.path.exists(dir_out):
+            os.makedirs(dir_out, exist_ok=True)
+        staphs_trigger_ana(file_detection=file_detection, dir_out=dir_out)
+        
+        return
+    
+    
+    
