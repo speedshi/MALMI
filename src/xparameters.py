@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import os
 
 
-def staphs_trigger_ana(file_detection, dir_out='./'):
+def staphs_trigger_ana(file_detection, dir_out='./', xmax=None):
     """
     Statistical analysis of the number of station and phase triggered.
     Help to determine the optimal threshold of triggered station number (N_sta) and 
@@ -25,7 +25,8 @@ def staphs_trigger_ana(file_detection, dir_out='./'):
         the filename including path of the detection results.
     dir_out : str, optional
         Directory for outputs. The default is './'.
-
+    xmax : int, optional
+        The maximum number of triggered phases/stations for displaying.
     Returns
     -------
     None.
@@ -52,7 +53,11 @@ def staphs_trigger_ana(file_detection, dir_out='./'):
     d2y = np.gradient(dy)  # second derivatives
     
     # plot
-    x_max = 10  # the maximum number of triggered stations for displaying
+    # set the maximum number of triggered stations for displaying
+    if xmax is None:
+        x_max = station_max  
+    else:
+        x_max = xmax
     ixx_thrd = np.argmax(d2y)
     fig = plt.figure(figsize=(12,8), dpi=300)
     ax1 = fig.add_subplot(211)
@@ -91,7 +96,11 @@ def staphs_trigger_ana(file_detection, dir_out='./'):
     d2y = np.gradient(dy)  # second derivatives  
     
     # plot
-    x_max = 16  # the maximum number of triggered phases for displaying
+    # set the maximum number of triggered phases for displaying
+    if xmax is None:
+        x_max = phase_max  
+    else:
+        x_max = xmax
     ixx_thrd = np.argmax(d2y)
     fig = plt.figure(figsize=(12,8), dpi=300)
     ax1 = fig.add_subplot(211)

@@ -19,6 +19,7 @@ import glob
 import datetime
 import pickle
 from ioformatting import csv2dict
+import numpy as np
         
 
 class MALMI:
@@ -116,6 +117,9 @@ class MALMI:
             detect['npha_thrd'] : int, optional
                 minimal number of phases triggered during the specified event time period.
                 The default is 4.
+            detect['nsta_min_percentage'] : float, optional
+                Minimal decimal percentage of total available stations for triggering (ranging from 0. to 1.0).
+                The default is None.
             detect['outseis'] : boolen, optional
                 whether to output raw seismic data segments for the detectd events.
                 The default is True.
@@ -206,6 +210,9 @@ class MALMI:
             
         if 'npha_thrd' not in detect:    
             detect['npha_thrd'] = 4
+        
+        if 'nsta_min_percentage' not in detect:
+            detect['nsta_min_percentage'] = None
         
         if 'outseis' not in detect:
             detect['outseis'] = True
@@ -441,6 +448,13 @@ class MALMI:
             dir_seisdataset = self.dir_mseed
         else:
             dir_seisdataset = None
+        if self.detect['nsta_min_percentage'] is not None:
+            num_avasta = len([fdname for fdname in os.listdir(self.dir_prob) if os.path.isdir(os.path.join(self.dir_prob, fdname))])  # get the total number of available stations
+            nsta_thrd_new = int(np.ceil(self.detect['nsta_min_percentage'] * num_avasta))
+            if nsta_thrd_new > self.detect['nsta_thrd']:
+                self.detect['nsta_thrd'] = nsta_thrd_new  # reset using minimal decimal percentage of total available stations
+                self.detect['npha_thrd'] = 2 * self.detect['nsta_thrd']
+        
         arrayeventdetect(event_info, self.detect['twind_srch'], self.detect['twlex'], 
                          self.detect['nsta_thrd'], self.detect['npha_thrd'], 
                          self.dir_lokiprob, self.dir_lokiseis, dir_seisdataset, self.seismic_channels, self.detect['output_allsta'])
