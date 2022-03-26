@@ -451,9 +451,11 @@ class MALMI:
         if self.detect['nsta_min_percentage'] is not None:
             num_avasta = len([fdname for fdname in os.listdir(self.dir_prob) if os.path.isdir(os.path.join(self.dir_prob, fdname))])  # get the total number of available stations
             nsta_thrd_new = int(np.ceil(self.detect['nsta_min_percentage'] * num_avasta))
+            npha_thrd_new = int(np.ceil(2 * nsta_thrd_new * 0.7))  # at least 70% percent have both P- and S-phases
             if nsta_thrd_new > self.detect['nsta_thrd']:
                 self.detect['nsta_thrd'] = nsta_thrd_new  # reset using minimal decimal percentage of total available stations
-                self.detect['npha_thrd'] = 2 * self.detect['nsta_thrd']
+            if npha_thrd_new > self.detect['npha_thrd']:
+                self.detect['npha_thrd'] = npha_thrd_new  # reset using minimal decimal percentage of total available phases
         
         arrayeventdetect(event_info, self.detect['twind_srch'], self.detect['twlex'], 
                          self.detect['nsta_thrd'], self.detect['npha_thrd'], 

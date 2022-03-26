@@ -86,7 +86,6 @@ def get_lokicoord(dir_tt, hdr_filename='header.hdr', extr=0.05, consider_mgregio
     
     from loki import traveltimes
     from obspy.core.inventory import Inventory, Network, Station
-    from loki import LatLongUTMconversion
     
     # load station metadata from traveltime table data set
     tobj = traveltimes.Traveltimes(dir_tt, hdr_filename)
