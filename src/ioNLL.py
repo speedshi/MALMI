@@ -41,11 +41,11 @@ def gene_NLLinputs(inpara):
         inpara['xNum']: (integer, min:2) number of grid nodes in the X direction, required;
         inpara['yNum']: (integer, min:2) number of grid nodes in the Y direction, required;
         inpara['zNum']: (integer, min:2) number of grid nodes in the Z direction, required;
-        inpara['xOrig']: x location of the grid origin in km relative to the geographic origin.
+        inpara['xOrig']: x location of the grid origin in km relative to the geographic origin (positive: east).
                          Default value is 0.0. Type: [float].
-        inpara['yOrig']: y location of the grid origin in km relative to the geographic origin.
+        inpara['yOrig']: y location of the grid origin in km relative to the geographic origin (positive: north).
                          Default value is 0.0. Type: [float].
-        inpara['zOrig']: z location of the grid origin in km relative to the sea-level.
+        inpara['zOrig']: z location of the grid origin in km relative to the sea-level (positive: down).
                          Nagative value means above the sea-level; Positive values for below the sea-level;
                          Required. Type: [float].
         inpara['dgrid']: grid node spacing in kilometers along the X, Y, and Z axes.
