@@ -330,6 +330,7 @@ def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth
         catalog_match['depth_km_ref'] : information of the 'matched' and the 'undetected' events in the reference catalog;
                                         'new' events will have None values for these parameters.
         catalog_match['hdist_km'], catalog_match['vdist_km']: the horizontal and vertical/depth distance in km between
+                                                              note depth distance can be nagtive: they defined as "catalog_ref - catalog"
                                                               the matched events in the input catalog and the reference catalog.
 
     """
@@ -384,11 +385,11 @@ def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth
                 for iii, iievref in enumerate(eindx):
                     hdist_meter[iii], _, _ = gps2dist_azimuth(catalog_ref['latitude'][iievref], catalog_ref['longitude'][iievref], 
                                                              catalog['latitude'][iev], catalog['longitude'][iev])
-                hdist_km = abs(hdist_meter)/1000.0  # meter -> km
+                hdist_km = (hdist_meter)/1000.0  # meter -> km
             
                 if (thrd_hdis is not None):
                     # ckeck if horizontal distance within limit
-                    selid_temp = (hdist_km <= thrd_hdis)
+                    selid_temp = (np.absolute(hdist_km) <= thrd_hdis)
                     selid = np.logical_and(selid, selid_temp)
             
             if ('depth_km' in catalog):
@@ -460,7 +461,7 @@ def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth
                     ssid = np.argmin(evtimedfs_select)
                 elif matchmode == 'hdist':
                     # best matched event is the closest in horizonal plane
-                    ssid = np.argmin(hdist_km)
+                    ssid = np.argmin(np.absolute(hdist_km))
                 elif matchmode == 'dist':
                     # best matched event is the closest in 3D space
                     ssid = np.argmin(np.sqrt(hdist_km*hdist_km + vdist_km*vdist_km))
