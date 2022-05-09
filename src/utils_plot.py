@@ -494,9 +494,9 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                                 ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'r', linewidth=linewd)
                     if problabel:
                         if timerg is not None:
-                            ax.text(timerg[-1], ydev[ii]+0.35*dyy, 'P_prob_max: {:.3f}'.format(dampmax), color='r', fontsize=13, fontweight='bold', va='bottom', ha='right')
+                            ax.text(timerg[-1], ydev[ii]+0.35*dyy, 'P_prob_max: {:.3f}'.format(dampmax), color='r', fontname='Helvetica', fontsize=13, fontweight='bold', va='bottom', ha='right')
                         else:
-                            ax.text(tt[-1], ydev[ii]+0.35*dyy, 'P_prob_max: {:.3f}'.format(dampmax), color='r', fontsize=13, fontweight='bold', va='bottom', ha='right')
+                            ax.text(tt[-1], ydev[ii]+0.35*dyy, 'P_prob_max: {:.3f}'.format(dampmax), color='r', fontname='Helvetica', fontsize=13, fontweight='bold', va='bottom', ha='right')
                     del vdata, tt
                 del tr
                 
@@ -524,9 +524,9 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                                 ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'b', linewidth=linewd)
                     if problabel:
                         if timerg is not None:
-                            ax.text(timerg[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=13, fontweight='bold', va='bottom', ha='right')
+                            ax.text(timerg[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontname='Helvetica', fontsize=13, fontweight='bold', va='bottom', ha='right')
                         else:
-                            ax.text(tt[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=13, fontweight='bold', va='bottom', ha='right')
+                            ax.text(tt[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontname='Helvetica', fontsize=13, fontweight='bold', va='bottom', ha='right')
                     del vdata, tt
                 del tr
             
@@ -545,18 +545,18 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
             ax.set_ylim([ydev[0]-1.1*ampscale, ydev[-1]+1.1*ampscale])
         myFmt = mdates.DateFormatter("%H:%M:%S")
         ax.xaxis.set_major_formatter(myFmt)
-        plt.xticks(fontsize=16, fontweight ="bold")
+        plt.xticks(fontname='Helvetica', fontsize=16)  # , fontweight ="bold"
         if yticks == 'station':
             ax.set_yticks(ydev)
-            ax.set_yticklabels(staname, fontsize=16, fontweight ="bold")
+            ax.set_yticklabels(staname, fontname='Helvetica', fontsize=16)  # , fontweight ="bold"
         elif yticks == 'index':
             ytck = ydev[0:-1:10]
             ytck_lb = [int(iyk/dyy+1) for iyk in ytck]
             ax.set_yticks(ytck)
-            ax.set_yticklabels(ytck_lb, fontsize=16, fontweight ="bold")
-            ax.set_ylabel('Station number', fontsize=16, fontweight ="bold")
+            ax.set_yticklabels(ytck_lb, fontname='Helvetica', fontsize=16)  # , fontweight ="bold"
+            ax.set_ylabel('Station number', fontname='Helvetica', fontsize=16)  # , fontweight ="bold"
         ax.tick_params(axis='x', labelsize=16)
-        ax.set_title('Data [{}]'.format(this_date), fontsize=16, fontweight ="bold")
+        ax.set_title('Data [{}]'.format(this_date), fontname='Helvetica', fontsize=16, fontweight ="bold")
         if tag:
             fname = os.path.join(dir_output, 'input_data_with_cf_{}_{}.{}'.format(icomp, tag, figfmt))
         else:
@@ -587,7 +587,8 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
         filename of the header file of traveltime date set. Header file is used
         to get the coordinate of the migration area. The default is 'header.hdr'.
     colormap : str or colormap, optional
-        colormap name used for plotting. The default is 'RdBu_r'.
+        colormap name used for plotting. The default is 'RdBu_r'.  Other suggested 
+        colormaps: 'coolwarm', 'jet', cmocean.cm.haline, cmocean.cm.balance, cmocean.cm.delta, cmocean.cm.curl.
         or can directly input colormap object.
     dir_output : str, optional
         output directory for the generated figures. The default is None, is the 
@@ -652,8 +653,8 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.set_xlim(np.min(tobj.x), np.max(tobj.x))
     ax.set_ylim(np.min(tobj.y), np.max(tobj.y))
     ax.set_zlim(0, np.max(CXY))
-    ax.set_xlabel('East (Km)', fontsize=14, fontweight='bold')
-    ax.set_ylabel('North (Km)', fontsize=14, fontweight='bold')
+    ax.set_xlabel('East (Km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
+    ax.set_ylabel('North (Km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     # make the grid lines transparent
     ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
     ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
@@ -662,7 +663,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.set_title('Migration profile East-North', fontsize=14, fontweight='bold') 
+    ax.set_title('Migration profile East-North', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     fname = os.path.join(dir_output, 'coherence_matrix_EastNorth_surf.{}'.format(figfmt))
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
@@ -670,7 +671,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     plt.close(fig)
     
     fig = plt.figure(dpi=600)
-    fig.suptitle('Migration profile East-North', fontsize=14, fontweight='bold')
+    fig.suptitle('Migration profile East-North', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     ax = fig.gca()
     if plotstyle == 'contourf':
         cs = plt.contourf(tobj.x, tobj.y, CXY, 20, cmap=cmap)
@@ -679,10 +680,12 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
         plt.contour(tobj.x, tobj.y, CXY, 10, colors='black', linewidths=1.0)
     elif plotstyle == 'pcolormesh':
         cs = plt.pcolormesh(tobj.x, tobj.y, CXY, cmap=cmap, shading='auto')
-    ax.tick_params(axis='both', labelsize=14)
-    ax.set_xlabel('East (km)', fontsize=14, fontweight='bold')
-    ax.set_ylabel('North (km)', fontsize=14, fontweight='bold')
+    ax.tick_params(axis='both', labelsize=16)
+    ax.set_xlabel('East (km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
+    ax.set_ylabel('North (km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     cbar = plt.colorbar(cs)
+    cbar.set_label(label='Event Probability', fontsize=16)  # , weight='bold'
+    cbar.ax.tick_params(labelsize=14)
     ax.set_aspect('equal')
     fname = os.path.join(dir_output, 'coherence_matrix_EastNorth.{}'.format(figfmt))
     plt.savefig(fname, dpi=600, bbox_inches='tight')
@@ -708,8 +711,8 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.set_xlim(np.min(tobj.x), np.max(tobj.x))
     ax.set_ylim(np.min(tobj.z), np.max(tobj.z))
     ax.set_zlim(0, np.max(CXZ))
-    ax.set_xlabel('East (Km)', fontsize=14, fontweight='bold')
-    ax.set_ylabel('Depth (Km)', fontsize=14, fontweight='bold')
+    ax.set_xlabel('East (Km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
+    ax.set_ylabel('Depth (Km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     # make the grid lines transparent
     ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
     ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
@@ -718,7 +721,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.set_title('Migration profile East-Depth', fontsize=14, fontweight='bold') 
+    ax.set_title('Migration profile East-Depth', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     # zasp = ((np.max(tobj.z)-np.min(tobj.z)))/ (np.max(tobj.x)-np.min(tobj.x)) 
     # ax.set_box_aspect((1, zasp, 1))
     fname = os.path.join(dir_output, 'coherence_matrix_EastDepth_surf.{}'.format(figfmt))
@@ -728,7 +731,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     plt.close(fig)
     
     fig = plt.figure(dpi=600)
-    fig.suptitle('Migration profile East-Depth', fontsize=14, fontweight='bold')
+    fig.suptitle('Migration profile East-Depth', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     ax = fig.gca()
     if plotstyle == 'contourf':
         cs = plt.contourf(tobj.x, tobj.z, CXZ, 20, cmap=cmap)
@@ -737,10 +740,12 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
         plt.contour(tobj.x, tobj.z, CXZ, 10, colors='black', linewidths=1.0)
     elif plotstyle == 'pcolormesh':
         cs = plt.pcolormesh(tobj.x, tobj.z, CXZ, cmap=cmap, shading='auto')
-    ax.tick_params(axis='both', labelsize=14)
-    ax.set_xlabel('East (km)', fontsize=14, fontweight='bold')
-    ax.set_ylabel('Depth (km)', fontsize=14, fontweight='bold')
+    ax.tick_params(axis='both', labelsize=16)
+    ax.set_xlabel('East (km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
+    ax.set_ylabel('Depth (km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     cbar = plt.colorbar(cs)
+    cbar.set_label(label='Event Probability', fontsize=16)  # , weight='bold'
+    cbar.ax.tick_params(labelsize=14)
     ax.invert_yaxis()
     ax.set_aspect('equal')
     fname = os.path.join(dir_output, 'coherence_matrix_EastDepth.{}'.format(figfmt))
@@ -767,8 +772,8 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.set_xlim(np.min(tobj.y), np.max(tobj.y))
     ax.set_ylim(np.min(tobj.z), np.max(tobj.z))
     ax.set_zlim(0, np.max(CYZ))
-    ax.set_xlabel('North (Km)', fontsize=14, fontweight='bold')
-    ax.set_ylabel('Depth (Km)', fontsize=14, fontweight='bold')
+    ax.set_xlabel('North (Km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
+    ax.set_ylabel('Depth (Km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     # make the grid lines transparent
     ax.xaxis._axinfo["grid"]['color'] =  (1,1,1,0)
     ax.yaxis._axinfo["grid"]['color'] =  (1,1,1,0)
@@ -777,7 +782,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     ax.xaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.yaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
     ax.zaxis.set_pane_color((1.0, 1.0, 1.0, 0.0))
-    ax.set_title('Migration profile North-Depth', fontsize=14, fontweight='bold') 
+    ax.set_title('Migration profile North-Depth', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     fname = os.path.join(dir_output, 'coherence_matrix_NorthDepth_surf.{}'.format(figfmt))
     fig.savefig(fname, dpi=600, bbox_inches='tight')
     plt.cla()
@@ -785,7 +790,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     plt.close(fig)
     
     fig = plt.figure(dpi=600)
-    fig.suptitle('Migration profile North-Depth', fontsize=14, fontweight='bold')
+    fig.suptitle('Migration profile North-Depth', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     ax = fig.gca()
     if plotstyle == 'contourf':
         cs = plt.contourf(tobj.y, tobj.z, CYZ, 20, cmap=cmap)
@@ -794,10 +799,12 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
         plt.contour(tobj.y, tobj.z, CYZ, 10, colors='black', linewidths=1.0)
     elif plotstyle == 'pcolormesh':
         cs = plt.pcolormesh(tobj.y, tobj.z, CYZ, cmap=cmap, shading='auto')
-    ax.tick_params(axis='both', labelsize=14)
-    ax.set_xlabel('North (km)', fontsize=14, fontweight='bold')
-    ax.set_ylabel('Depth (km)', fontsize=14, fontweight='bold')
+    ax.tick_params(axis='both', labelsize=16)
+    ax.set_xlabel('North (km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
+    ax.set_ylabel('Depth (km)', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     cbar = plt.colorbar(cs)
+    cbar.set_label(label='Event Probability', fontsize=16)  # , weight='bold'
+    cbar.ax.tick_params(labelsize=14)
     ax.invert_yaxis()
     ax.set_aspect('equal')
     fname = os.path.join(dir_output, 'coherence_matrix_NorthDepth.{}'.format(figfmt))
@@ -988,7 +995,7 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depthrg=None, cmap="p
     else:
         pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), eq_depth.max()])
     if isinstance(eq_size, float):
-        fig.plot(eq_longi, eq_latit, color=eq_depth, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30
+        fig.plot(x=eq_longi, y=eq_latit, color=eq_depth, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black", transparency=20)  # , no_clip="r"
     else:
         fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_depth, cmap=True, style="cc", pen="0.01p,black", transparency=10)  # , no_clip="r"
     fig.colorbar(frame='af+l"Depth (km)"')
@@ -1075,7 +1082,7 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     eq_tref = mdates.date2num(eq_times) - mdates.date2num(time_ref)
     pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()])
     if isinstance(eq_size, float):
-        fig.plot(eq_longi, eq_latit, color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30, 
+        fig.plot(x=eq_longi, y=eq_latit, color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black", transparency=20)  # , no_clip="r" 
     else:
         fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_tref, cmap=True, style="cc", transparency=10, pen="0.01p,black")  # , no_clip="r"
     fig.colorbar(frame='af+l"Days relative to {}"'.format(time_ref))
@@ -1169,6 +1176,31 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png', fnametag=
     plt.cla()
     fig.clear()
     plt.close(fig)
+    #==========================================================================
+    
+    # plot catalog compare venn diagram----------------------------------------
+    from matplotlib_venn import venn2, venn2_circles
+    
+    # depict venn diagram
+    Ab = N_new  # newly detected events
+    aB = N_undetected  # missed events
+    AB = N_matched  # co-detected events (event in both catalogs)
+    venn2(subsets=(Ab, aB, AB),
+          set_labels=('New catalog', 'Reference catalog'),
+          set_colors=("#99ff99", "#ff9999"),   # "#99ff99", "#ff9999"
+          alpha=0.7)
+
+    # add outline
+    venn2_circles(subsets=(Ab, aB, AB)) 
+    
+    # output figure
+    if fnametag is None:
+        fname = os.path.join(dir_fig, 'catalog_compare_venn_diagram.'+figformat)
+    else:
+        fname = os.path.join(dir_fig, 'catalog_compare_venn_diagram_'+fnametag+'.'+figformat)
+    plt.savefig(fname, bbox_inches='tight', dpi=600)
+    plt.cla()
+    plt.close()
     #==========================================================================
     
     # plot horizontal distance barplot-----------------------------------------

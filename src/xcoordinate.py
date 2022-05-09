@@ -24,6 +24,8 @@ def grid2mgregion(grid):
     grid : dict
         grid['LatOrig']: latitude in decimal degrees of the origin point of the rectangular migration region (float, min:-90.0, max:90.0);
         grid['LongOrig']: longitude in decimal degrees of the origin point of the rectangular migration region (float, min:-180.0, max:180.0);
+        grid['xOrig']: X location of the grid origin in km relative to the geographic origin (positive: east).
+        grid['yOrig']: Y location of the grid origin in km relative to the geographic origin (positive: north).
         grid['xNum']: number of grid nodes in the X direction;
         grid['yNum']: number of grid nodes in the Y direction;
         grid['dgrid']: grid spacing in kilometers.
@@ -42,14 +44,17 @@ def grid2mgregion(grid):
     # determine the lon/lat of the migration area
     refell=23
     (UTMZone, eorig, norig) = LatLongUTMconversion.LLtoUTM(refell, grid['LatOrig'], grid['LongOrig'])  # the Cartesian coordinate of the origin point in meter
-    east_m = (grid['xNum']-1) * grid['dgrid'] * 1000.0  # the East coordinate (X) of the last point for the migration area in meter
-    north_m = (grid['yNum']-1) * grid['dgrid'] * 1000.0  # the North coordinate (Y) of the last point for the migration area in meter
-    latitude_last, longitude_last = LatLongUTMconversion.UTMtoLL(refell, north_m+norig, east_m+eorig, UTMZone)  # from Cartisian to latitude, longitude
+    east_m_last = (grid['xOrig'] + (grid['xNum']-1) * grid['dgrid']) * 1000.0  # the East coordinate (X) of the last point for the migration area in meter
+    north_m_last = (grid['yOrig'] + (grid['yNum']-1) * grid['dgrid']) * 1000.0  # the North coordinate (Y) of the last point for the migration area in meter
+    latitude_last, longitude_last = LatLongUTMconversion.UTMtoLL(refell, north_m_last+norig, east_m_last+eorig, UTMZone)  # from Cartisian to latitude, longitude
+    east_m_first = grid['xOrig'] * 1000.0  # the East coordinate (X) of the first point for the migration area in meter
+    north_m_first = grid['yOrig'] * 1000.0  # the North coordinate (Y) of the first point for the migration area in meter
+    latitude_first, longitude_first = LatLongUTMconversion.UTMtoLL(refell, north_m_first+norig, east_m_first+eorig, UTMZone)  # from Cartisian to latitude, longitude
     mgregion = {}
-    mgregion['longitude_min'] = min(longitude_last, grid['LongOrig'])
-    mgregion['longitude_max'] = max(longitude_last, grid['LongOrig'])
-    mgregion['latitude_min'] = min(latitude_last, grid['LatOrig'])
-    mgregion['latitude_max'] = max(latitude_last, grid['LatOrig'])
+    mgregion['longitude_min'] = min(longitude_last, grid['LongOrig'], longitude_first)
+    mgregion['longitude_max'] = max(longitude_last, grid['LongOrig'], longitude_first)
+    mgregion['latitude_min'] = min(latitude_last, grid['LatOrig'], latitude_first)
+    mgregion['latitude_max'] = max(latitude_last, grid['LatOrig'], latitude_first)
     
     return mgregion
 
@@ -114,11 +119,14 @@ def get_lokicoord(dir_tt, hdr_filename='header.hdr', extr=0.05, consider_mgregio
     elast_m = tobj.x[-1]*1000.0  # the East coordinate (X) of the last point for the migration area in meter
     nlast_m = tobj.y[-1]*1000.0  # the North coordinate (Y) of the last point for the migration area in meter
     late_last, lone_last = LatLongUTMconversion.UTMtoLL(refell, nlast_m+norig, elast_m+eorig, UTMZone)  # latitude, longitude
+    efirst_m = tobj.x[0]*1000.0  # the East coordinate (X) of the first point for the migration area in meter
+    nfirst_m = tobj.y[0]*1000.0  # the North coordinate (Y) of the first point for the migration area in meter
+    late_first, lone_first = LatLongUTMconversion.UTMtoLL(refell, nfirst_m+norig, efirst_m+eorig, UTMZone)  # latitude, longitude
     mgregion = []
-    mgregion.append(min(lone_last, tobj.lon0))
-    mgregion.append(max(lone_last, tobj.lon0))
-    mgregion.append(min(late_last, tobj.lat0))
-    mgregion.append(max(late_last, tobj.lat0))
+    mgregion.append(min(lone_last, tobj.lon0, lone_first))
+    mgregion.append(max(lone_last, tobj.lon0, lone_first))
+    mgregion.append(min(late_last, tobj.lat0, late_first))
+    mgregion.append(max(late_last, tobj.lat0, late_first))
     
     # determine the lon/lat for plotting the basemap
     if consider_mgregion:

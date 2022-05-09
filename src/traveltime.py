@@ -165,6 +165,8 @@ def build_traveltime(grid, tt, stainv):
         inpara['LatOrig'] = grid['LatOrig']
         inpara['LongOrig'] = grid['LongOrig']
         inpara['rotAngle'] = grid['rotAngle']
+        inpara['xOrig'] = grid['xOrig']
+        inpara['yOrig'] = grid['yOrig']
         inpara['zOrig'] = grid['zOrig']
         inpara['xNum'] = grid['xNum']
         inpara['yNum'] = grid['yNum']
@@ -225,6 +227,8 @@ def header2grid(file_header):
     grid['xNum'] = int(lines[0].split()[0])
     grid['yNum'] = int(lines[0].split()[1])
     grid['zNum'] = int(lines[0].split()[2])
+    grid['xOrig'] = float(lines[1].split()[0])
+    grid['yOrig'] = float(lines[1].split()[1])
     grid['zOrig'] = float(lines[1].split()[2])
     assert(lines[2].split()[0] == lines[2].split()[1] == lines[2].split()[2])  # currently NonLinLoc requires dx=dy=dz
     grid['dgrid'] = float(lines[2].split()[0]) 

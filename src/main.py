@@ -78,9 +78,17 @@ class MALMI:
             grid['rotAngle']: rotation angle in decimal degrees of the rectrangular region 
                               in degrees clockwise relative to the Y-axis.
                               Default is 0.0. (float, min:-360.0, max:360.0)
+            grid['xOrig']: X location of the grid origin in km relative to the 
+                           geographic origin (positive: east).
+                           optional, default value is 0.0. Type: [float].
+            grid['yOrig']: Y location of the grid origin in km relative to the 
+                           geographic origin (positive: north).
+                           optional, default value is 0.0. Type: [float].
             grid['zOrig']: Z location of the grid origin in km relative to the 
                            sea-level. Nagative value means above the sea-level; 
                            Positive values for below the sea-level;
+                           Note grid model should include all stations, thus
+                           grid['zOrig'] should <= -1 * max(station_evelation/1000.0);
                            Required. (float)
             grid['xNum']: number of grid nodes in the X direction. Required. (int, >=2)
             grid['yNum']: number of grid nodes in the Y direction. Required. (int, >=2)
@@ -175,6 +183,12 @@ class MALMI:
             tt['hdr_filename'] = 'header.hdr'  # travetime data set header filename
         
         if (grid is not None):
+            if ('xOrig' not in grid):
+                grid['xOrig'] = 0.0
+            
+            if ('yOrig' not in grid):
+                grid['yOrig'] = 0.0
+            
             if ('rotAngle' not in grid):
                 grid['rotAngle'] = 0.0
         

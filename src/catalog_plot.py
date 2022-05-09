@@ -115,7 +115,7 @@ def catalog_plot_depth(region, catalog, depthrg=None, cmap="polar", sta_inv=None
         else:
             pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), catalog['depth_km'].max()])
         if isinstance(eq_size, float):
-            fig.plot(catalog['longitude'], catalog['latitude'], color=catalog['depth_km'], cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30
+            fig.plot(x=catalog['longitude'], y=catalog['latitude'], color=catalog['depth_km'], cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30
         else:
             fig.plot(x=catalog['longitude'], y=catalog['latitude'], size=eq_size, color=catalog['depth_km'], cmap=True, style="cc", pen="0.01p,black", transparency=10)  # , no_clip="r"
         fig.colorbar(frame='af+l"Depth (km)"')  # frame='a2f+l"Depth (km)"', position="JMR"
@@ -248,7 +248,7 @@ def catalog_plot_otime(region, catalog, time_ref=None, cmap="polar", sta_inv=Non
         eq_tref = mdates.date2num(catalog['time']) - mdates.date2num(time_ref)
         pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()])
         if isinstance(eq_size, float):
-            fig.plot(catalog['longitude'], catalog['latitude'], color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30, 
+            fig.plot(x=catalog['longitude'], y=catalog['latitude'], color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30, 
         else:
             fig.plot(x=catalog['longitude'], y=catalog['latitude'], size=eq_size, color=eq_tref, cmap=True, style="cc", transparency=10, pen="0.01p,black")  # , no_clip="r"
         fig.colorbar(frame='af+l"Days relative to {}"'.format(time_ref))
