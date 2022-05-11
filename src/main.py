@@ -78,6 +78,7 @@ class MALMI:
             grid['rotAngle']: rotation angle in decimal degrees of the rectrangular region 
                               in degrees clockwise relative to the Y-axis.
                               Default is 0.0. (float, min:-360.0, max:360.0)
+                              Not used currently!
             grid['xOrig']: X location of the grid origin in km relative to the 
                            geographic origin (positive: east).
                            optional, default value is 0.0. Type: [float].
@@ -145,6 +146,10 @@ class MALMI:
                 element wise power over the phase probabilities before stacking, 
                 if None, no powering is applied, and use original data for stacking.
                 The default is 4.
+            MIG['output_migv'] : boolen, optional
+                specify whether to output the migrated data volume for each detected event.
+                The migrated data volume could be large if the migration grid is large;
+                If so to save disk space, set MIG['output_migv'] = False.
 
         Returns
         -------
@@ -154,7 +159,7 @@ class MALMI:
         
         from traveltime import build_traveltime
         from ioformatting import read_stationinfo
-        from xcoordinate import get_lokicoord
+        from xcoordinate import get_regioncoord
         from utils_plot import plot_basemap
         
         # set default parameters----------------------------------------------- 
@@ -242,6 +247,9 @@ class MALMI:
         
         if 'ppower' not in MIG:
             MIG['ppower'] = 4
+            
+        if 'output_migv' not in MIG:
+            MIG['output_migv'] = True
         #----------------------------------------------------------------------
         
         self.seisdatastru = copy.deepcopy(seismic['datastru'])
@@ -291,18 +299,20 @@ class MALMI:
             # if migration part is not performed, then no need to sep up grid and travel-time information
             print('Skip grid set up and skip travel-time table building!')
         else:
-            # set up grid
-            # build or check travel-time data set
-            grid = build_traveltime(grid, tt, self.stainv)
+            # set up grid and traveltime tables
+            
+            if tt is not None:
+                # build or check traveltime data set
+                grid = build_traveltime(grid, tt, self.stainv)
             self.grid = copy.deepcopy(grid)
-            sta_inv1, region1, mgregion = get_lokicoord(tt['dir'], tt['hdr_filename'], 0.05, consider_mgregion=True)  # obtain migration region lon/lat range
-            self.grid['mgregion'] = mgregion  # migration region lat/lon range, [lon_min, lon_max, lat_min, lat_max] in degree
+            region1, mgregion = get_regioncoord(self.grid, self.stainv, 0.05, consider_mgregion=True)  # obtain migration region lon/lat range
+            self.grid['mgregion'] = copy.deepcopy(mgregion)  # migration region lat/lon range, [lon_min, lon_max, lat_min, lat_max] in degree
         
             # plot stations and migration region for checking
             if control['plot_map']:
                 fname1 = os.path.join(control['dir_output'], "basemap_stations_mgarea.png")
                 if not os.path.isfile(fname1):
-                    plot_basemap(region1, sta_inv1, mgregion, fname1, False, '30s')
+                    plot_basemap(region1, self.stainv, mgregion, fname1, False, '30s')
         
             # travetime dataset related information
             self.dir_tt = copy.deepcopy(tt['dir'])  # path to travetime data set
@@ -504,6 +514,7 @@ class MALMI:
             inputs['npr'] = self.n_processor  # number of cores to run
         inputs['normthrd'] = self.MIG['probthrd']  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
         inputs['ppower'] = self.MIG['ppower']  # compute array element wise power over the input probabilities before stacking
+        inputs['output_migv'] = self.MIG['output_migv']  # specify whether to output the migrated data volume for each event
         comp = ['P','S']  # when input data are probabilities of P- and S-picks, comp must be ['P', 'S']
         extension = '*'  # seismic data filename for loading, accept wildcard input, for all data use '*'
         
