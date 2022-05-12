@@ -97,7 +97,7 @@ python run_MALMI.py
 ```
 
 ## Reference 
-Please cite the following paper in your documents if you use MALMI in your work.
+Please cite the following paper in your documents if you use MALMI in your work.  
 Peidong Shi, Francesco Grigoli, Federica Lanza, Gregory C. Beroza, Luca Scarabello, Stefan Wiemer; MALMI: An Automated Earthquake Detection and Location Workflow Based on Machine Learning and Waveform Migration. Seismological Research Letters 2022; doi: [https://doi.org/10.1785/0220220071](https://doi.org/10.1785/0220220071)
 
 BibTex:
