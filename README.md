@@ -97,14 +97,10 @@ python run_MALMI.py
 ```
 
 ## Reference 
-We are current working on a paper about MALMI. When it is published, we will update the paper information here. Please cite the paper in your documents if you use MALMI. We currently have a manuscript on arXiv, will update the information here soon.
-
-We had a talk about the MALMI system and real data applications at AGU 2021 Fall Meeting. Detail information as below:  
-Abstract ID: 932446  
-Abstract Title: An End-to-end Seismic Catalog Builder From Continuous Seismic Data Based on Machine Learning and Waveform Migration  
-Final Paper Number: S31A-06  
-Presentation Type: Oral Session  
-Session Number and Title: S31A: Decoding Geophysical Signatures With Machine Learning: Novel Methods and Results I Oral (S31A-06)
+Please cite the paper in your documents if you use MALMI.
+```
+Peidong Shi, Francesco Grigoli, Federica Lanza, Gregory C. Beroza, Luca Scarabello, Stefan Wiemer; MALMI: An Automated Earthquake Detection and Location Workflow Based on Machine Learning and Waveform Migration. Seismological Research Letters 2022; doi: https://doi.org/10.1785/0220220071
+```
 
 ## License 
 This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. For more details, see in the license file.
