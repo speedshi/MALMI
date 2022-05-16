@@ -1,4 +1,5 @@
-# MALMI (MAchine Learning Migration Imaging) 
+# MALMI (MAchine Learning aided earthquake MIgration location)  
+MALMI is developed on a Linux OS system. Therefore, we suggest using MALMI on Linux. For using MALMI on Windows and Max OS systems, we anticipated there might be problems during compiling and running. Please feel free to create "Pull requests" or suggest changes if you solve problems/bugs in Windows and Max OS systems.
 
 ## Installation 
 We suggest to create and work in a new python environment for MALMI. The installation is done via Anaconda. For more information see [conda](https://docs.conda.io/en/latest/).
