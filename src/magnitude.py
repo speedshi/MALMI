@@ -20,7 +20,7 @@ from obspy import UTCDateTime
 import warnings
 
 
-def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='amplitude'):
+def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='amplitude', staavenum='all'):
     """
     To calculate magnitude according to relative amplitude ratio.
     At least one event must match between the input catalog and the reference catalog.
@@ -75,8 +75,8 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
             is chosen as the phase amplitude.
     mode : char, optional
         Determine the order of refernce events for magnitude estimation. 
-        "closest" : determine event magnitude from the closest avaliable event in the reference catalog;
-        "largest" : determine event magnitude from the largest avaliable event in the reference catalog;
+        "closest" : determine event magnitude from the closest avaliable matched-event in the reference catalog;
+        "largest" : determine event magnitude from the largest avaliable matched-event in the reference catalog;
         The default is 'closest'.
     distmode : char, optional
         clarify how to calculate inter-event distance.
@@ -88,6 +88,13 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
         "amplitude" : determine event magnitude from the station with largest amplitude;
         "station_dist" : determine event magnitude from the closest avaliable station;
         The default is 'amplitude'.
+    staavenum : int or str, optional
+        specify the total number of stations to average for calculating magnitude.
+        if staavenum is "all", then use all avaliable stations to averge;
+        if staavenum > the total number of avaliable stations, then use all avaliable stations;
+        For example staavenum = 1, i.e. use the first amplitude ratio in the station list (sorted according to 'sorder')
+        to calculate magnitude.
+        Default is 'all', i.e. use all avaliable stations to obtain the avarege value to calculate magnitude.
 
     Raises
     ------
@@ -186,14 +193,11 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                         vdist_km = event_match_depth_km[jj] - catalog['depth_km'][iev]
                         distmx[jj] = np.sqrt(hdist_km*hdist_km + vdist_km*vdist_km)
                 else:
-                    raise ValueError('Input distmode not recognized!')
-                    
+                    raise ValueError('Input distmode not recognized!')    
                 eidxref_sorted = np.argsort(distmx)  # sorted index according to inter-event distances in ascending order    
-            
             elif mode == 'largest':
                 # determine magnitude according to the largest matched event in the reference catalog
                 pass  # 'eidxref_sorted' already calculated before
-                
             else:
                 raise ValueError('Input mode not recognized!')
             
@@ -264,7 +268,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                             ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
                 
                 elif mgcalpara['phase'] == 'PS':
-                    if ('P' in arrvt[sta]) and ('S' in arrvt[sta]):
+                    if ('P' in arrvt[sta]) and ('S' in arrvt[sta]):  # note require having both P and S phases
                         if stream.select(station=sta).count()==3:
                             # should have 3 component data
                             ev_stalist.append(sta)
@@ -307,7 +311,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                 ev_Pamplitude = np.array(ev_Pamplitude)
                 ev_Samplitude = np.array(ev_Samplitude)
                 if sorder == 'amplitude':
-                    llindex = np.argsort(-1.0*(ev_Pamplitude+ev_Samplitude))  # get the station ordered according to amplitude descending order
+                    llindex = np.argsort(-1.0*(ev_Pamplitude+ev_Samplitude))  # get the station ordered according to amplitude descending order. Note here use the sum amplitude of P and S
                 elif sorder == 'station_dist':
                     llindex = np.argsort(ev_ssdist)  # get the station ordered according to event-station distance ascending order
                 ev_Pamplitude = ev_Pamplitude[llindex]
@@ -422,30 +426,50 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                 evref_amplitude = np.array(evref_amplitude)
                 evref_Pamplitude = np.array(evref_Pamplitude)
                 evref_Samplitude = np.array(evref_Samplitude)
+                ampratio = []
+                ampratio_P = []
+                ampratio_S = []
                 for iqq in range(len(ev_stalist)):
+                    # loop over each station in the station list of the new event
                     if ev_stalist[iqq] in evref_stalist:
-                        # one commen staiton match, then we can calculate the relative magnitude
+                        # the current station both exist in the station list of the new event and the reference event
                         starefindx = (evref_stalist == ev_stalist[iqq])
                         assert(sum(starefindx)==1)
                         if (mgcalpara['phase'] == 'P') or (mgcalpara['phase'] == 'S'):
-                            ampratio = (ev_amplitude[iqq] * ev_ssdist[iqq]) / (evref_amplitude[starefindx][0] * evref_ssdist[starefindx][0])  # note here we correct the amplitude ratio using event-station distance to account for geometric spreading
-                            catalog_new['magnitude'].append(event_match_magnitude[ekk] + np.log10(ampratio))
-                            magnitude_done = True
-                            break
+                            ampratio.append((ev_amplitude[iqq] * ev_ssdist[iqq]) / (evref_amplitude[starefindx][0] * evref_ssdist[starefindx][0]))  # note here we correct the amplitude ratio using event-station distance to account for geometric spreading
                         elif mgcalpara['phase'] == 'PS':
-                            ampratio_P = (ev_Pamplitude[iqq] * ev_ssdist[iqq]) / (evref_Pamplitude[starefindx][0] * evref_ssdist[starefindx][0])
-                            ampratio_S = (ev_Samplitude[iqq] * ev_ssdist[iqq]) / (evref_Samplitude[starefindx][0] * evref_ssdist[starefindx][0])
-                            ESTMP = event_match_magnitude[ekk] + np.log10(ampratio_P)
-                            ESTMS = event_match_magnitude[ekk] + np.log10(ampratio_S)
-                            catalog_new['magnitude'].append(0.5*(ESTMP + ESTMS))
-                            magnitude_done = True
-                            break
+                            ampratio_P.append((ev_Pamplitude[iqq] * ev_ssdist[iqq]) / (evref_Pamplitude[starefindx][0] * evref_ssdist[starefindx][0]))
+                            ampratio_S.appedn((ev_Samplitude[iqq] * ev_ssdist[iqq]) / (evref_Samplitude[starefindx][0] * evref_ssdist[starefindx][0]))
                         else:
                             raise ValueError('Incorrent input for mgcalpara[\'phase\']!')
+                    else:
+                        # the current station does not exist in the station list of the reference event
+                        pass
                 
-                if magnitude_done:
-                    # magnitude already determined, no need to look at the rest matched events
-                    break
+                if (mgcalpara['phase'] == 'P') or (mgcalpara['phase'] == 'S'):
+                    NN_stacom = len(ampratio)
+                    if NN_stacom > 0:
+                        if (staavenum == 'all') or (staavenum > NN_stacom):
+                            # average over all avaliable stations
+                            ampratio_ave = np.array(ampratio).mean()
+                        else:
+                            # average over 'staavenum' stations
+                            ampratio_ave = np.array(ampratio[:staavenum]).mean()
+                        catalog_new['magnitude'].append(event_match_magnitude[ekk] + np.log10(ampratio_ave))
+                        magnitude_done = True
+                        break  # magnitude already determined, no need to look at the rest of the matched events
+                elif mgcalpara['phase'] == 'PS':
+                    NN_stacom = min(len(ampratio_P), len(ampratio_S))
+                    if NN_stacom > 0:
+                        if (staavenum == 'all') or (staavenum > NN_stacom):
+                            # average over all avaliable stations
+                            ampratio_ave = np.array(ampratio_P+ampratio_S).mean()
+                        else:
+                            # average over 'staavenum' stations
+                            ampratio_ave = np.array(ampratio_P[:staavenum]+ampratio_S[:staavenum]).mean()
+                        catalog_new['magnitude'].append(event_match_magnitude[ekk] + np.log10(ampratio_ave))
+                        magnitude_done = True
+                        break  # magnitude already determined, no need to look at the rest of the matched events
             
             if not magnitude_done:
                 # no common station matched, cannot determine magnitude

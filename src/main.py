@@ -525,7 +525,7 @@ class MALMI:
         return
     
         
-    def rsprocess_view(self, getMLpick=True, plotwaveforms=True):
+    def rsprocess_view(self, getMLpick=True, PLT={}):
         """
         Visualize some results.
         
@@ -534,10 +534,12 @@ class MALMI:
         getMLpick : boolen, optional
             whether to extract ML picks according to theretical arrivaltimes.
             The default value is True.
-        plotwaveforms : boolen, optional
-            whether to plot the seismic waveforms (overlapped with ML probabilites 
+        PLT : dict, optional
+            contains parameters to plot the seismic waveforms (overlapped with ML probabilites 
             and theoretical arrivaltimes) of each event.
-            The default value is True.
+            The default value is {}. If it is None, then not plotting waveforms.
+            PLT['component'] : list of str, specify the seismic data components to be plotted,
+                               e.g. ['Z', 'N', 'E'], ['Z', '1', '2'], ['Z', 'E'];
         
         Returns
         -------
@@ -567,14 +569,17 @@ class MALMI:
                                     thephase_ftage='.phs', ofname=None)
             
             # plot waveforms overlapped with ML probabilites and theoretical arrivaltimes
-            if plotwaveforms:
+            if PLT is not None:
                 file_arrvt_list = glob.glob(dir_output_ev+'/*.phs', recursive=True)
                 if len(file_arrvt_list) == 1:
                     file_arrvt = file_arrvt_list[0]
                     arrvtt = read_arrivaltimes(file_arrvt)
                 else:
                     arrvtt = None
-                comp = [ich[-1] for ich in self.seismic_channels]  # get components of seismic data
+                if 'component' in PLT:
+                    comp = PLT['component']
+                else:
+                    comp = [ich[-1] for ich in self.seismic_channels]  # get components of seismic data
                 seischar_plot(dir_seis=dir_seis_ev, dir_char=dir_prob_ev, dir_output=dir_output_ev, 
                               figsize=(12, 12), comp=comp, dyy=1.8, fband=self.freqband, 
                               normv=self.MIG['probthrd'], ppower=self.MIG['ppower'], tag=None, staname=None, 
@@ -982,4 +987,38 @@ class MALMI:
         return
     
     
-    
+    def estmate_magnitue(self, MG):
+        """
+        Determine the magnitude for events in the input catalog.
+
+        Parameters
+        ----------
+        MG : dict
+            contains input parameters.
+            MG['engine'] : str
+                specify the method for determining event magnitude; can be:
+                'relative' : relative amplitude ratio method, will need another 
+                             reference catalog (at least have one matched event) 
+                             which have magnitude information.
+        Returns
+        -------
+        None.
+
+        """
+        
+        
+        if 'engine' not in MG:
+            MG['engine'] = 'relative'
+        
+            
+        
+        if MG['engine'] == 'relative':
+            # use relative amplitude ratio to determine magnitude 
+            pass
+        else:
+            pass
+        
+        
+        return
+
+
