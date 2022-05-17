@@ -606,6 +606,8 @@ class MALMI:
             data segments of seismic data set for ML predictions.
         CL['hdf5_prob'] : boolean
             whether to delete the continuous probability hdf5 files.
+        CL['migration_volume'] : boolen
+            whether to delete the final migration volume of each event.
         """
         
         if CL is None:
@@ -619,6 +621,9 @@ class MALMI:
             
         if 'hdf5_prob' not in CL:
             CL['hdf5_prob'] = True
+            
+        if 'migration_volume' not in CL:
+            CL['migration_volume'] = False
         
         print('MALMI starts to clear some intermediate results for saving disk space:')
         if CL['mseed']:
@@ -632,6 +637,12 @@ class MALMI:
             prob_h5files = glob.glob(self.dir_prob + '/**/*.hdf5', recursive=True)
             for ipf in prob_h5files:
                 os.remove(ipf)
+        
+        if CL['migration_volume']:
+            # remove the final migration volume of each event
+            migration_volume_npy = glob.glob(self.dir_lokiout + '/**/corrmatrix_*.npy', recursive=True)
+            for imigf in migration_volume_npy:
+                os.remove(imigf)
         
         gc.collect()        
         print('MALMI_clear_interm complete!')
@@ -1000,6 +1011,9 @@ class MALMI:
                 'relative' : relative amplitude ratio method, will need another 
                              reference catalog (at least have one matched event) 
                              which have magnitude information.
+            MG['catalog'] : str or obspy events object.
+                            the input catalog that need magnitude determination; 
+            
         Returns
         -------
         None.
@@ -1017,7 +1031,6 @@ class MALMI:
             pass
         else:
             pass
-        
         
         return
 
