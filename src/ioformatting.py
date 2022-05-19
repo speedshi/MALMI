@@ -268,9 +268,10 @@ def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*
                     dcount += 1
             del stdata
     
-        # round datetime to the nearest second, and convert to the setted string format
-        starttime_str = to_datetime(starttime.datetime).round('1s').strftime(timeformat)
-        endtime_str = to_datetime(endtime.datetime).round('1s').strftime(timeformat)
+        if dcount > 0:
+            # round datetime to the nearest second, and convert to the setted string format
+            starttime_str = to_datetime(starttime.datetime).round('1s').strftime(timeformat)
+            endtime_str = to_datetime(endtime.datetime).round('1s').strftime(timeformat)
     
         # output data for each station, the data from the same station are output 
         # to the same folder
