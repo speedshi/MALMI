@@ -352,6 +352,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
         specify the output figure size, e.g (12, 12).
     comp : list of str, default: ['Z','N','E']
         specify to plot which component, each component is plot in one figure.
+        if None or [], then automatically extract it from input stream. 
     dyy : float, default: 1.8
         the y-axis interval between different station data when plotting.
     fband : list of float, default: None
@@ -420,6 +421,14 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
     
     # get the date info of data set
     this_date = stream[0].stats.starttime.date
+    
+    if not comp:
+        # no input component, i.e. comp = None or []
+        # search for all available components in the input stream
+        comp = []
+        for tr in stream:
+            if tr.stats.channel[-1] not in comp:
+                comp.append(tr.stats.channel[-1])
     
     # get station names
     if staname is None:

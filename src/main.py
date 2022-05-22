@@ -579,7 +579,10 @@ class MALMI:
                 if 'component' in PLT:
                     comp = PLT['component']
                 else:
-                    comp = [ich[-1] for ich in self.seismic_channels]  # get components of seismic data
+                    if not self.seismic_channels:
+                        comp = self.seismic_channels  # if self.seismic_channels = None or []
+                    else:
+                        comp = [ich[-1] for ich in self.seismic_channels]  # get components of seismic data
                 seischar_plot(dir_seis=dir_seis_ev, dir_char=dir_prob_ev, dir_output=dir_output_ev, 
                               figsize=(12, 12), comp=comp, dyy=1.8, fband=self.freqband, 
                               normv=self.MIG['probthrd'], ppower=self.MIG['ppower'], tag=None, staname=None, 
