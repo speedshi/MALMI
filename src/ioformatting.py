@@ -58,16 +58,47 @@ def read_stationinfo(file_station):
         stainfo = read_inventory(file_station, format="STATIONTXT")
     elif stafile_suffix == 'csv' or stafile_suffix == 'CSV':
         # simple CSV format
-        stainfo = Inventory(networks=[])
-        stadf = pd.read_csv(file_station, delimiter=',', encoding='utf-8', 
-                            header="infer", skipinitialspace=True)  # names=['net','agency','sta code','description','lat','lon','altitude','type','up since','details']
-        for rid, row in stadf.iterrows():
-            net = Network(code=row['network'], stations=[])
-            sta = Station(code=row['station'],latitude=row['latitude'],longitude=row['longitude'],elevation=row['elevation'])
-            net.stations.append(sta)
-            stainfo.networks.append(net)
+        stainfo = read_stainv_csv(file_station)
     
     return stainfo
+
+
+def read_stainv_csv(file_stainv):
+    """
+    Read in the csv format station inventory file, and format it to obspy station inventory object.
+
+    The input CSV file using ',' as the delimiter in which the first row 
+    is column name and must contain: 'network', 'station', 'latitude', 
+    'longitude', 'elevation'. Latitude and longitude are in decimal degree 
+    and elevation in meters relative to the sea-level (positive for up).
+
+    Parameters
+    ----------
+    file_stainv : str
+        filename of the input station inventory of csv format.
+
+    Returns
+    -------
+    stainv : obspy station inventory object.
+
+    """
+    
+    stainv = Inventory(networks=[])
+    stadf = pd.read_csv(file_stainv, delimiter=',', encoding='utf-8', 
+                        header="infer", skipinitialspace=True)
+    net_dict = {}
+    for rid, row in stadf.iterrows():
+        if row['network'] not in net_dict.keys():
+            net = Network(code=row['network'], stations=[])
+            net_dict[row['network']] = net
+        sta = Station(code=row['station'], latitude=row['latitude'], 
+                      longitude=row['longitude'], elevation=row['elevation'])
+        net_dict[row['network']].stations.append(sta)
+    
+    for inet in net_dict.keys():
+        stainv.networks.append(net_dict[inet])
+    
+    return stainv
 
 
 def read_seismic_fromfd(dir_seismic, channels=None):
@@ -83,9 +114,9 @@ def read_seismic_fromfd(dir_seismic, channels=None):
     -------
     stream : obspy stream
         containing all seismic data.
-    channels : str
-        channel name for loading data, default: None;
-        if None then loading all available channels in the stream.
+    channels : list of str
+        channel name for loading data, e.g. ['HHE', 'HHN', 'HHZ'].
+        default: None; if None then loading all available channels in the stream.
 
     """
     
@@ -818,7 +849,7 @@ def read_arrivaltimes(file_arrvt):
     return arrvtt
 
 
-def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', cata_fold='*', dete_fold='*'):
+def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', cata_fold='*', dete_fold='*', search_fold=None):
     """
     This function is used to concatenate the catalogs together from the data base.
 
@@ -826,6 +857,7 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
     ----------
     dir_dateset : str
         Path to the parent folder of catalog file and phase file.
+        (corresponding to the 'dir_MIG' folder in the MALMI main.py script).
     cata_ftag : str, optional
         Catalog filename. The default is 'catalogue'.
     dete_ftag : str, optional
@@ -834,6 +866,10 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
         Catalog-file parent folder name. The default is '*'.
     dete_fold : str, optional
         Detection-file parent folder name. The default is '*'.
+    search_fold : list of str, optional
+        The MALMI result folders which contains catalog files. 
+        (corresponding to the 'fd_seismic' folder in the MALMI main.py script).
+        The default is None, which means all avaliable folders in 'dir_dateset'.
 
     Returns
     -------
@@ -855,9 +891,18 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
     """
     
     assert(os.path.exists(dir_dateset))
-
-    file_cata = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
-    file_dete = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(dete_fold,dete_ftag)), recursive = True))  # file list of detection files
+    
+    if search_fold is None:
+        file_cata = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
+        file_dete = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(dete_fold,dete_ftag)), recursive = True))  # file list of detection files
+    elif isinstance(search_fold, list) and (isinstance(search_fold[0], str)):
+        file_cata = []
+        file_dete = []
+        for ifld in search_fold:
+            file_cata += sorted(glob.glob(os.path.join(dir_dateset, '{}/{}/{}'.format(ifld,cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
+            file_dete += sorted(glob.glob(os.path.join(dir_dateset, '{}/{}/{}'.format(ifld,dete_fold,dete_ftag)), recursive = True))  # file list of detection files
+    else:
+        raise ValueError('Wrong input format for: {}! Can only be None or list of str!'.format(search_fold))
     
     assert(len(file_cata) == len(file_dete))  # should correspond
     
@@ -1365,7 +1410,7 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
 
 def dict2csv(indic, filename=None):
     """
-    Write a input dictory to a CSC file.
+    Write an input dictionary to a CSV file.
 
     Parameters
     ----------

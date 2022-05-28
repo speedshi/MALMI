@@ -775,6 +775,11 @@ class MALMI:
             parameters controlling the process of retriving catalog.
             CAT['extract'] : boolen, default is 'True'
                 whether to extract the catalog from processing results.
+            CAT['search_fold'] : list of str, optional
+                The MALMI result folders which contains catalog files.
+                Will search catalog files from this fold list.
+                (This corresponds to the 'fd_seismic' folder).
+                The default is None, which means all avaliable folders in 'dir_dateset'.
             CAT['dir_output'] : str
                 directory for outputting catalogs.
                 default value is related to the current project directory.
@@ -826,7 +831,10 @@ class MALMI:
         
         if 'extract' not in CAT:
             CAT['extract'] = True
-            
+        
+        if 'search_fold' not in CAT:
+            CAT['search_fold'] = None
+        
         if 'dir_output' not in CAT:
             CAT['dir_output'] = os.path.join(self.dir_projoutput, 'catalogs')
             
@@ -877,7 +885,7 @@ class MALMI:
         if CAT['extract']:
             # extract catlog from processing results
             catalog = retrive_catalog(dir_dateset=self.dir_MIG, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', 
-                                      cata_fold=self.fld_migresult, dete_fold=self.fld_prob)
+                                      cata_fold=self.fld_migresult, dete_fold=self.fld_prob, search_fold=CAT['search_fold'])
         
             if CAT['fformat'] == 'pickle':
                 # save the extracted original catalog in pickle format
