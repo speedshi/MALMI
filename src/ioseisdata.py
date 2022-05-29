@@ -113,7 +113,7 @@ def format_SDS(seisdate, stainv, dir_seismic, seismic_channels, dir_output, loca
                     if len(datapath2)==0:
                         print("No data found for channel: {}! Pass!".format(icha))
                     elif len(datapath2)==1:
-                        datapath3 = os.path.join(datapath2[0], '*'+str(tday))  # date level
+                        datapath3 = os.path.join(datapath2[0], '*.{:03d}'.format(tday))  # date level
                         sdatafile = glob.glob(datapath3)  # final seismic data filename for the specified station, component and date
                         if len(sdatafile)==0:
                             print("No data found for date: {} (no {} file)! Pass!".format(seisdate, datapath3))
