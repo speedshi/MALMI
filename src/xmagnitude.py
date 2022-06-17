@@ -18,9 +18,10 @@ import glob
 import datetime
 from obspy import UTCDateTime
 import warnings
+from xcatalog import catalog_matchref
 
 
-def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='amplitude', staavenum='all'):
+def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='amplitude', staavenum='all'):
     """
     To calculate magnitude according to relative amplitude ratio.
     At least one event must match between the input catalog and the reference catalog.
@@ -53,7 +54,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
     stations : dict
         contains station information.
         required keys:
-            stations['stationCode'] : the station name
+            stations['station'] : the station name
             stations['latitude']
             stations['longitude']
             stations['elevation']
@@ -116,7 +117,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
     if mgcalpara is None:
         mgcalpara = {}
         mgcalpara['freq'] = [3, 40]  # in Hz
-        mgcalpara['phase'] = 'P'  # which phase to use for extracting amplitude ratio, can be 'P', 'S' or 'PS'
+        mgcalpara['phase'] = 'S'  # which phase to use for extracting amplitude ratio, can be 'P', 'S' or 'PS'
         mgcalpara['P_start'] = -0.5  # negtive value means time duration before a datetime
         mgcalpara['P_end'] = 0.6
         mgcalpara['S_start'] = -0.5  # negtive value means time duration before a datetime
@@ -241,7 +242,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                                                             stream_sta[1].data*stream_sta[1].data + 
                                                             stream_sta[2].data*stream_sta[2].data)))
                             
-                            staindx = (stations['stationCode'] == sta)
+                            staindx = (stations['station'] == sta)
                             assert(sum(staindx)==1)
                             hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
                                                                  catalog['latitude'][iev], catalog['longitude'][iev])
@@ -260,7 +261,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                                                             stream_sta[1].data*stream_sta[1].data + 
                                                             stream_sta[2].data*stream_sta[2].data)))
                             
-                            staindx = (stations['stationCode'] == sta)
+                            staindx = (stations['station'] == sta)
                             assert(sum(staindx)==1)
                             hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
                                                                  catalog['latitude'][iev], catalog['longitude'][iev])
@@ -286,7 +287,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                                                              stream_sta[1].data*stream_sta[1].data + 
                                                              stream_sta[2].data*stream_sta[2].data)))
                             
-                            staindx = (stations['stationCode'] == sta)
+                            staindx = (stations['station'] == sta)
                             assert(sum(staindx)==1)
                             hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
                                                                  catalog['latitude'][iev], catalog['longitude'][iev])
@@ -364,7 +365,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                                                                    stream_sta[1].data*stream_sta[1].data + 
                                                                    stream_sta[2].data*stream_sta[2].data)))
                                 
-                                staindx = (stations['stationCode'] == sta)
+                                staindx = (stations['station'] == sta)
                                 assert(sum(staindx)==1)
                                 hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
                                                                      event_match_latitude[ekk], event_match_longitude[ekk])
@@ -383,7 +384,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                                                                    stream_sta[1].data*stream_sta[1].data + 
                                                                    stream_sta[2].data*stream_sta[2].data)))
                                 
-                                staindx = (stations['stationCode'] == sta)
+                                staindx = (stations['station'] == sta)
                                 assert(sum(staindx)==1)
                                 hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
                                                                      event_match_latitude[ekk], event_match_longitude[ekk])
@@ -409,7 +410,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                                                                     stream_sta[1].data*stream_sta[1].data + 
                                                                     stream_sta[2].data*stream_sta[2].data)))
                                 
-                                staindx = (stations['stationCode'] == sta)
+                                staindx = (stations['station'] == sta)
                                 assert(sum(staindx)==1)
                                 hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
                                                                      event_match_latitude[ekk], event_match_longitude[ekk])
@@ -439,7 +440,7 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
                             ampratio.append((ev_amplitude[iqq] * ev_ssdist[iqq]) / (evref_amplitude[starefindx][0] * evref_ssdist[starefindx][0]))  # note here we correct the amplitude ratio using event-station distance to account for geometric spreading
                         elif mgcalpara['phase'] == 'PS':
                             ampratio_P.append((ev_Pamplitude[iqq] * ev_ssdist[iqq]) / (evref_Pamplitude[starefindx][0] * evref_ssdist[starefindx][0]))
-                            ampratio_S.appedn((ev_Samplitude[iqq] * ev_ssdist[iqq]) / (evref_Samplitude[starefindx][0] * evref_ssdist[starefindx][0]))
+                            ampratio_S.append((ev_Samplitude[iqq] * ev_ssdist[iqq]) / (evref_Samplitude[starefindx][0] * evref_ssdist[starefindx][0]))
                         else:
                             raise ValueError('Incorrent input for mgcalpara[\'phase\']!')
                     else:
@@ -483,5 +484,45 @@ def malmi_relativemgest(catalog, catalog_ref, catalog_match, stations, mgcalpara
     return catalog_new
 
 
+def estimate_magnitude(MAGNI):
+    """
+    Determine event magnitude.
+
+    Parameters
+    ----------
+    MAGNI : dict
+        MAGNI['catalog']: dict, input catalog where event magnitude need to be determined;
+                          format see in the 'relative_amp' function;
+        MAGNI['engine']: str, method used for magnitude determination;
+                         options: 'relative';
+        if MAGNI['engine'] = 'relative', we also need:
+            MAGNI['catalog_ref']: dict, reference catalog with event magnitude;
+                                  format see in the 'relative_amp' function;
+            MAGNI['match_thrd_time']: float, time in second, detail see 'catalog_matchref';
+            MAGNI['stations']: dict, station information, detail see 'relative_amp';
+            MAGNI['mgcalpara']: dict, magnitude determination parameters, detail see 'relative_amp';
+        
+
+    Returns
+    -------
+    catalog : dict
+        catalog with event magnitude determined.
+
+    """
+
+    if MAGNI['engine'] == 'relative':
+        # use relative amplitude ratio to determine magnitude 
+        
+        # match the input catalog and the reference catalog
+        catalog_match = catalog_matchref(catalog=MAGNI['catalog'], catalog_ref=MAGNI['catalog_ref'], thrd_time=MAGNI['match_thrd_time'], thrd_hdis=None, thrd_depth=None, matchmode='time')
+        
+        catalog = relative_amp(catalog=MAGNI['catalog'], catalog_ref=MAGNI['catalog_ref'], 
+                               catalog_match=catalog_match, stations=MAGNI['stations'], 
+                               mgcalpara=MAGNI['mgcalpara'], mode='closest', distmode='3D', sorder='amplitude', staavenum='all')
+    else:
+        # other methods to be continue
+        raise ValueError('Wroing input for MAGNI[\'engine\']: {}!'.format(MAGNI['engine']))
+
+    return catalog
 
 

@@ -10,8 +10,6 @@ Created on Thu Jun 24 16:23:38 2021
 
 from pandas import to_datetime
 import os
-from obspy import read_inventory
-from obspy.core.inventory import Inventory, Network, Station
 import json
 import obspy
 from obspy import UTCDateTime
@@ -22,83 +20,6 @@ import numpy as np
 import glob
 import csv
 import copy
-
-
-def read_stationinfo(file_station):
-    """
-    To read in station metadata and returns an obspy invertory object.
-
-    Parameters
-    ----------
-    file_station : str
-        filename (inclusing path) of the station metadata. 
-        The data format should be recognizable by ObsPy, such as:
-            FDSNWS station text format: *.txt,
-            FDSNWS StationXML format: *.xml.
-        or a simply CSV file using ',' as the delimiter in which the first row 
-        is column name and must contain: 'network', 'station', 'latitude', 
-        'longitude', 'elevation'. Latitude and longitude are in decimal degree 
-        and elevation in meters relative to the sea-level (positive for up). 
-
-    Returns
-    -------
-    stainfo : obspy invertory object
-        contains station information, such as network code, station code, 
-        longitude, latitude, evelvation etc.
-
-    """
-    
-    # read station metadata
-    stafile_suffix = file_station.split('.')[-1]
-    if stafile_suffix == 'xml' or stafile_suffix == 'XML':
-        # input are in StationXML format
-        stainfo = read_inventory(file_station, format="STATIONXML")
-    elif stafile_suffix == 'txt' or stafile_suffix == 'TXT':
-        # input are in FDSNWS station text file format
-        stainfo = read_inventory(file_station, format="STATIONTXT")
-    elif stafile_suffix == 'csv' or stafile_suffix == 'CSV':
-        # simple CSV format
-        stainfo = read_stainv_csv(file_station)
-    
-    return stainfo
-
-
-def read_stainv_csv(file_stainv):
-    """
-    Read in the csv format station inventory file, and format it to obspy station inventory object.
-
-    The input CSV file using ',' as the delimiter in which the first row 
-    is column name and must contain: 'network', 'station', 'latitude', 
-    'longitude', 'elevation'. Latitude and longitude are in decimal degree 
-    and elevation in meters relative to the sea-level (positive for up).
-
-    Parameters
-    ----------
-    file_stainv : str
-        filename of the input station inventory of csv format.
-
-    Returns
-    -------
-    stainv : obspy station inventory object.
-
-    """
-    
-    stainv = Inventory(networks=[])
-    stadf = pd.read_csv(file_stainv, delimiter=',', encoding='utf-8', 
-                        header="infer", skipinitialspace=True)
-    net_dict = {}
-    for rid, row in stadf.iterrows():
-        if row['network'] not in net_dict.keys():
-            net = Network(code=row['network'], stations=[])
-            net_dict[row['network']] = net
-        sta = Station(code=row['station'], latitude=row['latitude'], 
-                      longitude=row['longitude'], elevation=row['elevation'])
-        net_dict[row['network']].stations.append(sta)
-    
-    for inet in net_dict.keys():
-        stainv.networks.append(net_dict[inet])
-    
-    return stainv
 
 
 def read_seismic_fromfd(dir_seismic, channels=None):
@@ -338,7 +259,7 @@ def stainv2json(stainfo, mseed_directory, dir_json):
     ----------
     stainfo : obspy invertory object
         contains station information, such as network code, station code, 
-        longitude, latitude, evelvation etc. can be obtained using function: 'read_stationinfo'.
+        longitude, latitude, evelvation etc. can be obtained using function: 'xstation.load_station'.
     mseed_directory : str
         String specifying the path to the directory containing miniseed files. 
         Directory must contain subdirectories of station names, which contain miniseed files 
@@ -849,565 +770,6 @@ def read_arrivaltimes(file_arrvt):
     return arrvtt
 
 
-def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', cata_fold='*', dete_fold='*', search_fold=None):
-    """
-    This function is used to concatenate the catalogs together from the data base.
-
-    Parameters
-    ----------
-    dir_dateset : str
-        Path to the parent folder of catalog file and phase file.
-        (corresponding to the 'dir_MIG' folder in the MALMI main.py script).
-    cata_ftag : str, optional
-        Catalog filename. The default is 'catalogue'.
-    dete_ftag : str, optional
-        Detection filename. The default is 'event_station_phase_info.txt'.
-    cata_fold : str, optional
-        Catalog-file parent folder name. The default is '*'.
-    dete_fold : str, optional
-        Detection-file parent folder name. The default is '*'.
-    search_fold : list of str, optional
-        The MALMI result folders which contains catalog files. 
-        (corresponding to the 'fd_seismic' folder in the MALMI main.py script).
-        The default is None, which means all avaliable folders in 'dir_dateset'.
-
-    Returns
-    -------
-    mcatalog : dic
-        The final obtained catalog which concatenates all the catalog files.
-        mcatalog['id'] : id of the event;
-        mcatalog['time'] : origin time;
-        mcatalog['latitude'] : latitude in degree;
-        mcatalog['longitude'] : logitude in degree;
-        mcatalog['depth_km'] : depth in km;
-        mcatalog['coherence_max'] : maximum coherence of migration volume;
-        mcatalog['coherence_std'] : standard deviation of migration volume;
-        mcatalog['coherence_med'] : median coherence of migration volume;
-        mcatalog['starttime'] : detected starttime of the event;
-        mcatalog['endtime'] : detected endtime of the event;
-        mcatalog['station_num'] : total number of stations triggered of the event;
-        mcatalog['phase_num'] : total number of phases triggered of the event;
-        mcatalog['dir'] : directory of the migration results of the event.
-    """
-    
-    assert(os.path.exists(dir_dateset))
-    
-    if search_fold is None:
-        file_cata = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
-        file_dete = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(dete_fold,dete_ftag)), recursive = True))  # file list of detection files
-    elif isinstance(search_fold, list) and (isinstance(search_fold[0], str)):
-        file_cata = []
-        file_dete = []
-        for ifld in search_fold:
-            file_cata += sorted(glob.glob(os.path.join(dir_dateset, '{}/{}/{}'.format(ifld,cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
-            file_dete += sorted(glob.glob(os.path.join(dir_dateset, '{}/{}/{}'.format(ifld,dete_fold,dete_ftag)), recursive = True))  # file list of detection files
-    else:
-        raise ValueError('Wrong input format for: {}! Can only be None or list of str!'.format(search_fold))
-    
-    assert(len(file_cata) == len(file_dete))  # should correspond
-    
-    # initialize the final catalog
-    mcatalog = {}
-    mcatalog['id'] = []  # id of the event
-    mcatalog['time'] = []  # origin time
-    mcatalog['latitude'] = []  # latitude in degree
-    mcatalog['longitude'] = []  # logitude in degree
-    mcatalog['depth_km'] = []  # depth in km
-    mcatalog['coherence_max'] = []  # maximum coherence of migration volume
-    mcatalog['coherence_std'] = []  # standard deviation of migration volume
-    mcatalog['coherence_med'] = []  # median coherence of migration volume
-    mcatalog['starttime'] = []  # detected starttime of the event
-    mcatalog['endtime'] = []  # detected endtime of the event
-    mcatalog['station_num'] = []  # total number of stations triggered of the event
-    mcatalog['phase_num'] = []  # total number of phases triggered of the event
-    mcatalog['dir'] = []  # directory of the migration results of the event
-    
-    eid = 0
-    # loop over each catalog/detection file and concatenate them together to make the final version
-    for ii in range(len(file_cata)):
-        assert(file_cata[ii].split('/')[-3] == file_dete[ii].split('/')[-3])  # they should share the common parent path
-    
-        # load catalog file
-        ctemp = read_lokicatalog(file_cata[ii])
-        
-        # load detection file
-        dtemp = read_malmipsdetect(file_dete[ii])
-        
-        assert(len(ctemp['time']) == len(dtemp['phase']))  # event number should be the same
-        for iev in range(len(ctemp['time'])):
-            assert(ctemp['time'][iev] <= dtemp['endtime'][iev])
-            
-            eid = eid + 1
-            mcatalog['id'].append(eid)  # event id
-            mcatalog['time'].append(ctemp['time'][iev])  # origin time
-            mcatalog['latitude'].append(ctemp['latitude'][iev])  # latitude in degree
-            mcatalog['longitude'].append(ctemp['longitude'][iev])  # logitude in degree
-            mcatalog['depth_km'].append(ctemp['depth_km'][iev])  # depth in km
-            mcatalog['coherence_max'].append(ctemp['coherence_max'][iev])  # maximum coherence of migration volume
-            mcatalog['coherence_std'].append(ctemp['coherence_std'][iev])  # standard deviation of migration volume
-            mcatalog['coherence_med'].append(ctemp['coherence_med'][iev])  # median coherence of migration volume
-            mcatalog['starttime'].append(dtemp['starttime'][iev])  # starttime of the event
-            mcatalog['endtime'].append(dtemp['endtime'][iev])  # endtime of the event
-            mcatalog['station_num'].append(dtemp['station'][iev])  # total number of stations triggered
-            mcatalog['phase_num'].append(dtemp['phase'][iev])  # total number of phases triggered
-            sss = file_cata[ii].split(os.path.sep)
-            if sss[0] == '':
-                # the input path: 'dir_dateset' is a absolute address
-                dir_ers = '{}'.format(os.path.sep)
-            else:
-                # the input path: 'dir_dateset' is a relative address
-                dir_ers = ''
-                
-            for pstr in sss[:-1]:
-                dir_ers = os.path.join(dir_ers, pstr)
-            dir_ers =  os.path.join(dir_ers, dtemp['starttime'][iev].isoformat())
-            assert(os.path.exists(dir_ers))
-            mcatalog['dir'].append(dir_ers)  # migration result direcotry of the event
-            
-        del ctemp, dtemp
-    
-    catakeys = list(mcatalog.keys())
-    for ikey in catakeys:
-        mcatalog[ikey] = np.array(mcatalog[ikey])
-    # mcatalog['id'] = np.array(mcatalog['id'])
-    # mcatalog['time'] = np.array(mcatalog['time'])  
-    # mcatalog['latitude'] = np.array(mcatalog['latitude'])
-    # mcatalog['longitude'] = np.array(mcatalog['longitude'])
-    # mcatalog['depth_km'] = np.array(mcatalog['depth_km'])
-    # mcatalog['coherence_max'] = np.array(mcatalog['coherence_max'])
-    # mcatalog['coherence_std'] = np.array(mcatalog['coherence_std'])
-    # mcatalog['coherence_med'] = np.array(mcatalog['coherence_med'])
-    # mcatalog['starttime'] = np.array(mcatalog['starttime'])
-    # mcatalog['endtime'] = np.array(mcatalog['endtime'])
-    # mcatalog['station_num'] = np.array(mcatalog['station_num'])
-    # mcatalog['phase_num'] = np.array(mcatalog['phase_num'])
-    # mcatalog['dir'] = np.array(mcatalog['dir'])
-    
-    return mcatalog
-
-
-def write_rtddstation(file_station, dir_output='./', filename='station.csv'):
-    """
-    This function is used to format the station file for scrtdd.
-
-    Parameters
-    ----------
-    file_station : str
-        filename of the input station file.
-    dir_output : str, optional
-        Directory for output file. The default is './'.
-    filename : str, optional
-        filename of output station file. The default is 'station.csv'.
-
-    Returns
-    -------
-    a csv format station file for rtdd.
-    
-    # example of output data fromat
-    # latitude,longitude,elevation,networkCode,stationCode,locationCode
-    # 45.980278,7.670195,3463.0,4D,MH36,A
-    # 45.978720,7.663000,4003.0,4D,MH48,A
-    # 46.585719,8.383171,2320.4,4D,RA43,
-    # 45.903349,6.885881,2250.0,8D,AMIDI,00
-    # 46.371345,6.873937,379.0,8D,NVL3,
-
-    """
-    
-    # load station infomation: SED COSEISMIQ CSV format, temporary format
-    stadf = pd.read_csv(file_station, delimiter=',', encoding='utf-8', 
-                        names=['net','location','sta code','description','lat',
-                               'lon','altitude','type','up since','details'], 
-                        dtype={'location':np.str}, keep_default_na=False)
-    
-    # make sure the output directory exist
-    if not os.path.exists(dir_output):
-        os.makedirs(dir_output)
-    
-    sf = open(os.path.join(dir_output, filename), 'w', newline='')
-    sfcsv = csv.writer(sf, delimiter=',', lineterminator="\n")
-    
-    sfheader = ['latitude', 'longitude', 'elevation', 'networkCode', 'stationCode', 'locationCode']
-    sfcsv.writerow(sfheader)
-    sf.flush()
-    
-    for ista in range(len(stadf)):
-        # staid = '{}.{}.{}'.format(stadf.loc[ista,'net'], stadf.loc[ista, 'sta code'], stadf.loc[ista, 'location'])
-        latitude = stadf.loc[ista, 'lat']
-        longitude = stadf.loc[ista, 'lon']
-        elevation = stadf.loc[ista, 'altitude']
-        networkCode = stadf.loc[ista, 'net']
-        stationCode = stadf.loc[ista, 'sta code']
-        locationCode = stadf.loc[ista, 'location']
-        
-        sfcsv.writerow([latitude, longitude, elevation, networkCode, stationCode, locationCode])
-        sf.flush()
-    
-    sf.close()
-    return
-
-
-def output_rtddstation(stainv, dir_output='./', filename='station.csv'):
-    """
-    This function is used to format the station file for scrtdd.
-    Note the input 'stainv' is a obspy station inventory.
-
-    Parameters
-    ----------
-    stainv : obspy station invertory
-        contains station information, such as network code, station code, 
-        longitude, latitude, evelvation etc.
-    dir_output : str, optional
-        Directory for output file. The default is './'.
-    filename : str, optional
-        filename of output station file. The default is 'station.csv'.
-
-    Returns
-    -------
-    a csv format station file for rtdd.
-    
-    # example of output data fromat
-    # latitude,longitude,elevation,networkCode,stationCode,locationCode
-    # 45.980278,7.670195,3463.0,4D,MH36,A
-    # 45.978720,7.663000,4003.0,4D,MH48,A
-    # 46.585719,8.383171,2320.4,4D,RA43,
-    # 45.903349,6.885881,2250.0,8D,AMIDI,00
-    # 46.371345,6.873937,379.0,8D,NVL3,
-
-    """
-    
-    # make sure the output directory exist
-    if not os.path.exists(dir_output):
-        os.makedirs(dir_output)
-    
-    sf = open(os.path.join(dir_output, filename), 'w', newline='')
-    sfcsv = csv.writer(sf, delimiter=',', lineterminator="\n")
-    
-    sfheader = ['latitude', 'longitude', 'elevation', 'networkCode', 'stationCode', 'locationCode']
-    sfcsv.writerow(sfheader)
-    sf.flush()
-    
-    for inet in stainv:
-        for ista in inet:
-            latitude = ista.latitude
-            longitude = ista.longitude
-            elevation = ista.elevation
-            networkCode = inet.code
-            stationCode = ista.code
-            if ista.channels:
-                locationCode = ista.channels[0].location_code
-            else:
-                locationCode = ''
-        
-        sfcsv.writerow([latitude, longitude, elevation, networkCode, stationCode, locationCode])
-        sf.flush()
-    
-    sf.close()
-    return
-
-
-def write_rtddeventphase(catalog, file_station, dir_output='./', filename_event='event.csv', filename_phase='phase.csv', phaseart_ftage='.phs'):
-    """
-    This function is used to format the event and phase files for scrtdd.
-
-    Parameters
-    ----------
-    catalog : dic
-        Event catalog information;
-        mcatalog['id'] : id of the event;
-        mcatalog['time'] : origin time;
-        mcatalog['latitude'] : latitude in degree;
-        mcatalog['longitude'] : logitude in degree;
-        mcatalog['depth_km'] : depth in km;
-        mcatalog['magnitude'] : magnitude;
-        mcatalog['dir'] : directory of the migration results of the event.
-    file_station : str
-        filename of the input station file.
-    dir_output : str, optional
-        Directory for output file. The default is './'.
-    filename_event : str, optional
-        filename of output event file. The default is 'event.csv'.
-    filename_phase : str, optional
-        filename of output phase file. The default is 'phase.csv'.
-    phaseart_ftage : str, optional
-        filename of the phase arrivaltime or picking time file.
-        The default is '.phs'.
-
-    Returns
-    -------
-    a csv format phase file for rtdd;
-    a csv format event file for rtdd;
-    
-    # example of event file:
-    # id,isotime,latitude,longitude,depth,magnitude,rms
-    # 1,2019-11-05T00:54:21.256705Z,46.318264,7.365509,4.7881,3.32,0.174
-    # 2,2019-11-05T01:03:06.484287Z,46.320718,7.365435,4.2041,0.64,0.138
-    # 3,2019-11-05T01:06:27.140654Z,46.325626,7.356148,3.9756,0.84,0.083
-    # 4,2019-11-05T01:12:25.753816Z,46.325012,7.353627,3.7090,0.39,0.144
-
-    # example of phase file:
-    # eventId,isotime,lowerUncertainty,upperUncertainty,type,networkCode,stationCode,locationCode,channelCode,evalMode
-    # 1,2019-11-05T00:54:22.64478Z,0.025,0.025,Pg,8D,RAW2,,HHZ,automatic
-    # 1,2019-11-05T00:54:23.58254Z,0.100,0.100,Sg,8D,RAW2,,HHT,manual
-    # 1,2019-11-05T00:54:22.7681Z,0.025,0.025,Pg,CH,SAYF2,,HGZ,manual
-    # 1,2019-11-05T00:54:24.007619Z,0.050,0.050,Sg,CH,STSW2,,HGT,manual
-    # 2,2019-11-05T01:03:08.867835Z,0.050,0.050,S,8D,RAW2,,HHT,manual
-    # 2,2019-11-05T01:03:07.977432Z,0.025,0.025,P,CH,SAYF2,,HGZ,manual
-    # 2,2019-11-05T01:03:08.9947Z,0.050,0.050,Sg,CH,SAYF2,,HGT,automatic
-    # 2,2019-11-05T01:03:09.12808Z,0.050,0.050,P,CH,STSW2,,HGR,manual
-    # 2,2019-11-05T01:03:09.409276Z,0.025,0.025,Sg,CH,SENIN,,HHT,automatic
-
-    """
-    
-    datetime_format = '%Y-%m-%dT%H:%M:%S.%fZ'  # datetime format in the output file
-    
-    # load station infomation: SED COSEISMIQ CSV format, temporary format
-    stadf = pd.read_csv(file_station, delimiter=',', encoding='utf-8', 
-                        names=['net','location','sta code','description','lat',
-                               'lon','altitude','type','up since','details'], 
-                        dtype={'location':np.str}, keep_default_na=False)
-    
-    # make sure the output directory exist
-    if not os.path.exists(dir_output):
-        os.makedirs(dir_output)
-    
-    # initialize event file
-    eventf = open(os.path.join(dir_output, filename_event), 'w', newline='')
-    eventf_writer = csv.writer(eventf, delimiter=',', lineterminator="\n")
-    eventf_header = ['id', 'isotime', 'latitude', 'longitude', 'depth', 'magnitude', 'rms']
-    eventf_writer.writerow(eventf_header)
-    eventf.flush()
-    
-    # initialize phase file
-    phasef = open(os.path.join(dir_output, filename_phase), 'w', newline='')
-    phasef_writer = csv.writer(phasef, delimiter=',', lineterminator="\n")
-    phasef_header = ['eventId','isotime','lowerUncertainty','upperUncertainty','type','networkCode','stationCode','locationCode','channelCode','evalMode']
-    phasef_writer.writerow(phasef_header)
-    phasef.flush()
-    
-    # loop over each event for output
-    for iev in range(len(catalog['id'])):
-        eventId = catalog['id'][iev]
-        isotime = catalog['time'][iev].strftime(datetime_format)
-        latitude = catalog['latitude'][iev]
-        longitude = catalog['longitude'][iev]
-        depth = catalog['depth_km'][iev]
-        if 'magnitude' in catalog:
-            # have magnitude info
-            magnitude = catalog['magnitude'][iev]
-        else:
-            # no magnitude info
-            magnitude = 1.0
-        rms = 0.2
-        eventf_writer.writerow([eventId, isotime, latitude, longitude, depth, magnitude, rms])
-        eventf.flush()
-        
-        # load phase information and output
-        file_phase = glob.glob(os.path.join(catalog['dir'][iev], '*'+phaseart_ftage+'*'))
-        assert(len(file_phase) == 1)
-        arrvtt = read_arrivaltimes(file_phase[0])
-        stations_art = list(arrvtt.keys())  # station names which have arrivaltimes
-        for sta in stations_art:
-            # loop over the arrivaltimes at each station and output
-            df_csta = stadf.loc[stadf['sta code']==sta, :]  # get the current station information 
-            assert(len(df_csta) == 1)
-            assert(len(df_csta['type'].item())==2)
-            lowerUncertainty = 0.2
-            upperUncertainty = 0.2
-            networkCode = df_csta['net'].item()
-            stationCode = df_csta['sta code'].item()
-            locationCode = df_csta['location'].item()
-            evalMode = 'automatic'
-            
-            if 'P' in arrvtt[sta]:
-                isotime = arrvtt[sta]['P'].strftime(datetime_format)
-                PHStype = 'P'
-                channelCode = '{}Z'.format(df_csta['type'].item())
-                phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                        networkCode, stationCode, locationCode, channelCode, evalMode])
-                phasef.flush()
-                
-            if 'S' in arrvtt[sta]:
-                isotime = arrvtt[sta]['S'].strftime(datetime_format)
-                PHStype = 'S'
-                channelCode = '{}N'.format(df_csta['type'].item())
-                phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                        networkCode, stationCode, locationCode, channelCode, evalMode])
-                phasef.flush()
-                
-                channelCode = '{}E'.format(df_csta['type'].item())
-                phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                        networkCode, stationCode, locationCode, channelCode, evalMode])
-                phasef.flush()    
-
-    eventf.close()
-    phasef.close()
-    return
-
-
-def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='event.csv', filename_phase='phase.csv', phaseart_ftage='.phs'):
-    """
-    This function is used to format the event and phase files for scrtdd.
-    Note the input 'stainv' is a obspy station inventory.
-
-    Parameters
-    ----------
-    catalog : dic
-        Event catalog information;
-        mcatalog['id'] : id of the event;
-        mcatalog['time'] : origin time;
-        mcatalog['latitude'] : latitude in degree;
-        mcatalog['longitude'] : logitude in degree;
-        mcatalog['depth_km'] : depth in km;
-        mcatalog['magnitude'] : magnitude;
-        mcatalog['dir'] : directory of the migration results of the event.
-    stainv : obspy station invertory
-        contains station information, such as network code, station code, 
-        longitude, latitude, evelvation etc.
-    dir_output : str, optional
-        Directory for output file. The default is './'.
-    filename_event : str, optional
-        filename of output event file. The default is 'event.csv'.
-    filename_phase : str, optional
-        filename of output phase file. The default is 'phase.csv'.
-    phaseart_ftage : str, optional
-        filename of the phase arrivaltime or picking time file.
-        The default is '.phs'.
-
-    Returns
-    -------
-    a csv format phase file for rtdd;
-    a csv format event file for rtdd;
-    
-    # example of event file:
-    # id,isotime,latitude,longitude,depth,magnitude,rms
-    # 1,2019-11-05T00:54:21.256705Z,46.318264,7.365509,4.7881,3.32,0.174
-    # 2,2019-11-05T01:03:06.484287Z,46.320718,7.365435,4.2041,0.64,0.138
-    # 3,2019-11-05T01:06:27.140654Z,46.325626,7.356148,3.9756,0.84,0.083
-    # 4,2019-11-05T01:12:25.753816Z,46.325012,7.353627,3.7090,0.39,0.144
-
-    # example of phase file:
-    # eventId,isotime,lowerUncertainty,upperUncertainty,type,networkCode,stationCode,locationCode,channelCode,evalMode
-    # 1,2019-11-05T00:54:22.64478Z,0.025,0.025,Pg,8D,RAW2,,HHZ,automatic
-    # 1,2019-11-05T00:54:23.58254Z,0.100,0.100,Sg,8D,RAW2,,HHT,manual
-    # 1,2019-11-05T00:54:22.7681Z,0.025,0.025,Pg,CH,SAYF2,,HGZ,manual
-    # 1,2019-11-05T00:54:24.007619Z,0.050,0.050,Sg,CH,STSW2,,HGT,manual
-    # 2,2019-11-05T01:03:08.867835Z,0.050,0.050,S,8D,RAW2,,HHT,manual
-    # 2,2019-11-05T01:03:07.977432Z,0.025,0.025,P,CH,SAYF2,,HGZ,manual
-    # 2,2019-11-05T01:03:08.9947Z,0.050,0.050,Sg,CH,SAYF2,,HGT,automatic
-    # 2,2019-11-05T01:03:09.12808Z,0.050,0.050,P,CH,STSW2,,HGR,manual
-    # 2,2019-11-05T01:03:09.409276Z,0.025,0.025,Sg,CH,SENIN,,HHT,automatic
-
-    """
-    
-    datetime_format = '%Y-%m-%dT%H:%M:%S.%fZ'  # datetime format in the output file
-    
-    # make sure the output directory exist
-    if not os.path.exists(dir_output):
-        os.makedirs(dir_output)
-    
-    # initialize event file
-    eventf = open(os.path.join(dir_output, filename_event), 'w', newline='')
-    eventf_writer = csv.writer(eventf, delimiter=',', lineterminator="\n")
-    eventf_header = ['id', 'isotime', 'latitude', 'longitude', 'depth', 'magnitude', 'rms']
-    eventf_writer.writerow(eventf_header)
-    eventf.flush()
-    
-    # initialize phase file
-    phasef = open(os.path.join(dir_output, filename_phase), 'w', newline='')
-    phasef_writer = csv.writer(phasef, delimiter=',', lineterminator="\n")
-    phasef_header = ['eventId','isotime','lowerUncertainty','upperUncertainty','type','networkCode','stationCode','locationCode','channelCode','evalMode']
-    phasef_writer.writerow(phasef_header)
-    phasef.flush()
-    
-    # loop over each event for output
-    for iev in range(len(catalog['id'])):
-        eventId = catalog['id'][iev]
-        isotime = catalog['time'][iev].strftime(datetime_format)
-        latitude = catalog['latitude'][iev]
-        longitude = catalog['longitude'][iev]
-        depth = catalog['depth_km'][iev]
-        if 'magnitude' in catalog:
-            # have magnitude info
-            magnitude = catalog['magnitude'][iev]
-        else:
-            # no magnitude info
-            magnitude = 1.0
-        rms = 0.2
-        eventf_writer.writerow([eventId, isotime, latitude, longitude, depth, magnitude, rms])
-        eventf.flush()
-        
-        # load phase information and output
-        file_phase = glob.glob(os.path.join(catalog['dir'][iev], '*'+phaseart_ftage+'*'))
-        assert(len(file_phase) == 1)
-        arrvtt = read_arrivaltimes(file_phase[0])
-        stations_art = list(arrvtt.keys())  # station names which have arrivaltimes
-        for sta in stations_art:
-            # loop over the arrivaltimes at each station and output
-            istainv = stainv.select(station=sta)  # get the current station inventory 
-            assert(len(istainv) == 1)
-            assert(istainv[0][0].code == sta)
-            lowerUncertainty = 0.2
-            upperUncertainty = 0.2
-            networkCode = istainv.networks[0].code
-            stationCode = istainv.networks[0].stations[0].code
-            if istainv.networks[0].stations[0].channels:
-                locationCode = istainv.networks[0].stations[0].channels[0].location_code
-                channel_codes = []
-                for icha in istainv.networks[0].stations[0].channels:
-                    channel_codes.append(icha.code)
-            else:
-                locationCode = ''
-                channel_codes = ['HHZ', 'HHN', 'HHE']
-            evalMode = 'automatic'
-            
-            if 'P' in arrvtt[sta]:
-                # P arrivaltime
-                isotime = arrvtt[sta]['P'].strftime(datetime_format)
-                PHStype = 'P'
-                
-                schannel = [iich for iich in channel_codes if 'Z' in iich]
-                assert(len(schannel)==1)
-                channelCode = schannel[0]
-                phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                        networkCode, stationCode, locationCode, channelCode, evalMode])
-                phasef.flush()
-                
-            if 'S' in arrvtt[sta]:
-                # S arrivaltime
-                isotime = arrvtt[sta]['S'].strftime(datetime_format)
-                PHStype = 'S'
-                
-                for iich in channel_codes:
-                    if 'N' in iich:
-                        channelCode = iich
-                        phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                networkCode, stationCode, locationCode, channelCode, evalMode])
-                        phasef.flush()
-                        break
-                    elif 'E' in iich:
-                        channelCode = iich
-                        phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                networkCode, stationCode, locationCode, channelCode, evalMode])
-                        phasef.flush()
-                        break
-                    elif '1' in iich:
-                        channelCode = iich
-                        phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                networkCode, stationCode, locationCode, channelCode, evalMode])
-                        phasef.flush()
-                        break
-                    elif '2' in iich:
-                        channelCode = iich
-                        phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                networkCode, stationCode, locationCode, channelCode, evalMode])
-                        phasef.flush()
-                        break
-
-    eventf.close()
-    phasef.close()
-    return
-
-
 def dict2csv(indic, filename=None):
     """
     Write an input dictionary to a CSV file.
@@ -1419,6 +781,8 @@ def dict2csv(indic, filename=None):
     filename : str, optional
         The output filename including path. The default is None.
 
+    If a file already exist, use append mode; otherwise use write mode.   
+    
     Returns
     -------
     None.
@@ -1428,13 +792,19 @@ def dict2csv(indic, filename=None):
     if filename is None:
         filename = 'output.csv'
     
-    outfile = open(filename, 'w', newline='')
+    if os.path.exists(filename):
+        mode = 'a+'
+    else:
+        mode = 'w'
+        
+    outfile = open(filename, mode, newline='')
     ofcsv = csv.writer(outfile, delimiter=',', lineterminator="\n")
     
     # write keys, i.e. CSV header row
     dickeys = list(indic.keys())
-    ofcsv.writerow(dickeys)
-    outfile.flush()
+    if (mode.lower()[0] != 'a'):  # no need to wirte hearder row in append mode
+        ofcsv.writerow(dickeys)
+        outfile.flush()
     
     # write each row
     NN = len(indic[dickeys[0]])  # total number of rows
@@ -1468,7 +838,7 @@ def csv2dict(file_csv, delimiter=','):
 
     """
     
-    # load station infomation: SED COSEISMIQ CSV format, temporary format
+    # load csv file
     df = pd.read_csv(file_csv, delimiter=delimiter, header="infer", skipinitialspace=True, encoding='utf-8')
     
     outdic = {}
@@ -1476,6 +846,13 @@ def csv2dict(file_csv, delimiter=','):
        outdic[column] = copy.deepcopy(df[column].values)
     
     return outdic
+
+
+
+
+
+
+
 
 
 

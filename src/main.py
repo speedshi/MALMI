@@ -17,9 +17,12 @@ import copy
 import shutil
 import glob
 import datetime
-import pickle
-from ioformatting import csv2dict
+# import pickle
+# from ioformatting import csv2dict
 import numpy as np
+import obspy
+from xstation import load_station
+from xcatalog import load_catalog, catalog2dict
         
 
 class MALMI:
@@ -64,6 +67,8 @@ class MALMI:
             tt['ftage']: str, optional, default is 'layer'. 
                 traveltime data set filename tage as used for NonLinLoc,
                 used at the file root name.
+            tt['build'] : boolen, default is True.
+                whether to build the traveltime table.
         
         grid parameters (Primarily used in migration):
             Note all input stations must lie within the grid.
@@ -158,7 +163,6 @@ class MALMI:
         """
         
         from traveltime import build_traveltime
-        from ioformatting import read_stationinfo
         from xcoordinate import get_regioncoord
         from utils_plot import plot_basemap
         
@@ -184,6 +188,9 @@ class MALMI:
         
             if ('ftage' not in tt):
                 tt['ftage'] = 'layer'
+        
+            if ('build' not in tt):
+                tt['build'] = True
         
             tt['hdr_filename'] = 'header.hdr'  # travetime data set header filename
         
@@ -291,7 +298,7 @@ class MALMI:
             os.makedirs(self.dir_projoutput, exist_ok=True)
         
         # read in station invertory and obtain station information
-        self.stainv = read_stationinfo(seismic['stainvf'])  # obspy station inventory 
+        self.stainv = load_station(seismic['stainvf'], outformat='obspy')  # obspy station inventory 
         
         # config travel-time dataset and migration output directories
         if (tt is None) and (grid is None):
@@ -301,18 +308,21 @@ class MALMI:
         else:
             # set up grid and traveltime tables
             
-            if tt is not None:
+            if (tt is not None) and (tt['build']):
                 # build or check traveltime data set
                 grid = build_traveltime(grid, tt, self.stainv)
+            
             self.grid = copy.deepcopy(grid)
-            region1, mgregion = get_regioncoord(self.grid, self.stainv, 0.05, consider_mgregion=True)  # obtain migration region lon/lat range
-            self.grid['mgregion'] = copy.deepcopy(mgregion)  # migration region lat/lon range, [lon_min, lon_max, lat_min, lat_max] in degree
+            if self.grid is not None:
+                region1, mgregion = get_regioncoord(self.grid, self.stainv, 0.05, consider_mgregion=True)  # obtain migration region lon/lat range
+                self.grid['mgregion'] = copy.deepcopy(mgregion)  # migration region lat/lon range, [lon_min, lon_max, lat_min, lat_max] in degree
+                self.grid['pltregion'] = copy.deepcopy(region1)  # plot region lat/lon range in format of [lon_min, lon_max, lat_min, lat_max] in degree
         
             # plot stations and migration region for checking
             if control['plot_map']:
                 fname1 = os.path.join(control['dir_output'], "basemap_stations_mgarea.png")
                 if not os.path.isfile(fname1):
-                    plot_basemap(region1, self.stainv, mgregion, fname1, False, '30s')
+                    plot_basemap(region1, self.stainv, mgregion, fname1, True, '30s')
         
             # travetime dataset related information
             self.dir_tt = copy.deepcopy(tt['dir'])  # path to travetime data set
@@ -773,8 +783,18 @@ class MALMI:
         ----------
         CAT : dict
             parameters controlling the process of retriving catalog.
-            CAT['extract'] : boolen, default is 'True'
-                whether to extract the catalog from processing results.
+            CAT['dir_dateset'] : str
+                database directory, i.e. the path to the parent folder of MALMI catalog and phase file.
+                (corresponding to the 'dir_MIG' folder in the MALMI main.py script).
+            CAT['cata_fold'] : str,
+                Catalog-file parent folder name.
+                (corresponding to the 'fld_migresult' folder in the MALMI main.py script).
+            CAT['dete_fold'] : str
+                Detection-file parent folder name.
+                (corresponding to the 'fld_prob' folder in the MALMI main.py script).
+            CAT['extract'] : str, default is None.
+                The filename including path of the catalog to load.
+                If None, will extrace catalog from MALMI processing result database 'CAT['dir_dateset']'.
             CAT['search_fold'] : list of str, optional
                 The MALMI result folders which contains catalog files.
                 Will search catalog files from this fold list.
@@ -789,14 +809,11 @@ class MALMI:
             CAT['fformat'] : str
                 the format of the output catalog file, can be 'pickle' and 'csv'.
                 The default is 'pickle'.
+            CAT['rmrpev'] : boolen, default is 'True'
+                whether to remove the repeated events in the catalog.
             CAT['evselect'] : dict, default is {}
                 parameters controlling the selection of events from original catalog,
                 i.e. quality control of the orgiginal catalog.
-                CAT['evselect']['rmrpev'] : boolen, default is 'True'
-                    whether to remove the repeated events in the original catalog.
-                CAT['evselect']['fname'] : str
-                    the output filename of the quality-controlled catalog.
-                    The default is 'MALMI_catalog_QC.pickle'.
                 CAT['evselect']['thrd_cmax'] : float, default is 0.036
                     threshold of minimal coherence.
                 CAT['evselect']['thrd_cstd'] : float, default is 0.119
@@ -817,7 +834,6 @@ class MALMI:
                     default values are determined by 'thrd_llbd' and 'mgregion'.
                 CAT['evselect']['thrd_depth'] : list of float, default is None
                     threshold of depth range in km, e.g. [-1, 12].
-                
 
         Returns
         -------
@@ -826,11 +842,10 @@ class MALMI:
 
         """
         
-        from ioformatting import retrive_catalog, dict2csv
-        from catalogs import catalog_rmrpev, catalog_select
+        from xcatalog import retrive_catalog_from_MALMI_database
         
         if 'extract' not in CAT:
-            CAT['extract'] = True
+            CAT['extract'] = None
         
         if 'search_fold' not in CAT:
             CAT['search_fold'] = None
@@ -843,12 +858,12 @@ class MALMI:
             
         if 'fformat' not in CAT:
             CAT['fformat'] = 'pickle'
-            
+        
+        if 'rmrpev' not in CAT:
+            CAT['rmrpev'] = True    
+        
         if 'evselect' not in CAT:
             CAT['evselect'] = {}
-            
-        if (CAT['evselect'] is not None) and ('rmrpev' not in CAT['evselect']):
-            CAT['evselect']['rmrpev'] = True
             
         if (CAT['evselect'] is not None) and ('fname' not in CAT['evselect']):
             CAT['evselect']['fname'] = 'MALMI_catalog_QC'
@@ -876,55 +891,20 @@ class MALMI:
         
         if (CAT['evselect'] is not None) and ('thrd_depth' not in CAT['evselect']):    
             CAT['evselect']['thrd_depth'] = None
-            
-        # catalog name
-        if not os.path.exists(CAT['dir_output']):
-            os.makedirs(CAT['dir_output'], exist_ok=True)
-        cfname = os.path.join(CAT['dir_output'], CAT['fname']+'.'+CAT['fformat'])
         
-        if CAT['extract']:
-            # extract catlog from processing results
-            catalog = retrive_catalog(dir_dateset=self.dir_MIG, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', 
-                                      cata_fold=self.fld_migresult, dete_fold=self.fld_prob, search_fold=CAT['search_fold'])
+        if 'dir_dateset' not in CAT:
+            CAT['dir_dateset'] = self.dir_MIG
         
-            if CAT['fformat'] == 'pickle':
-                # save the extracted original catalog in pickle format
-                with open(cfname, 'wb') as handle:
-                    pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            elif CAT['fformat'] == 'csv':
-                # save the extracted original catalog in csv format
-                dict2csv(catalog, cfname)
-        else:
-            # directly load existing catalog
-            if CAT['fformat'] == 'pickle':
-                with open(cfname, 'rb') as handle:
-                    catalog = pickle.load(handle)
-            elif CAT['fformat'] == 'csv':
-                catalog = csv2dict(cfname, delimiter=',')
+        if 'cata_fold' not in CAT:
+            CAT['cata_fold'] = self.fld_migresult
         
-        if CAT['evselect'] is not None:
-            # select events from the original catalog using quality control parameters
-            catalog_QC = catalog_select(catalog, thrd_cmax=CAT['evselect']['thrd_cmax'], 
-                                        thrd_stanum=CAT['evselect']['thrd_stanum'], 
-                                        thrd_phsnum=CAT['evselect']['thrd_phsnum'], 
-                                        thrd_lat=CAT['evselect']['thrd_lat'], 
-                                        thrd_lon=CAT['evselect']['thrd_lon'], 
-                                        thrd_cstd=CAT['evselect']['thrd_cstd'], 
-                                        thrd_depth=CAT['evselect']['thrd_depth'])
-            
-            # remove repeated events
-            if CAT['evselect']['rmrpev']:
-                catalog_QC = catalog_rmrpev(catalog_QC, 0.5, 5, 5, evkp='coherence_max')
-            
-            # save the catalog after quality control
-            cfname_QC = os.path.join(CAT['dir_output'], CAT['evselect']['fname']+'.'+CAT['fformat'])
-            if CAT['fformat'] == 'pickle':
-                # save the extracted QC catalog in pickle format
-                with open(cfname_QC, 'wb') as handle:
-                    pickle.dump(catalog_QC, handle, protocol=pickle.HIGHEST_PROTOCOL)
-            elif CAT['fformat'] == 'csv':
-                # save the extracted QC catalog in csv format
-                dict2csv(catalog_QC, cfname)
+        if 'dete_fold' not in CAT:
+            CAT['dete_fold'] = self.fld_prob
+        
+        if 'evidtag' not in CAT:
+            CAT['evidtag'] = 'malmi'
+        
+        catalog = retrive_catalog_from_MALMI_database(CAT)
         
         return catalog
     
@@ -937,9 +917,12 @@ class MALMI:
         ----------
         RELOC : dict
             parameters related to event relocation.
-            RELOC['catalog'] : str
-                the filename including path of the catalog to be relocated.
-                Default is the quality-controlled catalog.
+            RELOC['catalog'] : str or obspy catalog object or dict.
+                the input catalog that need to be relocated; 
+                str type: the filename of the catalog;
+                obspy catalog object: the catalog of obspy format;
+                dict type: the catalog of python dictory format;
+                Default is the filename of the quality-controlled catalog.
             RELOC['engine'] : str, default is 'rtdd'
                 the event relative relocation approach, 
                 can be: 'rtdd'.
@@ -953,7 +936,7 @@ class MALMI:
 
         """
         
-        from ioformatting import output_rtddstation, output_rtddeventphase
+        from xevrelocation import event_reloc
         
         if 'catalog' not in RELOC:
             RELOC['catalog'] = os.path.join(self.dir_projoutput, 'catalogs', 'MALMI_catalog_QC.pickle')
@@ -965,20 +948,24 @@ class MALMI:
             RELOC['dir_output'] = os.path.join(self.dir_projoutput, 'catalogs')
         
         # load the catalog to be relocated
-        cat_fmt = RELOC['catalog'].split('.')[-1]  # format of the catalog file
-        if cat_fmt == 'pickle':
-            with open(RELOC['catalog'], 'rb') as handle:
-                catalog = pickle.load(handle)
-        elif cat_fmt == 'txt':
-            catalog = csv2dict(RELOC['catalog'], delimiter=',')
+        if isinstance(RELOC['catalog'], str):
+            # input is the filename of the catalog
+            RELOC['catalog'] = load_catalog(RELOC['catalog'], outformat='dict')
+        elif isinstance(RELOC['catalog'], dict):
+            # input is the catalog of simple dict format
+           pass
+        elif isinstance(RELOC['catalog'], obspy.core.event.Catalog):
+            # input is the catalog of obspy catalog object
+            RELOC['catalog'] = catalog2dict(RELOC['catalog'])
+        else:
+            raise ValueError('Wrong input for MAGNI[\'catalog\']!')
         
-        # perform relative relocation or prepare files for relative relocation
-        if RELOC['engine'] == 'rtdd':
-            # generate files for rtdd relocation
-            output_rtddstation(stainv=self.stainv, dir_output=RELOC['dir_output'], filename='station_rtdd.csv')
-            output_rtddeventphase(catalog=catalog, stainv=self.stainv, dir_output=RELOC['dir_output'], 
-                                  filename_event='event_rtdd.csv', filename_phase='phase_rtdd.csv',
-                                  phaseart_ftage='.MLpicks')  # Note must use '.MLpicks' to use ML picks, theoratical arrivaltimes do not work
+        RELOC['stainv'] = self.stainv
+
+        if 'channel_codes' not in RELOC:
+            RELOC['channel_codes'] = self.seismic_channels
+        
+        event_reloc(RELOC)
         
         return
     
@@ -1009,40 +996,106 @@ class MALMI:
         return
     
     
-    def estmate_magnitue(self, MG):
+    def estmate_magnitue(self, MAGNI):
         """
         Determine the magnitude for events in the input catalog.
 
         Parameters
         ----------
-        MG : dict
+        MAGNI : dict
             contains input parameters.
-            MG['engine'] : str
+            MAGNI['engine'] : str
                 specify the method for determining event magnitude; can be:
                 'relative' : relative amplitude ratio method, will need another 
                              reference catalog (at least have one matched event) 
                              which have magnitude information.
-            MG['catalog'] : str or obspy events object.
+            MAGNI['catalog'] : str or obspy catalog object or dict.
                             the input catalog that need magnitude determination; 
-            
+                            str type: the filename of the catalog;
+                            obspy catalog object: the catalog of obspy format;
+                            dict type: the catalog of python dictory format; 
+            MAGNI['catalog_ref'] : str or obspy catalog object or dict.
+                            the input reference catalog that have magnitude determination; 
+                            str type: the filename of the catalog;
+                            obspy catalog object: the catalog of obspy format;
+                            dict type: the catalog of python dictory format;
+            MAGNI['stations'] : str or obspy station inventory object or dict, optional;
+                            the station inventory; 
+                            str type: the filename of the station inventory;
+                            obspy inventory object: the inventory of obspy format;
+                            dict type: the inventory of python dictory format;
+            other parameters check 'estimate_magnitude' for detail;
         Returns
         -------
         None.
 
         """
         
+        from xmagnitude import estimate_magnitude
+        from xstation import stainv2stadict
         
-        if 'engine' not in MG:
-            MG['engine'] = 'relative'
+        MAG = {}
         
-            
-        
-        if MG['engine'] == 'relative':
-            # use relative amplitude ratio to determine magnitude 
-            pass
+        if 'engine' not in MAGNI:
+            MAG['engine'] = 'relative'
         else:
-            pass
+            MAG['engine'] = MAGNI['engine']
         
-        return
+        if MAG['engine'] == 'relative':
+            # input catalog
+            if isinstance(MAGNI['catalog'], str):
+                # input is the filename of the catalog
+                MAG['catalog'] = load_catalog(MAGNI['catalog'], outformat='dict')
+            elif isinstance(MAGNI['catalog'], dict):
+                # input is the catalog of simple dict format
+                MAG['catalog'] = MAGNI['catalog']
+            elif isinstance(MAGNI['catalog'], obspy.core.event.Catalog):
+                # input is the catalog of obspy catalog object
+                MAG['catalog'] = catalog2dict(MAGNI['catalog'])
+            else:
+                raise ValueError('Wrong input for MAGNI[\'catalog\']!')
+        
+            # reference catalog
+            if isinstance(MAGNI['catalog_ref'], str):
+                # input is the filename
+                MAG['catalog_ref'] = load_catalog(MAGNI['catalog_ref'], outformat='dict')
+            elif isinstance(MAGNI['catalog_ref'], dict):
+                # input is the catalog of simple dict format
+                MAG['catalog_ref'] = MAGNI['catalog_ref']
+            elif isinstance(MAGNI['catalog_ref'], obspy.core.event.Catalog):
+                # input is the catalog of obspy catalog object
+                MAG['catalog_ref'] = catalog2dict(MAGNI['catalog_ref'])
+            else:
+                raise ValueError('Wrong input for MAGNI[\'catalog_ref\']!')
+        
+            # station information
+            if 'stations' not in MAGNI:
+                MAG['stations'] = stainv2stadict(self.stainv)
+            else:
+                if isinstance(MAGNI['stations'], str):
+                    # input is the filename
+                    MAG['stations'] = load_station(MAGNI['stations'], outformat='dict')
+                elif isinstance(MAGNI['stations'], dict):
+                    # input of simple dict format
+                    MAG['stations'] = MAGNI['stations']
+                elif isinstance(MAGNI['stations'], obspy.core.inventory.inventory.Inventory):
+                    # input is of obspy inventory object
+                    MAG['stations'] = stainv2stadict(MAGNI['stations'])
+                else:
+                    raise ValueError('Wrong input for MAGNI[\'stations\']!')
+        
+            if 'match_thrd_time' not in MAGNI:
+                MAG['match_thrd_time'] = 2.5
+            else:
+                MAG['match_thrd_time'] = MAGNI['match_thrd_time']
+        
+            if 'mgcalpara' not in MAGNI:
+                MAG['mgcalpara'] = None
+            else:    
+                MAG['mgcalpara'] = MAGNI['mgcalpara']
+        
+        catalog_new = estimate_magnitude(MAGNI=MAG)
+        
+        return catalog_new
 
 

@@ -10,7 +10,7 @@ Created on Sun Nov 28 18:48:10 2021
 import numpy as np
 import matplotlib.dates as mdates
 import pygmt
-from catalogs import catalog_select
+from xcatalog import catalog_select
 
 
 def catalog_plot_depth(region, catalog, depthrg=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None):

@@ -1105,7 +1105,7 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     return
 
 
-def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png', fnametag=None):
+def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png', fnametag=None, cat_labels=['New catalog', 'Reference catalog']):
     """
     To plot the pie figure after comparing two catalogs.
 
@@ -1123,6 +1123,8 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png', fnametag=
         output figure format. The default is 'png'.
     fnametag : str, optional
         figure name tage.
+    cat_labels : list of str, optional
+        lable of the new and the reference catalog.
 
     Returns
     -------
@@ -1155,7 +1157,7 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png', fnametag=
            pctdistance=0.8, shadow=False, startangle=90)
     # draw circle
     centre_circle = plt.Circle((0,0),0.6,fc='white')
-    ax1.set_title('New catalog', fontsize=13, fontweight='bold')
+    ax1.set_title(cat_labels[0], fontsize=13, fontweight='bold')
     ax1.axis('equal')
     ax1.text(-0.5, -1.3, 'Total events: {}'.format(N_matched+N_new))
     ax1.add_artist(centre_circle)
@@ -1171,7 +1173,7 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png', fnametag=
            pctdistance=0.82, shadow=False, startangle=60)
     # draw circle
     centre_circle = plt.Circle((0,0),0.6,fc='white')
-    ax2.set_title('Reference catalog', fontsize=13, fontweight='bold')
+    ax2.set_title(cat_labels[1], fontsize=13, fontweight='bold')
     ax2.axis('equal')
     ax2.text(-0.5, -1.3, 'Total events: {}'.format(N_matched+N_undetected))
     ax2.add_artist(centre_circle)
@@ -1195,7 +1197,7 @@ def catlogmatch_plot(catalog_mt, dd=0.2, dir_fig='.', figformat='png', fnametag=
     aB = N_undetected  # missed events
     AB = N_matched  # co-detected events (event in both catalogs)
     venn2(subsets=(Ab, aB, AB),
-          set_labels=('New catalog', 'Reference catalog'),
+          set_labels=(cat_labels[0], cat_labels[1]),
           set_colors=("#99ff99", "#ff9999"),   # "#99ff99", "#ff9999"
           alpha=0.7)
 
@@ -1316,7 +1318,7 @@ def catalogcomp_barplot(catalog, catalog_ref, bins_dv=1, figsize=(6,6), dir_fig=
     ax1.xaxis_date()
     ax1.set_xlabel('Time', color='k', fontsize=14)
     ax1.set_ylabel('Number of events', color='k', fontsize=14)
-    ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
+    ax1.xaxis.set_major_locator(ticker.MultipleLocator(3)) # forced the horizontal major ticks to appear by steps of x units
     ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
     ax1.tick_params(axis='both', labelsize=12)
     if fnametag is None:

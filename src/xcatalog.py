@@ -5,12 +5,164 @@ Created on Tue Nov  2 16:52:27 2021
 
 Functions related to event catalogs.
 
+For event catalog of simple dictory format, the current convention is:
+catalog['id']: np.array of str, id of each event;
+catalog['time']: np.array of UTCDateTime, origin time of each event;
+catalog['latitude']: np.array of float, latitude in degree of each event;
+catalog['longitude']: np.array of float, logitude in degree of each event;
+catalog['depth_km']: np.array of float, depth in km below the sea-level (down->positive) of each event;
+catalog['magnitude']: np.array of float, magnitude of each event;
+catalog['magnitude_type']: np.array of str or str, magnitude type, e.g. 'M', 'ML', 'Mw'
+catalog['pick']: list of dict, len(list) = number of events, each dict is the picking results, dict['network.station.location.instrument_code']['P'] for P-phase pick time, dict['network.station.location.instrument_code']['S'] for S-phase pick time
+catalog['arrivaltime']: list of dict, similar to 'pick', but is the theoretical calculated arrivaltimes of P- and S-phases;
+
 @author: shipe
 """
 
 
 import numpy as np
 from obspy.geodetics import gps2dist_azimuth
+import os
+import glob
+from ioformatting import read_lokicatalog, read_malmipsdetect, dict2csv, csv2dict
+import pickle
+import copy
+import datetime
+from obspy import UTCDateTime
+from obspy.core.event import read_events
+from obspy.core.event import Catalog as obspy_Catalog
+from obspy.core.event import Event as obspy_Event
+from obspy.core.event import Origin as obspy_Origin
+from obspy.core.event import Magnitude as obspy_Magnitude
+
+
+def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', cata_fold='*', dete_fold='*', search_fold=None, evidtag='malmi'):
+    """
+    This function is used to concatenate the catalogs together from the data base.
+
+    Parameters
+    ----------
+    dir_dateset : str
+        Path to the parent folder of catalog file and phase file.
+        (corresponding to the 'dir_MIG' folder in the MALMI main.py script).
+    cata_ftag : str, optional
+        Catalog filename. The default is 'catalogue'.
+    dete_ftag : str, optional
+        Detection filename. The default is 'event_station_phase_info.txt'.
+    cata_fold : str, optional
+        Catalog-file parent folder name. The default is '*'.
+        (corresponding to the 'fld_migresult' folder in the MALMI main.py script).
+    dete_fold : str, optional
+        Detection-file parent folder name. The default is '*'.
+        (corresponding to the 'fld_prob' folder in the MALMI main.py script).
+    search_fold : list of str, optional
+        The MALMI result folders which contains catalog files. 
+        (corresponding to the 'fd_seismic' folder in the MALMI main.py script).
+        The default is None, which means all avaliable folders in 'dir_dateset'.
+    evidtag : str, default if 'malmi'
+        event id tage;
+
+    Returns
+    -------
+    mcatalog : dic
+        The final obtained catalog which concatenates all the catalog files.
+        mcatalog['id'] : id of the event;
+        mcatalog['time'] : origin time;
+        mcatalog['latitude'] : latitude in degree;
+        mcatalog['longitude'] : logitude in degree;
+        mcatalog['depth_km'] : depth in km;
+        mcatalog['coherence_max'] : maximum coherence of migration volume;
+        mcatalog['coherence_std'] : standard deviation of migration volume;
+        mcatalog['coherence_med'] : median coherence of migration volume;
+        mcatalog['starttime'] : detected starttime of the event;
+        mcatalog['endtime'] : detected endtime of the event;
+        mcatalog['station_num'] : total number of stations triggered of the event;
+        mcatalog['phase_num'] : total number of phases triggered of the event;
+        mcatalog['dir'] : directory of the migration results of the event.
+    """
+    
+    assert(os.path.exists(dir_dateset))
+    
+    if search_fold is None:
+        file_cata = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
+        file_dete = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(dete_fold,dete_ftag)), recursive = True))  # file list of detection files
+    elif isinstance(search_fold, list) and (isinstance(search_fold[0], str)):
+        file_cata = []
+        file_dete = []
+        for ifld in search_fold:
+            file_cata += sorted(glob.glob(os.path.join(dir_dateset, '{}/{}/{}'.format(ifld,cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
+            file_dete += sorted(glob.glob(os.path.join(dir_dateset, '{}/{}/{}'.format(ifld,dete_fold,dete_ftag)), recursive = True))  # file list of detection files
+    else:
+        raise ValueError('Wrong input format for: {}! Can only be None or list of str!'.format(search_fold))
+    
+    assert(len(file_cata) == len(file_dete))  # should correspond
+    
+    # initialize the final catalog
+    mcatalog = {}
+    mcatalog['id'] = []  # id of the event
+    mcatalog['time'] = []  # origin time
+    mcatalog['latitude'] = []  # latitude in degree
+    mcatalog['longitude'] = []  # logitude in degree
+    mcatalog['depth_km'] = []  # depth in km
+    mcatalog['coherence_max'] = []  # maximum coherence of migration volume
+    mcatalog['coherence_std'] = []  # standard deviation of migration volume
+    mcatalog['coherence_med'] = []  # median coherence of migration volume
+    mcatalog['starttime'] = []  # detected starttime of the event
+    mcatalog['endtime'] = []  # detected endtime of the event
+    mcatalog['station_num'] = []  # total number of stations triggered of the event
+    mcatalog['phase_num'] = []  # total number of phases triggered of the event
+    mcatalog['dir'] = []  # directory of the migration results of the event
+    
+    eid = 0
+    # loop over each catalog/detection file and concatenate them together to make the final version
+    for ii in range(len(file_cata)):
+        assert(file_cata[ii].split('/')[-3] == file_dete[ii].split('/')[-3])  # they should share the common parent path
+    
+        # load catalog file
+        ctemp = read_lokicatalog(file_cata[ii])
+        
+        # load detection file
+        dtemp = read_malmipsdetect(file_dete[ii])
+        
+        assert(len(ctemp['time']) == len(dtemp['phase']))  # event number should be the same
+        for iev in range(len(ctemp['time'])):
+            assert(ctemp['time'][iev] <= dtemp['endtime'][iev])
+            
+            eid = eid + 1
+            mcatalog['time'].append(ctemp['time'][iev])  # origin time
+            evtimeid = datetime.datetime.strftime(ctemp['time'][iev], '%Y%m%d%H%M%S%f')
+            mcatalog['id'].append('{}_{}_{:06d}'.format(evidtag, evtimeid, eid))  # event id
+            mcatalog['latitude'].append(ctemp['latitude'][iev])  # latitude in degree
+            mcatalog['longitude'].append(ctemp['longitude'][iev])  # logitude in degree
+            mcatalog['depth_km'].append(ctemp['depth_km'][iev])  # depth in km
+            mcatalog['coherence_max'].append(ctemp['coherence_max'][iev])  # maximum coherence of migration volume
+            mcatalog['coherence_std'].append(ctemp['coherence_std'][iev])  # standard deviation of migration volume
+            mcatalog['coherence_med'].append(ctemp['coherence_med'][iev])  # median coherence of migration volume
+            mcatalog['starttime'].append(dtemp['starttime'][iev])  # starttime of the event
+            mcatalog['endtime'].append(dtemp['endtime'][iev])  # endtime of the event
+            mcatalog['station_num'].append(dtemp['station'][iev])  # total number of stations triggered
+            mcatalog['phase_num'].append(dtemp['phase'][iev])  # total number of phases triggered
+            sss = file_cata[ii].split(os.path.sep)
+            if sss[0] == '':
+                # the input path: 'dir_dateset' is a absolute address
+                dir_ers = '{}'.format(os.path.sep)
+            else:
+                # the input path: 'dir_dateset' is a relative address
+                dir_ers = ''
+                
+            for pstr in sss[:-1]:
+                dir_ers = os.path.join(dir_ers, pstr)
+            dir_ers =  os.path.join(dir_ers, dtemp['starttime'][iev].isoformat())
+            assert(os.path.exists(dir_ers))
+            mcatalog['dir'].append(dir_ers)  # migration result direcotry of the event
+            
+        del ctemp, dtemp
+    
+    # convert to numpy array
+    for ikey in list(mcatalog.keys()):
+        mcatalog[ikey] = np.array(mcatalog[ikey])
+    
+    return mcatalog
 
 
 def catalog_evselect(catalog, timerg=None, latrg=None, lonrg=None, deprg=None):
@@ -67,8 +219,7 @@ def catalog_evselect(catalog, timerg=None, latrg=None, lonrg=None, deprg=None):
         sindx = np.logical_and(sindx, sindx_temp)
 
     catalog_s = {}
-    catakeys = list(catalog.keys())
-    for ikey in catakeys:
+    for ikey in list(catalog.keys()):
         catalog_s[ikey] = catalog[ikey][sindx]
 
     return catalog_s
@@ -166,10 +317,10 @@ def catalog_rmrpev(catalog, thrd_time=0.3, thrd_hdis=None, thrd_depth=None, evkp
                     for ikey in catakeys:
                         catalog_new[ikey].append(catalog[ikey][iev])
                     evidlist.append(*eindx)
-                    print('Repeated event found at: ', catalog['time'][iev])
+                    print('Duplicate events found at time around: ', catalog['time'][iev])
                 else:
                     # have matched events, the best event to keep is in 'eindx', to be checked in the later loop
-                    print('Repeated event found at: ', catalog['time'][iev])
+                    print('Duplicate events found at time around: ', catalog['time'][iev])
             else:
                 # no matched events, add the current events into the new catalog
                 for ikey in catakeys:
@@ -272,8 +423,7 @@ def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, 
         sindx = np.logical_and(sindx, sindx_temp)
     
     catalog_s = {}
-    catakeys = list(catalog.keys())
-    for ikey in catakeys:
+    for ikey in list(catalog.keys()):
         catalog_s[ikey] = catalog[ikey][sindx]
     
     return catalog_s
@@ -298,7 +448,7 @@ def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth
     Parameters
     ----------
     catalog : dict
-        the input catalog, usually the newly obtained catalog by users.
+        the input catalog, i.e. the newly obtained catalog by users.
     catalog_ref : dict
         the reference catalog for comparison, usually a standard offiical catalog.
     thrd_time : float
@@ -369,7 +519,12 @@ def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth
     dcevref_id = []
     # loop over each event in the input catalog, compare with events in the reference catalog
     for iev in range(Nev_cinp):
-        evtimedfs = np.array([abs(ettemp.total_seconds()) for ettemp in (catalog_ref['time'] - catalog['time'][iev])])  # origin time difference in seconds
+        if isinstance(catalog['time'][0], datetime.datetime):
+            # datetime expressed in datetime.datetime format
+            evtimedfs = np.array([abs(ettemp.total_seconds()) for ettemp in (catalog_ref['time'] - catalog['time'][iev])])  # origin time difference in seconds
+        else:
+            # datetime expressed in UTCDateTime format
+            evtimedfs = np.array([abs(ettemp) for ettemp in (catalog_ref['time'] - catalog['time'][iev])])  # origin time difference in seconds
         eindx_bool = (evtimedfs <= thrd_time)  # the boolean array indicating whether event origin time matched
         eindx = np.flatnonzero(eindx_bool)  # index of events in the reference catalog which matches the origin time of the current event
         evtimedfs_select = evtimedfs[eindx_bool]  # all the origin time differences in second within the limit
@@ -555,6 +710,313 @@ def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth
         catalog_match['magnitude_ref'] = np.array(catalog_match['magnitude_ref'])
 
     return catalog_match
+
+
+def retrive_catalog_from_MALMI_database(CAT):
+    """
+        Retrive earthquake catalog from the MALMI result database.
+
+        Parameters
+        ----------
+        CAT : dict
+            parameters controlling the process of retriving catalog.
+            CAT['dir_dateset'] : str
+                database directory, i.e. the path to the parent folder of MALMI catalog and phase file.
+                (corresponding to the 'dir_MIG' folder in the MALMI main.py script).
+            CAT['cata_fold'] : str,
+                Catalog-file parent folder name.
+                (corresponding to the 'fld_migresult' folder in the MALMI main.py script).
+            CAT['dete_fold'] : str
+                Detection-file parent folder name.
+                (corresponding to the 'fld_prob' folder in the MALMI main.py script).
+            CAT['evidtag'] : str
+                event id tage for generating event id;
+            CAT['extract'] : str, default is None.
+                The filename including path of the catalog to load.
+                If None, will extrace catalog from MALMI processing result database 'CAT['dir_dateset']'.
+            CAT['search_fold'] : list of str, optional
+                The MALMI result folders which contains catalog files.
+                Will search catalog files from this fold list.
+                (This corresponds to the 'fd_seismic' folder).
+                The default is None, which means all avaliable folders in 'dir_dateset'.
+            CAT['dir_output'] : str
+                directory for outputting catalogs.
+                default value is related to the current project directory.
+            CAT['fname'] : str
+                the output catalog filename.
+                The default is 'MALMI_catalog_original'.
+            CAT['fformat'] : str
+                the format of the output catalog file, can be 'pickle' and 'csv'.
+                The default is 'pickle'.
+            CAT['rmrpev'] : boolen, default is 'True'
+                whether to remove the deplicated events in the catalog.
+            CAT['evselect'] : dict, default is {}
+                parameters controlling the selection of events from original catalog,
+                i.e. quality control of the orgiginal catalog.
+                CAT['evselect']['thrd_cmax'] : float, default is 0.036
+                    threshold of minimal coherence.
+                CAT['evselect']['thrd_cstd'] : float, default is 0.119
+                    threshold of maximum standard variance of stacking volume.
+                CAT['evselect']['thrd_stanum'] : int, default is None
+                    threshold of minimal number of triggered stations.
+                CAT['evselect']['thrd_phsnum'] : int, default is None
+                    threshold of minimal number of triggered phases.
+                CAT['evselect']['thrd_llbd'] : float, default is 0.002    
+                    lat/lon in degree for excluding migration boundary.
+                    e.g. latitude boundary is [lat_min, lat_max], event coordinates 
+                    must then within [lat_min+thrd_llbd, lat_max-thrd_llbd].
+                CAT['evselect']['thrd_lat'] : list of float
+                    threshold of latitude range in degree, e.g. [63.88, 64.14].
+                    default values are determined by 'thrd_llbd' and 'mgregion'.
+                CAT['evselect']['thrd_lon'] : list of float
+                    threshold of longitude range in degree, e.g. [-21.67, -21.06].
+                    default values are determined by 'thrd_llbd' and 'mgregion'.
+                CAT['evselect']['thrd_depth'] : list of float, default is None
+                    threshold of depth range in km, e.g. [-1, 12].
+
+        Returns
+        -------
+        catalog : dict
+            retrived earthquake catalog.
+
+        """
+    
+    # catalog output path
+    if not os.path.exists(CAT['dir_output']):
+        os.makedirs(CAT['dir_output'], exist_ok=True)
+
+    if CAT['extract'] is None:
+        # extract catlog from MALMI processing result database
+        catalog = retrive_catalog(dir_dateset=CAT['dir_dateset'], cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', 
+                                  cata_fold=CAT['cata_fold'], dete_fold=CAT['dete_fold'], search_fold=CAT['search_fold'], evidtag=CAT['evidtag'])
+    else:
+        # directly load existing catalog
+        if CAT['extract'].split('.')[-1].lower() == 'pickle':
+            with open(CAT['extract'], 'rb') as handle:
+                catalog = pickle.load(handle)
+        elif CAT['extract'].split('.')[-1].lower() == 'csv':
+            catalog = csv2dict(CAT['extract'], delimiter=',')
+        else:
+            raise ValueError("Wrong input for CAT[\'fformat\']: {}!".format(CAT['fformat']))
+    
+    if CAT['evselect'] is not None:
+        # select events from the original catalog using quality control parameters
+        catalog = catalog_select(catalog, thrd_cmax=CAT['evselect']['thrd_cmax'], 
+                                    thrd_stanum=CAT['evselect']['thrd_stanum'], 
+                                    thrd_phsnum=CAT['evselect']['thrd_phsnum'], 
+                                    thrd_lat=CAT['evselect']['thrd_lat'], 
+                                    thrd_lon=CAT['evselect']['thrd_lon'], 
+                                    thrd_cstd=CAT['evselect']['thrd_cstd'], 
+                                    thrd_depth=CAT['evselect']['thrd_depth'])
+        
+    # remove repeated events
+    if CAT['rmrpev']:
+        catalog = catalog_rmrpev(catalog=catalog, thrd_time=0.5, thrd_hdis=5, thrd_depth=5, evkp='coherence_max')
+    
+    # save catalog
+    if (CAT['fname'] is not None) and (CAT['fformat'] is not None):
+        cfname = os.path.join(CAT['dir_output'], CAT['fname']+'.'+CAT['fformat'])
+        
+        if CAT['fformat'].lower() == 'pickle':
+            # save the extracted original catalog in pickle format
+            with open(cfname, 'wb') as handle:
+                pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        elif CAT['fformat'].lower() == 'csv':
+            # save the extracted original catalog in csv format
+            dict2csv(catalog, cfname)
+        else:
+            raise ValueError("Wrong input for CAT[\'fformat\']: {}!".format(CAT['fformat']))
+
+    return catalog
+
+
+def catalog2dict(catalog):
+    """
+    Transform obspy catalog object to simple python dictory object.
+    The pick information if there are any in the input catalog will be discard. Need to incorperate this in the dict...(to do)
+
+    Parameters
+    ----------
+    catalog : obspy catalog object.
+        earthquake event catalog.
+
+    Returns
+    -------
+    catalog_dict : dict
+        earthquake event catalog.
+        catalog_dict['id']: np.array of str, event id of each catalog event;
+        catalog_dict['time']: np.array of UTCDateTime, event origin time of each catalog event;
+        catalog_dict['latitude']: np.array of float, event latitude in degree of each catalog event;
+        catalog_dict['longitude']: np.array of float, event longitude in degree of each catalog event;
+        catalog_dict['depth_km']: np.array of float, event depth in km (relative to the sea-level, down->positive) of each catalog event;
+        catalog_dict['magnitude']: np.array of float, event magnitude of each catalog event;
+    """
+    
+    catalog_dict= {}
+    catalog_dict['id'] = []
+    catalog_dict['time'] = []
+    catalog_dict['latitude'] = []
+    catalog_dict['longitude'] = []
+    catalog_dict['depth_km'] = []
+    catalog_dict['magnitude'] = []
+    
+    for ievent in catalog:
+        catalog_dict['id'].append(ievent.resource_id.id)
+        
+        try:
+            ievent_origin = ievent.preferred_origin()
+        except:
+            ievent_origin = ievent.origins[0]
+    
+        catalog_dict['time'].append(ievent_origin.time)    
+        catalog_dict['latitude'].append(ievent_origin.latitude)
+        catalog_dict['longitude'].append(ievent_origin.longitude)
+        catalog_dict['depth_km'].append(ievent_origin.depth/1000.0)
+        
+        try:
+            ievent_magnitude = ievent.preferred_magnitude()
+        except:
+            ievent_magnitude = ievent.magnitudes[0]
+    
+        catalog_dict['magnitude'].append(ievent_magnitude.mag)
+    
+    # convert to numpy array
+    for ikey in list(catalog_dict.keys()):
+        catalog_dict[ikey] = np.array(catalog_dict[ikey])
+        
+    return catalog_dict
+
+
+def dict2catalog(cat_dict):
+    """
+    Transform simple python dictory object to obspy catalog object.
+
+    Parameters
+    ----------
+    cat_dict : dict
+        input catalog of dict format.
+
+    Returns
+    -------
+    catalog : obspy catalog object
+        output catalog.
+
+    """
+    
+    catalog = obspy_Catalog()
+    nev = len(cat_dict['id'])  # total number of events
+    
+    for iev in range(nev):
+        iorigin = obspy_Origin()
+        iorigin.resource_id = '{}_origin'.format(cat_dict['id'][iev])
+        iorigin.time = cat_dict['time'][iev] 
+        iorigin.latitude = cat_dict['latitude'][iev]
+        iorigin.longitude = cat_dict['longitude'][iev]
+        iorigin.depth = cat_dict['depth_km'][iev] * 1000.0  # in meters
+        iorigin.depth_type = 'from location'
+        if 'magnitude' in cat_dict:
+            imag = obspy_Magnitude()
+            imag.resource_id = '{}_magnitude'.format(cat_dict['id'][iev])
+            imag.mag = cat_dict['magnitude'][iev]
+            imag.origin_id = iorigin.resource_id
+            if 'magnitude_type' in cat_dict:
+                if isinstance(cat_dict['magnitude_type'], str):
+                    imag.magnitude_type = cat_dict['magnitude_type']
+                else:
+                    imag.magnitude_type = cat_dict['magnitude_type'][iev]
+            else:     
+                imag.magnitude_type = 'M'
+        else:
+            imag = None
+    
+        ievent = obspy_Event(origins=[iorigin], magnitudes=[imag])
+        ievent.resource_id = cat_dict['id'][iev]
+        ievent.preferred_origin_id = iorigin.resource_id
+        ievent.preferred_magnitude_id = imag.resource_id
+        catalog.append(ievent)
+    
+    return catalog
+
+
+def load_catalog(catafile, outformat='original'):
+    """
+    Load catalog into memory.
+
+    Parameters
+    ----------
+    catafile : str
+        filename including path of the catlaog
+        can be 'csv', 'xml', or 'pickle' format.
+    outformat : str
+        format of the catalog in memory;
+        'original': keep the loaded catalog directly as it is loaded;
+        'dict': simple python dictory format;
+        'obspy': obspy catalog object;
+    
+    Returns
+    -------
+    catalog : format depends on 'outformat'
+        loaded catalog.
+
+    """
+    
+    catalog_suffix = catafile.split('.')[-1]
+    
+    if catalog_suffix.lower() == 'csv':
+        catalog = csv2dict(catafile)
+    elif catalog_suffix.lower() == 'xml':
+        catalog = read_events(catafile)
+    elif catalog_suffix.lower() == 'pickle':
+        with open(catafile, 'rb') as handle:
+            catalog = pickle.load(handle)
+    else:
+        raise ValueError('Wrong input for input catalog file: {}! Format not recognizable!'.format(catafile))
+    
+    # for dict format, the origin time of each event should be in UTCDateTime format
+    if isinstance(catalog, dict):
+        if not isinstance(catalog['time'][0], UTCDateTime):
+            catalog['time'] = np.array([UTCDateTime(ttt) for ttt in catalog['time']])
+    
+    # check output format
+    if (outformat.lower() == 'dict') and (isinstance(catalog, obspy_Catalog)):
+        # obspy catalog object to dict
+        catalog = catalog2dict(catalog)
+    elif (outformat.lower() == 'obspy') and (isinstance(catalog, dict)):
+        # dict to obspy catalog object
+        catalog = dict2catalog(catalog)
+    
+    return catalog
+
+
+def merge_catdict(cat1, cat2):
+    """
+    Merge two catalog of simple dict format.
+
+    Parameters
+    ----------
+    cat1 : dict
+        input catalog 1.
+    cat2 : dict
+        input catalog 2.
+
+    Returns
+    -------
+    catalog: dict
+        merged catalog.
+
+    """
+
+    catalog = {}
+    
+    for ikey in cat1:
+        catalog[ikey] = np.concatenate((cat1[ikey], cat2[ikey]), axis=0)
+
+    # for two catlaog which have different keys, we need to consider this
+
+    return catalog
+
+
+
 
 
 
