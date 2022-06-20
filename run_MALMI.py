@@ -17,7 +17,7 @@ import os
 # %% seismic parameters========================================================
 seismic = {}
 seismic['dir'] = "../data/seismic_data/SDS"  # path to the SDS archive directory or parent directory where seismic data are stored all in one folder
-seismic['channels'] = ["*HE", "*HN", "*HZ"]  # used channels of the input seismic data
+seismic['instrument_code'] = ["HH", "BH", "EH", "SH", "HG"]  # used instrument code of the input seismic data
 seismic['stainvf'] = '../data/station/station_location.csv'  # path to the station inventory file
 seismic['datastru'] = sys.argv[1]  # the input seismic data file structure, can be 'AIO' or 'SDS'
 if seismic['datastru'] == 'SDS':

@@ -35,8 +35,9 @@ class MALMI:
         seismic parameters (For input seismic data set):
             seismic['dir']: str, required.
                 path to raw continuous seismic data.
-            seismic['channels']: list of str, optional, default: ["*HE", "*HN", "*HZ"].
-                the used channels of the input seismic data.
+            seismic['instrument_code']: list of str, optional, default: None.
+                the used instruments code of the input seismic data,
+                default is ["HH", "BH", "EH", "SH", "HG", "HN"].
             seismic['datastru']: str, optional, default: 'AIO'.
                 the input seismic data file structure.
                 'AIO' : continuous seismic data are organized All In One folder;
@@ -167,8 +168,8 @@ class MALMI:
         from utils_plot import plot_basemap
         
         # set default parameters----------------------------------------------- 
-        if 'channels' not in seismic:
-            seismic['channels'] = ["*HE", "*HN", "*HZ"]
+        if 'instrument_code' not in seismic:
+            seismic['instrument_code'] = ["HH", "BH", "EH", "SH", "HG", "HN"]
         
         if 'datastru' not in seismic:
             seismic['datastru'] = 'AIO'
@@ -261,7 +262,7 @@ class MALMI:
         
         self.seisdatastru = copy.deepcopy(seismic['datastru'])
         self.dir_seismic = copy.deepcopy(seismic['dir'])
-        self.seismic_channels = copy.deepcopy(seismic['channels'])  # the channels of the input seismic data
+        self.instrument_code = copy.deepcopy(seismic['instrument_code'])  # the instrument codes of the input seismic data
         self.seisdate = copy.deepcopy(seismic['date'])  # date of seismic data
         self.freqband = copy.deepcopy(seismic['freqband'])  # frequency band in Hz for filtering seismic data
         self.n_processor = copy.deepcopy(control['n_processor'])  # number of threads for parallel processing
@@ -361,33 +362,19 @@ class MALMI:
 
         """
         
-        from ioformatting import stainv2json
-        from ioseisdata import format_AIO, format_SDS
+        from ioseisdata import seisdata_format_4ML
         
         print('MALMI starts to format input data set for ML models:')
+        DFMT = {}
+        DFMT['seisdatastru_input'] = self.seisdatastru
+        DFMT['dir_seismic_input'] = self.dir_seismic
+        DFMT['dir_seismic_output'] = self.dir_mseed
+        DFMT['seismic_date'] = self.seisdate
+        DFMT['stainv'] = self.stainv
+        DFMT['instrument_code'] = self.instrument_code
+        DFMT['freqband'] = self.freqband
         
-        if self.seisdatastru == "AIO":
-            # input seismic data files are stored simply in one folder
-            # suitable for formatting small data set
-            seisdate = format_AIO(dir_seismic=self.dir_seismic, seismic_channels=self.seismic_channels, 
-                                  dir_output=self.dir_mseed, freqband=self.freqband)
-            if self.seisdate is None:
-                # retrive date of seismic data, NOTE might not be accurate 
-                # and if data longer than one day, this parameters is 
-                self.seisdate = seisdate
-            
-        elif self.seisdatastru == 'SDS':
-            # input seismic data files are organized in SDS
-            # suitable for formatting large or long-duration data set
-            format_SDS(seisdate=self.seisdate, stainv=self.stainv, 
-                       dir_seismic=self.dir_seismic, seismic_channels=self.seismic_channels, 
-                       dir_output=self.dir_mseed, freqband=self.freqband)
-            
-        else:
-            raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
-        
-        # create station jason file for EQT------------------------------------
-        stainv2json(self.stainv, self.dir_mseed, self.dir_EQTjson)
+        seisdata_format_4ML(DFMT=DFMT)
         gc.collect()
         print('MALMI_format_ML_inputs complete!')
         return
@@ -426,6 +413,7 @@ class MALMI:
             ML['number_of_cpus'] = 2
         #----------------------------------------------------------------------
         
+        from ioformatting import stainv2json
         from EQTransformer.utils.hdf5_maker import preprocessor
         from EQTransformer.utils.plot import plot_data_chart
         from EQTransformer.core.predictor import predictor
@@ -433,6 +421,10 @@ class MALMI:
         print('MALMI starts to generate event and phase probabilities using ML models:')
         # create hdf5 data for EQT inputs--------------------------------------
         stations_json = self.dir_EQTjson + "/station_list.json"  # station JSON file
+        # create station jason file for EQT if it does not exist
+        if os.path.exists(stations_json):
+            stainv2json(self.stainv, self.dir_mseed, self.dir_EQTjson)
+        
         preproc_dir = self.dir_ML + "/preproc_overlap{}".format(ML['overlap'])  # path of the directory where will be located the summary files generated by preprocessor step
         preprocessor(preproc_dir=preproc_dir, mseed_dir=self.dir_mseed, 
                       stations_json=stations_json, overlap=ML['overlap'], 
@@ -491,9 +483,11 @@ class MALMI:
             if npha_thrd_new > self.detect['npha_thrd']:
                 self.detect['npha_thrd'] = npha_thrd_new  # reset using minimal decimal percentage of total available phases
         
-        arrayeventdetect(event_info, self.detect['twind_srch'], self.detect['twlex'], 
-                         self.detect['nsta_thrd'], self.detect['npha_thrd'], 
-                         self.dir_lokiprob, self.dir_lokiseis, dir_seisdataset, self.seismic_channels, self.detect['output_allsta'])
+        seismic_channels = [iinstru+'?' for iinstru in self.instrument_code]
+        arrayeventdetect(event_info=event_info, twind_srch=self.detect['twind_srch'], twlex=self.detect['twlex'], 
+                         nsta_thrd=self.detect['nsta_thrd'], npha_thrd=self.detect['npha_thrd'], 
+                         dir_output=self.dir_lokiprob, dir_output_seis=self.dir_lokiseis, dir_seisdataset=dir_seisdataset, 
+                         seismic_channels=seismic_channels, output_allsta=self.detect['output_allsta'])
         gc.collect()
         print('MALMI_event_detect_ouput complete!')
         return
@@ -589,10 +583,7 @@ class MALMI:
                 if 'component' in PLT:
                     comp = PLT['component']
                 else:
-                    if not self.seismic_channels:
-                        comp = self.seismic_channels  # if self.seismic_channels = None or []
-                    else:
-                        comp = [ich[-1] for ich in self.seismic_channels]  # get components of seismic data
+                    comp = None
                 seischar_plot(dir_seis=dir_seis_ev, dir_char=dir_prob_ev, dir_output=dir_output_ev, 
                               figsize=(12, 12), comp=comp, dyy=1.8, fband=self.freqband, 
                               normv=self.MIG['probthrd'], ppower=self.MIG['ppower'], tag=None, staname=None, 
@@ -963,7 +954,7 @@ class MALMI:
         RELOC['stainv'] = self.stainv
 
         if 'channel_codes' not in RELOC:
-            RELOC['channel_codes'] = self.seismic_channels
+            RELOC['channel_codes'] = ['HHE', 'HHN', 'HHZ']
         
         event_reloc(RELOC)
         

@@ -8,7 +8,6 @@ Created on Thu Jun 24 16:23:38 2021
 """
 
 
-from pandas import to_datetime
 import os
 import json
 import obspy
@@ -54,7 +53,7 @@ def read_seismic_fromfd(dir_seismic, channels=None):
     if channels is not None:
         # select channels
         for tr in stream:
-            if not any([fnmatch.fnmatch(tr.stats.channel, cha) for cha in channels]):
+            if not any([fnmatch.fnmatch(tr.stats.channel, cha.upper()) for cha in channels]):
                 # the channel of current trace not in the specified channel list
                 # remove this trace
                 stream.remove(tr)
@@ -135,121 +134,6 @@ def output_seissegment(stream, dir_output, starttime, endtime, freqband=None):
                 del stdata
     
     # del stream
-    return
-
-
-def stream2EQTinput(stream, dir_output, channels=["*HE", "*HN", "*HZ", "*H1", "*H2", "*H3"], freqband=None):
-    """
-    This function is used to format the input obspy stream into the EQ-Transformer 
-    acceptable seismic data inputs.
-    
-    The three component seismic data of a station should be downloaded at the same time range.
-    The output filename contains the time range of the data. For a perticular station,
-    the starttime and endtime with a wider range of the three component is used as the 
-    unified time range in the output filename.
-    So don't split different component data of the same station to differnt stream,
-    they must be kept in the same stream and be checked for outputting. You can simply
-    merge different streams to a final complete stream which contrain all stations or at
-    least all components of the same station, and then pass the steam to this function.
-
-    In general the seismic data (stream) span a day (data are usually downloaded daily). 
-    However, this function also accept data time range longer or smaller than a day.
-    But using daily data segment is highly recommended, because by default the EQ-Transformer
-    are set to process this kind of data (daily date segment). It now also works for longer or 
-    short time range. But there is no guarantee that the future updated version will also 
-    support this feature.
-
-    Parameters
-    ----------
-    stream : obspy stream
-        input seismic data.
-    dir_output : str
-        directory for outputting.
-    channels : str
-        channel name for outputting, default: ["*HE", "*HN", "*HZ", "*H1", "*H2", "*H3"];
-        if None or [], then searching for all channels in the input stream.
-    freqband : list of float
-        frequency range in Hz for filtering seismic data, 
-        e.g. [3, 45] meaning filter seismic data to 3-45 Hz.
-        default is None, means no filtering.
-
-    Returns
-    -------
-    None.
-
-    Example
-    -------
-    dir_output = '/Users/human/eqt/examples/mseeds'
-    stream2EQTinput(stream, dir_output)
-    """
-    
-    
-    timeformat = "%Y%m%dT%H%M%SZ"  # NOTE here output until second
-    
-    if not channels:
-        # no input channel names
-        # search for all available channels in the input stream data
-        channels = []
-        for tr in stream:
-            if tr.stats.channel not in channels:
-                channels.append(tr.stats.channel)
-        del tr
-    
-    # scan all traces to get the station names
-    stations = []
-    for tr in stream:
-        sname = tr.stats.station
-        if sname not in stations:
-            stations.append(sname)
-    del tr
-    
-    # for a particular station, first check starttime and endtime, then output data
-    for ista in stations:
-        # scan different channels for getting a unified time range (choose the wider one) for a perticular station
-        dcount = 0
-        for ichan in channels:
-            stdata = stream.select(station=ista, channel=ichan)
-            if stdata.count() > 0:
-                for tr in stdata:
-                    if dcount == 0:
-                        starttime = tr.stats.starttime
-                        endtime = tr.stats.endtime
-                    else:
-                        starttime = min(starttime, tr.stats.starttime)
-                        endtime = max(endtime, tr.stats.endtime)
-                    dcount += 1
-            del stdata
-    
-        if dcount > 0:
-            # round datetime to the nearest second, and convert to the setted string format
-            starttime_str = to_datetime(starttime.datetime).round('1s').strftime(timeformat)
-            endtime_str = to_datetime(endtime.datetime).round('1s').strftime(timeformat)
-    
-        # output data for each station, the data from the same station are output 
-        # to the same folder
-        # creat a folder for each station and output data in the folder
-        dir_output_sta = os.path.join(dir_output, ista)
-        if not os.path.exists(dir_output_sta):
-            os.makedirs(dir_output_sta)
-        
-        # Output data for each station and each channel
-        # For a particular station, the three channel (if there are) share
-        # the same time range in the final output filename.
-        for ichan in channels:
-            stdata = stream.select(station=ista, channel=ichan)
-            if stdata.count() > 0:
-                if freqband is not None:
-                    # filter data in specified frequency range
-                    # note need to process in this way to avoide glitch after filtering
-                    stdata.detrend('demean')
-                    stdata.detrend('simple')
-                    stdata.filter('bandpass', freqmin=freqband[0], freqmax=freqband[1], corners=2, zerophase=True)
-                    stdata.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
-                
-                OfileName = stdata[0].id + '__' + starttime_str + '__' + endtime_str + '.mseed'
-                stdata.write(os.path.join(dir_output_sta, OfileName), format="MSEED")
-            del stdata
-                 
     return
 
 
