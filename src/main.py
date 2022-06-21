@@ -35,9 +35,14 @@ class MALMI:
         seismic parameters (For input seismic data set):
             seismic['dir']: str, required.
                 path to raw continuous seismic data.
-            seismic['instrument_code']: list of str, optional, default: None.
+            seismic['instrument_code']: list of str, optional.
                 the used instruments code of the input seismic data,
                 default is ["HH", "BH", "EH", "SH", "HG", "HN"].
+                For 'SDS' input format, instrument_code list specify the priority code list, we will try to load only 1 instrument code data for a station;
+                For 'AIO' input format, we will load all avaliable data listed in the instrument_code list;
+                This need further developement, to do: 
+                    if instrument_code is None, load all avaliable data;
+                    if instrument_code is a list, it specify the priority code list to load, make the same effect for both 'SDS' and 'AIO';
             seismic['datastru']: str, optional, default: 'AIO'.
                 the input seismic data file structure.
                 'AIO' : continuous seismic data are organized All In One folder;
@@ -483,7 +488,10 @@ class MALMI:
             if npha_thrd_new > self.detect['npha_thrd']:
                 self.detect['npha_thrd'] = npha_thrd_new  # reset using minimal decimal percentage of total available phases
         
-        seismic_channels = [iinstru+'?' for iinstru in self.instrument_code]
+        if self.instrument_code is None:
+            seismic_channels = [iinstru+'?' for iinstru in self.instrument_code]
+        else:
+            seismic_channels = None
         arrayeventdetect(event_info=event_info, twind_srch=self.detect['twind_srch'], twlex=self.detect['twlex'], 
                          nsta_thrd=self.detect['nsta_thrd'], npha_thrd=self.detect['npha_thrd'], 
                          dir_output=self.dir_lokiprob, dir_output_seis=self.dir_lokiseis, dir_seisdataset=dir_seisdataset, 

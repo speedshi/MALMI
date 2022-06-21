@@ -310,6 +310,8 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
     a csv format phase file for rtdd;
     a csv format event file for rtdd;
     
+    Note the event id in the event file and phase file must be a integer!
+    
     # example of event file:
     # id,isotime,latitude,longitude,depth,magnitude,rms
     # 1,2019-11-05T00:54:21.256705Z,46.318264,7.365509,4.7881,3.32,0.174
@@ -353,7 +355,10 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
     
     # loop over each event for output
     for iev in range(len(catalog['id'])):
-        eventId = catalog['id'][iev]
+        try:
+            eventId = int(catalog['id'][iev])  # note the event id should be an integer for rtdd
+        except:
+            eventId = iev + 1
         isotime = catalog['time'][iev].strftime(datetime_format)
         latitude = catalog['latitude'][iev]
         longitude = catalog['longitude'][iev]
