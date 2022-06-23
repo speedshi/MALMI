@@ -79,7 +79,7 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None):
     return seisdate
 
 
-def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, location_code=['','00','R1'], freqband=None):
+def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, location_code=['','00','R1', 'BT', 'SF', '*'], freqband=None):
     """
     Format seismic data organized in SDS data structure so that the ouput data
     can be feed to various ML models.
@@ -111,10 +111,10 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
     dir_output : str
         directory for outputting seismic data, 
         NOTE do not add '/' at the last.
-    location_code : list of str, optional, default is ['','00','R1'].
+    location_code : list of str, optional, default is ['','00','R1', 'BT', 'SF', '*'] (Note the last code '*' will match any location code it can find).
         the prefered list of location cods; specifying the perference order to load the data;
         For example: ['','00','R1'], in this situation '' will have the highest priority.
-        If you only want load a specific location, just specify the perferred one, such as ['HH'].
+        If you only want load a specific location, just specify the perferred one, such as ['00'].
         If you don't want to spcify location code, use None which will use the first location_code where it can load data.
     freqband : list of float
         frequency range in Hz for filtering seismic data, 
@@ -146,11 +146,11 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
                 
                 for iinstru in instrument_code:
                     # loop over instrument code list to check and load data
-                    
-                    dir_chalevel = glob.glob(os.path.join(dir_stalevel, iinstru+'*'))  # channel level                    
+                    dir_chalevel_want = os.path.join(dir_stalevel, iinstru+'*')
+                    dir_chalevel = glob.glob(dir_chalevel_want)  # channel level                    
                     if len(dir_chalevel) == 0:
                         # folder of current instrument code does not exist
-                        print("No data found for: {}! Pass!".format(dir_chalevel))
+                        print("No data found for path: {}! Pass!".format(dir_chalevel_want))
                     elif len(dir_chalevel) <= 3:
                         # folder of current instrument code exists                    
                         
@@ -159,7 +159,7 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
                         if isinstance(location_code, list) and (len(location_code)==1) and (location_code[0] != '*'):
                             # have a specific location code; only load data of that location
                             ilocation = location_code[0]
-                        elif (location_code is None):
+                        elif (location_code is None) or ((len(location_code)==1) and (location_code[0] == '*')):
                             # no specifying location code list, use the first location code it can find
                             for dir_icha in dir_chalevel:
                                 dir_datelevel = os.path.join(dir_icha, '*.{:03d}'.format(tday))
@@ -178,9 +178,14 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
                             data_location_codes = list(set(data_location_codes))
                             for iicd in location_code:
                                 location_code_filtered = fnmatch.filter(data_location_codes, iicd.upper())
-                                if len(location_code_filtered) > 0:
+                                if len(location_code_filtered) == 1:
                                     ilocation = location_code_filtered[0]
                                     print('Find data at the prefered station location code: {}.'.format(ilocation))
+                                    break
+                                elif len(location_code_filtered) > 1:
+                                    ilocation = location_code_filtered[0]
+                                    warnings.warn('Find multiple location codes ({}) matching the current tested code {}. Choose the first one as the prefered station location code: {}.'
+                                                  .format(location_code_filtered, iicd, ilocation))
                                     break
 
                         stream = obspy.Stream()  # initilize an empty obspy stream
