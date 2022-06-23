@@ -362,13 +362,13 @@ def read_lokicatalog(file_catalog):
     Returns
     -------
     catalog : dic
-         contains the catalog information.
-        catalog['time'] : list of datetime
+        contains the catalog information.
+        catalog['time'] : list of UTCDateTime
             origin time of catalog events.
         catalog['latitude'] : list of float
-            longitude in degree of catalog events.
-        catalog['longitude'] : list of float
             latitude in degree of catalog events.
+        catalog['longitude'] : list of float
+            longitude in degree of catalog events.
         catalog['depth_km'] : list of float
             depth in km of catalog events.
         catalog['coherence_max'] : list of float
@@ -380,32 +380,52 @@ def read_lokicatalog(file_catalog):
 
     """
     
-    # set catalog format
-    format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'cstd', 'cmed', 'cmax']  # indicate the meaning of each colume
-    datetime_format_26 = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
-    datetime_format_19 = '%Y-%m-%dT%H:%M:%S'  # datetime format in the input file
+    ff = open(file_catalog)
+    flines = ff.readlines()
+    ff.close()
     
-    # read catalog
-    cadf = pd.read_csv(file_catalog, delimiter=' ', header=None, names=format_catalog,
-                       skipinitialspace=True, encoding='utf-8')
-    
-    # format catalog information
-    catalog = {}
-    etimes = list(cadf['time'])
-    catalog['time'] = []
-    for itime in etimes:
-        if len(itime) == 19:
-            catalog['time'].append(datetime.datetime.strptime(itime, datetime_format_19))  # origin time
-        elif len(itime) == 26:
-            catalog['time'].append(datetime.datetime.strptime(itime, datetime_format_26))  # origin time
+    if (len(flines[0].split()[0])==19) or (len(flines[0].split()[0])==26):  # the first colume is time
+        # time format
+        datetime_format_26 = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
+        datetime_format_19 = '%Y-%m-%dT%H:%M:%S'  # datetime format in the input file
+        
+        # set catalog format
+        Ncol = len(flines[0].split())  # total number of columes
+        if Ncol == 7:  # indicate the meaning of each colume
+            format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'coherence_std', 'coherence_med', 'coherence_max']  
+        elif Ncol == 12:
+            format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'coherence_std', 'coherence_med', 'coherence_max', 
+                              'coherence_mean', 'coherence_min', 'coherence_MAD', 'coherence_kurtosis', 'coherence_skewness']
+        elif Ncol == 16:
+            format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'coherence_std', 'coherence_med', 'coherence_max', 
+                              'coherence_mean', 'coherence_min', 'coherence_MAD', 'coherence_kurtosis', 'coherence_skewness', 
+                              'coherence_normstd', 'coherence_normMAD', 'coherence_normkurtosis', 'coherence_normskewness']
         else:
-            raise ValueError('Error! Input datetime format not recoginzed!')
-    catalog['latitude'] = list(cadf['latitude'])  # latitude in degree
-    catalog['longitude'] = list(cadf['longitude'])  # logitude in degree
-    catalog['depth_km'] = list(cadf['depth_km'])  # depth in km
-    catalog['coherence_max'] = list(cadf['cmax'])  # maximum coherence of migration volume
-    catalog['coherence_std'] = list(cadf['cstd'])  # standard deviation of migration volume
-    catalog['coherence_med'] = list(cadf['cmed'])  # median coherence of migration volume
+            raise ValueError('Unrecognized catalog format for {}!'.format(file_catalog))
+        
+        # read catalog
+        cadf = pd.read_csv(file_catalog, delimiter=' ', header=None, names=format_catalog,
+                           skipinitialspace=True, encoding='utf-8')
+        
+        # format catalog information
+        catalog = {}
+        
+        # need to parse time information
+        etimes = list(cadf['time'])
+        catalog['time'] = []
+        for itime in etimes:
+            if len(itime) == 19:
+                catalog['time'].append(UTCDateTime(datetime.datetime.strptime(itime, datetime_format_19)))  # origin time
+            elif len(itime) == 26:
+                catalog['time'].append(UTCDateTime(datetime.datetime.strptime(itime, datetime_format_26)))  # origin time
+            else:
+                raise ValueError('Error! Input datetime format not recoginzed!')
+        
+        for ikey in format_catalog:
+            if ikey.lower() != 'time':
+                catalog[ikey] = list(cadf[ikey])
+    else:
+        raise ValueError('Unrecognized catalog format for {}!'.format(file_catalog))
     
     del cadf, etimes
     return catalog
@@ -441,7 +461,7 @@ def read_malmipsdetect(file_detect):
 
     """
     
-    format_f = ['starttime', 'endtime', 'station', 'phase']
+    format_f = ['starttime', 'endtime', 'station_num', 'phase_num']
     datetime_format_26 = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
     datetime_format_19 = '%Y-%m-%dT%H:%M:%S'  # datetime format in the input file
     
@@ -467,9 +487,11 @@ def read_malmipsdetect(file_detect):
             detect_info['endtime'].append(datetime.datetime.strptime(df.loc[ii,'endtime'], datetime_format_26))  # origin time
         else:
             raise ValueError('Error! Input datetime format not recoginzed!')
-            
-    detect_info['station'] = list(df['station'])
-    detect_info['phase'] = list(df['phase'])
+    
+    for ikey in format_f:
+        if (ikey != 'starttime') and (ikey != 'endtime'):
+            detect_info[ikey] = list(df[ikey])
+            detect_info[ikey] = list(df[ikey])
     
     return detect_info
 
@@ -654,7 +676,7 @@ def read_arrivaltimes(file_arrvt):
     return arrvtt
 
 
-def dict2csv(indic, filename=None):
+def dict2csv(indic, filename=None, mode='auto'):
     """
     Write an input dictionary to a CSV file.
 
@@ -664,8 +686,9 @@ def dict2csv(indic, filename=None):
         The input dictionary.
     filename : str, optional
         The output filename including path. The default is None.
-
-    If a file already exist, use append mode; otherwise use write mode.   
+    mode : str, optional, default is 'auto'
+        writing mode; 'a+' for appending; 'w' for rewrite;
+        'auto: 'If a file already exist, use append mode; otherwise use rewrite mode.   
     
     Returns
     -------
@@ -676,10 +699,11 @@ def dict2csv(indic, filename=None):
     if filename is None:
         filename = 'output.csv'
     
-    if os.path.exists(filename):
-        mode = 'a+'
-    else:
-        mode = 'w'
+    if mode.lower() == 'auto':
+        if os.path.exists(filename):
+            mode = 'a+'
+        else:
+            mode = 'w'
         
     outfile = open(filename, mode, newline='')
     ofcsv = csv.writer(outfile, delimiter=',', lineterminator="\n")

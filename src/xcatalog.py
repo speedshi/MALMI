@@ -97,22 +97,6 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
     
     assert(len(file_cata) == len(file_dete))  # should correspond
     
-    # initialize the final catalog
-    mcatalog = {}
-    mcatalog['id'] = []  # id of the event
-    mcatalog['time'] = []  # origin time
-    mcatalog['latitude'] = []  # latitude in degree
-    mcatalog['longitude'] = []  # logitude in degree
-    mcatalog['depth_km'] = []  # depth in km
-    mcatalog['coherence_max'] = []  # maximum coherence of migration volume
-    mcatalog['coherence_std'] = []  # standard deviation of migration volume
-    mcatalog['coherence_med'] = []  # median coherence of migration volume
-    mcatalog['starttime'] = []  # detected starttime of the event
-    mcatalog['endtime'] = []  # detected endtime of the event
-    mcatalog['station_num'] = []  # total number of stations triggered of the event
-    mcatalog['phase_num'] = []  # total number of phases triggered of the event
-    mcatalog['dir'] = []  # directory of the migration results of the event
-    
     eid = 0
     # loop over each catalog/detection file and concatenate them together to make the final version
     for ii in range(len(file_cata)):
@@ -124,24 +108,31 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
         # load detection file
         dtemp = read_malmipsdetect(file_dete[ii])
         
-        assert(len(ctemp['time']) == len(dtemp['phase']))  # event number should be the same
+        if ii == 0:
+            # initialize the final catalog
+            mcatalog = {}
+            mcatalog['id'] = []  # id of the event
+            for ickey in ctemp:
+                # inherit keys from loki catalog dictionary
+                mcatalog[ickey] = []
+            for idkey in dtemp:
+                # inherit keys from detection dictionary
+                mcatalog[idkey] = []
+            mcatalog['dir'] = []  # directory of the migration results of the event
+        
+        assert(len(ctemp['time']) == len(dtemp['phase_num']))  # event number should be the same
         for iev in range(len(ctemp['time'])):
             assert(ctemp['time'][iev] <= dtemp['endtime'][iev])
             
+            for ickey in ctemp:
+                # inherit keys from loki catalog dictionary
+                mcatalog[ickey].append(ctemp[ickey][iev])
+            for idkey in dtemp:
+                # inherit keys from detection dictionary
+                mcatalog[idkey].append(dtemp[idkey][iev])
             eid = eid + 1
-            mcatalog['time'].append(ctemp['time'][iev])  # origin time
-            evtimeid = datetime.datetime.strftime(ctemp['time'][iev], '%Y%m%d%H%M%S%f')
-            mcatalog['id'].append('{}_{}_{:06d}'.format(evidtag, evtimeid, eid))  # event id
-            mcatalog['latitude'].append(ctemp['latitude'][iev])  # latitude in degree
-            mcatalog['longitude'].append(ctemp['longitude'][iev])  # logitude in degree
-            mcatalog['depth_km'].append(ctemp['depth_km'][iev])  # depth in km
-            mcatalog['coherence_max'].append(ctemp['coherence_max'][iev])  # maximum coherence of migration volume
-            mcatalog['coherence_std'].append(ctemp['coherence_std'][iev])  # standard deviation of migration volume
-            mcatalog['coherence_med'].append(ctemp['coherence_med'][iev])  # median coherence of migration volume
-            mcatalog['starttime'].append(dtemp['starttime'][iev])  # starttime of the event
-            mcatalog['endtime'].append(dtemp['endtime'][iev])  # endtime of the event
-            mcatalog['station_num'].append(dtemp['station'][iev])  # total number of stations triggered
-            mcatalog['phase_num'].append(dtemp['phase'][iev])  # total number of phases triggered
+            evtimeid = ctemp['time'][iev].strftime('%Y%m%d%H%M%S%f')  # UTCDateTime to string
+            mcatalog['id'].append('{}_{}_{:06d}'.format(evidtag, evtimeid, eid))  # event identification
             sss = file_cata[ii].split(os.path.sep)
             if sss[0] == '':
                 # the input path: 'dir_dateset' is a absolute address
@@ -275,7 +266,7 @@ def catalog_rmrpev(catalog, thrd_time=0.3, thrd_hdis=None, thrd_depth=None, evkp
     
     for iev in range(Nev):
         if iev not in evidlist:
-            evtimedfs = np.array([abs(ettemp.total_seconds()) for ettemp in (catalog['time'][iev+1:] - catalog['time'][iev])])  # origin time difference in seconds
+            evtimedfs = np.array([abs(ettemp) for ettemp in (catalog['time'][iev+1:] - catalog['time'][iev])])  # origin time difference in seconds
             eindx_bool = (evtimedfs <= thrd_time)  # the boolean array indicating whether event origin time match
             eindx = np.flatnonzero(eindx_bool) + iev + 1  # index of events in catalog which matches the origin time of the current event
         
@@ -811,7 +802,7 @@ def retrive_catalog_from_MALMI_database(CAT):
         
     # remove repeated events
     if CAT['rmrpev']:
-        catalog = catalog_rmrpev(catalog=catalog, thrd_time=0.5, thrd_hdis=5, thrd_depth=5, evkp='coherence_max')
+        catalog = catalog_rmrpev(catalog=catalog, thrd_time=CAT['rmrpev']['thrd_time'], thrd_hdis=CAT['rmrpev']['thrd_hdis'], thrd_depth=CAT['rmrpev']['thrd_depth'], evkp='coherence_max')
     
     # save catalog
     if (CAT['fname'] is not None) and (CAT['fformat'] is not None):
@@ -823,7 +814,7 @@ def retrive_catalog_from_MALMI_database(CAT):
                 pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
         elif CAT['fformat'].lower() == 'csv':
             # save the extracted original catalog in csv format
-            dict2csv(catalog, cfname)
+            dict2csv(catalog, cfname, mode='w')
         else:
             raise ValueError("Wrong input for CAT[\'fformat\']: {}!".format(CAT['fformat']))
 

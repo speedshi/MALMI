@@ -38,7 +38,7 @@ class MALMI:
             seismic['instrument_code']: list of str, optional.
                 the used instruments code of the input seismic data,
                 default is ["HH", "BH", "EH", "SH", "HG", "HN"].
-                For 'SDS' input format, instrument_code list specify the priority code list, we will try to load only 1 instrument code data for a station;
+                For 'SDS' input format, instrument_code list specify the priority code list, we will try to load only 1 instrument code data for colocated stations;
                 For 'AIO' input format, we will load all avaliable data listed in the instrument_code list;
                 This need further developement, to do: 
                     if instrument_code is None, load all avaliable data;
@@ -808,8 +808,9 @@ class MALMI:
             CAT['fformat'] : str
                 the format of the output catalog file, can be 'pickle' and 'csv'.
                 The default is 'pickle'.
-            CAT['rmrpev'] : boolen, default is 'True'
-                whether to remove the repeated events in the catalog.
+            CAT['rmrpev'] : dict, 
+                whether to remove the repeated events in the catalog, and the related parameters;
+                set to None or False if you do not want to remove.
             CAT['evselect'] : dict, default is {}
                 parameters controlling the selection of events from original catalog,
                 i.e. quality control of the orgiginal catalog.
@@ -858,8 +859,18 @@ class MALMI:
         if 'fformat' not in CAT:
             CAT['fformat'] = 'pickle'
         
-        if 'rmrpev' not in CAT:
-            CAT['rmrpev'] = True    
+        if ('rmrpev' not in CAT) or (CAT['rmrpev'] is True):
+            CAT['rmrpev'] = {}
+        
+        if isinstance(CAT['rmrpev'], dict):
+            if 'thrd_time' not in CAT['rmrpev']:
+                CAT['rmrpev']['thrd_time'] = 0.5
+            
+            if 'thrd_hdis' not in CAT['rmrpev']:
+                CAT['rmrpev']['thrd_hdis'] = 5
+             
+            if 'thrd_depth' not in CAT['rmrpev']:
+                CAT['rmrpev']['thrd_depth'] = 5
         
         if 'evselect' not in CAT:
             CAT['evselect'] = {}
@@ -882,11 +893,17 @@ class MALMI:
         if (CAT['evselect'] is not None) and ('thrd_llbd' not in CAT['evselect']):
             CAT['evselect']['thrd_llbd'] = 0.002
         
-        if (CAT['evselect'] is not None) and ('thrd_lat' not in CAT['evselect']):    
-            CAT['evselect']['thrd_lat'] = [self.grid['mgregion'][2]+CAT['evselect']['thrd_llbd'], self.grid['mgregion'][3]-CAT['evselect']['thrd_llbd']]
+        if (CAT['evselect'] is not None) and ('thrd_lat' not in CAT['evselect']):
+            if (CAT['evselect']['thrd_llbd'] is not None):    
+                CAT['evselect']['thrd_lat'] = [self.grid['mgregion'][2]+CAT['evselect']['thrd_llbd'], self.grid['mgregion'][3]-CAT['evselect']['thrd_llbd']]
+            else:
+                CAT['evselect']['thrd_lat'] = None
         
         if (CAT['evselect'] is not None) and ('thrd_lon' not in CAT['evselect']):
-            CAT['evselect']['thrd_lon'] = [self.grid['mgregion'][0]+CAT['evselect']['thrd_llbd'], self.grid['mgregion'][1]-CAT['evselect']['thrd_llbd']]    
+            if (CAT['evselect']['thrd_llbd'] is not None):
+                CAT['evselect']['thrd_lon'] = [self.grid['mgregion'][0]+CAT['evselect']['thrd_llbd'], self.grid['mgregion'][1]-CAT['evselect']['thrd_llbd']]    
+            else:
+                CAT['evselect']['thrd_lon'] = None
         
         if (CAT['evselect'] is not None) and ('thrd_depth' not in CAT['evselect']):    
             CAT['evselect']['thrd_depth'] = None
