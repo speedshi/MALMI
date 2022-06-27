@@ -37,7 +37,7 @@ git clone https://github.com/speedshi/MALMI.git
 Currently only *Vel2Grid* and *Grid2Time* programs are used and remember to put them in a executable path after compiling NonLinLoc.  
 There are two ways to install NonLinLoc:
 
-1. Through [NonLinLoc GitHub Page](https://github.com/alomax/NonLinLoc) (Recomended)
+1. Through [NonLinLoc GitHub Page](https://github.com/alomax/NonLinLoc) (Recomended)  
 Install example:
 ```bash
 git clone https://github.com/alomax/NonLinLoc.git
