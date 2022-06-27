@@ -41,9 +41,11 @@ There are two ways to install NonLinLoc:
 Install example:
 ```bash
 git clone https://github.com/alomax/NonLinLoc.git
-cd /src
+cd NonLinLoc/src
 mkdir bin   # bin/ is a subdirectory of src/
 cmake .
+echo 'export PATH="WHERE_CODE_IS_STORED/NonLinLoc/src/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
 make
 ```
 
