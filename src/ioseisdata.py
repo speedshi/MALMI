@@ -257,7 +257,7 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
         only output data which have the listed instrument codes;
         if None or [], then searching for all avaliable instrument code in the input stream.
     component_code : list of str
-        instrument_code for outputting, default: ['Z','N','E','1','2','3'];
+        component_code for outputting, default: ['Z','N','E','1','2','3'];
         only output data of the listed components; 
         Note complete data should have at least three component data, such as ['Z','N','E'];
         if None or [], then searching for all avaliable component code in the input stream.
