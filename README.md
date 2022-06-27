@@ -10,7 +10,7 @@ Currently **MALMI** utilize [*EQTransformer*](https://github.com/speedshi/EQTran
 ```bash
 conda config --add channels conda-forge
 conda config --set channel_priority strict
-conda create -n malmi python=3.7 obspy spyder==5.0.3 pygmt six~=1.15.0 numpy~=1.19.2
+conda create -n malmi python=3.7 obspy spyder==5.0.3 pygmt six~=1.15.0 numpy~=1.19.2 protobuf'<3.20,>=3.9.2'
 conda activate malmi
 ```
 
