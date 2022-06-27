@@ -34,7 +34,8 @@ git clone https://github.com/speedshi/MALMI.git
 ```
 
 ### Install NonLinLoc if you want to generate travetime tables in MALMI (optional)
-Currently only *Vel2Grid* and *Grid2Time* programs are used and remember to put them in a executable path after compiling NonLinLoc. Two ways to install NonLinLoc:
+Currently only *Vel2Grid* and *Grid2Time* programs are used and remember to put them in a executable path after compiling NonLinLoc. 
+There are two ways to install NonLinLoc:
 
 1. Through [NonLinLoc GitHub Page](https://github.com/alomax/NonLinLoc) (Recomended)
 Install example:
