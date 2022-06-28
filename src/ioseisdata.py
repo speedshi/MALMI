@@ -353,7 +353,7 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
                             trdata.detrend('demean')
                             trdata.detrend('simple')
                             trdata.filter('bandpass', freqmin=freqband[0], freqmax=freqband[1], corners=2, zerophase=True)
-                            trdata.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
+                            trdata.taper(max_percentage=0.001, type='cosine', max_length=1)  # to avoid anormaly at bounday
                         
                         OfileName = trdata[0].id + '__' + starttime_str + '__' + endtime_str + '.mseed'
                         trdata.write(os.path.join(dir_output_sta, OfileName), format="MSEED")

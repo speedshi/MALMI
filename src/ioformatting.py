@@ -120,7 +120,7 @@ def output_seissegment(stream, dir_output, starttime, endtime, freqband=None):
                     stdata.detrend('demean')
                     stdata.detrend('simple')
                     stdata.filter('bandpass', freqmin=freqband[0], freqmax=freqband[1], corners=2, zerophase=True)
-                    stdata.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
+                    stdata.taper(max_percentage=0.001, type='cosine', max_length=1)  # to avoid anormaly at bounday
                 stdata.trim(UTCDateTime(starttime), UTCDateTime(endtime), pad=False, fill_value=0)
                 stdata.merge(fill_value=0)
                 if stdata.count() > 0:

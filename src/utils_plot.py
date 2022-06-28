@@ -284,7 +284,7 @@ def seisin_plot(dir_input, dir_output, figsize, comp=['Z','N','E'], dyy=1.8, fba
         stream.detrend('demean')
         stream.detrend('simple')
         stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1], corners=2, zerophase=True)
-        stream.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
+        stream.taper(max_percentage=0.001, type='cosine', max_length=1)  # to avoid anormaly at bounday
     
     for icomp in comp:
         # plot data of all stations for each component
@@ -452,7 +452,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
         stream.detrend('demean')
         stream.detrend('simple')
         stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1], corners=2, zerophase=True)
-        stream.taper(max_percentage=0.001, type='cosine', max_length=2)  # to avoid anormaly at bounday
+        stream.taper(max_percentage=0.001, type='cosine', max_length=1)  # to avoid anormaly at bounday
     
     for icomp in comp:
         # plot data of all stations for each component
