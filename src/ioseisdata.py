@@ -132,6 +132,9 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
 
     """
 
+    if instrument_code is None:
+        instrument_code = ['*']
+
     tdate = seisdate  # the date to be processed for SDS data files
     tyear = tdate.year  # year
     tday = tdate.timetuple().tm_yday  # day of the year
@@ -278,7 +281,7 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
     
     timeformat = "%Y%m%dT%H%M%SZ"  # NOTE here output until second
     
-    if not instrument_code:
+    if not instrument_code:  # for None or [] or Flase will reset 
         # no input instrument codes
         # search for all available instrument codes in the input stream data
         instrument_code = []
@@ -314,11 +317,15 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
         if not os.path.exists(dir_output_sta):
             os.makedirs(dir_output_sta)
         
+        stdata_ista = stream.select(station=ista)  # data for this station
+        
         for iinstru in instrument_code:
             # select and output data for a perticular instrument code
         
+            ista_save = False  # flag to indicate whether data of this station have been saved
+        
             # scan different channels for getting a unified time range (choose the wider one) at a perticular station
-            stdata = stream.select(station=ista, channel=iinstru+'*')  # stream data of an instrument code
+            stdata = stdata_ista.select(channel=iinstru+'*')  # stream data of an instrument code
             if stdata.count() > 0:
                 dcount = 0
                 for tr in stdata:
@@ -338,7 +345,7 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
                 # For a particular station, the three channel (if there are) share
                 # the same time range in the final output filename.
                 for icomp in component_code:  # not all component exist
-                    trdata = stdata.select(station=ista, component=icomp)  # stream data of a component
+                    trdata = stdata.select(component=icomp)  # stream data of a component
                     if trdata.count() > 0:
                         if freqband is not None:
                             # filter data in specified frequency range
@@ -350,6 +357,10 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
                         
                         OfileName = trdata[0].id + '__' + starttime_str + '__' + endtime_str + '.mseed'
                         trdata.write(os.path.join(dir_output_sta, OfileName), format="MSEED")
+                        ista_save = True
+                        
+            if ista_save:
+                break  # already save data for this station, no need to look for the next instrument code
 
     return
 

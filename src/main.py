@@ -38,11 +38,9 @@ class MALMI:
             seismic['instrument_code']: list of str, optional.
                 the used instruments code of the input seismic data,
                 default is ["HH", "BH", "EH", "SH", "HG", "HN"].
-                For 'SDS' input format, instrument_code list specify the priority code list, we will try to load only 1 instrument code data for colocated stations;
-                For 'AIO' input format, we will load all avaliable data listed in the instrument_code list;
-                This need further developement, to do: 
-                    if instrument_code is None, load all avaliable data;
-                    if instrument_code is a list, it specify the priority code list to load, make the same effect for both 'SDS' and 'AIO';
+                This instrument_code list specify the priority code list, 
+                will try to load only 1 instrument code data for the colocated stations (having the same station name);
+                if instrument_code is None, will try to load all avaliable data;
             seismic['datastru']: str, optional, default: 'AIO'.
                 the input seismic data file structure.
                 'AIO' : continuous seismic data are organized All In One folder;
