@@ -70,6 +70,9 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=Fa
             This is good for filtering, because filter the contious data with 
             0 (for example) filled gap will produce glitches. It is recommand
             to filter the data before merge the seismic data.
+        split['minimal_continous_points'] : int, optional, default is 3.
+            this specifies that at least certain continuous points having the mask_value
+            will be recognized as gap.
 
     Returns
     -------
@@ -82,7 +85,7 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=Fa
     seisdate = (stream[0].stats.starttime + (stream[0].stats.endtime - stream[0].stats.starttime)*0.5).date  # date when data exist
     
     if isinstance(split, dict):
-        stream = stream_split_gaps(stream, split['mask_value'])
+        stream = stream_split_gaps(stream, mask_value=split['mask_value'], minimal_continous_points=split['minimal_continous_points'])
     
     # output to the seismic data format that QET can handle 
     stream2EQTinput(stream=stream, dir_output=dir_output, instrument_code=instrument_code, freqband=freqband)
@@ -140,6 +143,9 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
             This is good for filtering, because filter the contious data with 
             0 (for example) filled gap will produce glitches. It is recommand
             to filter the data before merge the seismic data.
+        split['minimal_continous_points'] : int, optional, default is 3.
+            this specifies that at least certain continuous points having the mask_value
+            will be recognized as gap.
         
     Raises
     ------
@@ -233,7 +239,7 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
                             # have at least one component data
                             
                             if isinstance(split, dict):
-                                stream = stream_split_gaps(stream, split['mask_value'])
+                                stream = stream_split_gaps(stream, mask_value=split['mask_value'], minimal_continous_points=split['minimal_continous_points'])
                             
                             stream2EQTinput(stream=stream, dir_output=dir_output, instrument_code=None, freqband=freqband)
                             break  # already find and output data for this instrument code, no need to look at the rest instrument codes

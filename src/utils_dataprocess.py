@@ -178,7 +178,7 @@ def chamferdist(datax, datay):
     return CD
 
 
-def stream_split_gaps(stream, mask_value=0, minimal_continous_points=3):
+def stream_split_gaps(stream, mask_value=0, minimal_continous_points=100):
     """
     Split the stream into unmasked traces.
     Data of certain value will be recognized as gap, will be masked.
@@ -205,28 +205,23 @@ def stream_split_gaps(stream, mask_value=0, minimal_continous_points=3):
         NPTS = len(tr.data)
         mask = np.full((NPTS,), fill_value=False)
         
-        mkindx = np.where(tr.data == mask_value)
+        mkindx = np.where(tr.data == mask_value)[0]  
         ii = 0
         NN = len(mkindx)
-        while ii < NN:
+        while ii < NN-1:
             for jj in range(ii+1, NN):
                 if (mkindx[jj] - mkindx[jj-1]) > 1:
-                    if (jj-ii) >= minimal_continous_points:
-                        mask[ii:jj] = True
+                    if (mkindx[jj-1]+1-mkindx[ii]) >= minimal_continous_points:
+                        mask[mkindx[ii]:mkindx[jj-1]+1] = True
                     ii = jj
                     break
-        
-        # ii = 0
-        # while ii < NPTS:
-        #     if (tr.data[ii] == mask_value):
-        #         for jj in range(ii+1, NPTS):
-        #             if tr.data[jj] != mask_value:
-        #                 if (jj-ii) >= minimal_continous_points:
-        #                     mask[ii:jj] = True
-        #                 ii = jj
-        #                 break
-        #     else:
-        #         ii += 1
+                elif (jj == NN-1):
+                    if (mkindx[jj]+1-mkindx[ii]) >= minimal_continous_points:
+                        mask[mkindx[ii]:mkindx[jj]+1] = True
+                    ii = jj
+                    break
+                else:
+                    pass
             
         tr.data = np.ma.array(tr.data, mask=mask)
     
