@@ -204,17 +204,29 @@ def stream_split_gaps(stream, mask_value=0, minimal_continous_points=3):
     for tr in stream:
         NPTS = len(tr.data)
         mask = np.full((NPTS,), fill_value=False)
+        
+        mkindx = np.where(tr.data == mask_value)
         ii = 0
-        while ii < NPTS:
-            if tr.data[ii] == mask_value:
-                for jj in range(ii+1, NPTS):
-                    if tr.data[jj] != mask_value:
-                        if (jj-ii) >= minimal_continous_points:
-                            mask[ii:jj] = True
-                        ii = jj
-                        break
-            else:
-                ii += 1
+        NN = len(mkindx)
+        while ii < NN:
+            for jj in range(ii+1, NN):
+                if (mkindx[jj] - mkindx[jj-1]) > 1:
+                    if (jj-ii) >= minimal_continous_points:
+                        mask[ii:jj] = True
+                    ii = jj
+                    break
+        
+        # ii = 0
+        # while ii < NPTS:
+        #     if (tr.data[ii] == mask_value):
+        #         for jj in range(ii+1, NPTS):
+        #             if tr.data[jj] != mask_value:
+        #                 if (jj-ii) >= minimal_continous_points:
+        #                     mask[ii:jj] = True
+        #                 ii = jj
+        #                 break
+        #     else:
+        #         ii += 1
             
         tr.data = np.ma.array(tr.data, mask=mask)
     
