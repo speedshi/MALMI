@@ -178,7 +178,29 @@ def chamferdist(datax, datay):
     return CD
 
 
+def stream_split_gaps(stream, mask_value=0):
+    """
+    Split the stream into unmasked traces.
+    Data of certain value will be recognized as gap, will be masked.
+    Note this will modefy the input stream in place.
 
+    Parameters
+    ----------
+    stream : obspy stream object
+        input continuous data.
+    mask_value : float or None, optional, The default is 0.
+        the data with this value will be recoginzed as gap. 
 
+    Returns
+    -------
+    obspy stream object
+        splited stream.
+
+    """
+    
+    for tr in stream:
+        tr.data = np.ma.masked_values(tr.data, mask_value)
+    
+    return stream.split()
 
 

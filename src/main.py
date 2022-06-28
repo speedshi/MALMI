@@ -61,6 +61,14 @@ class MALMI:
                 frequency range in Hz for filtering seismic data for ML inputs, 
                 such as [3, 45] meaning filter seismic data to 3-45 Hz before input to ML models.
                 default is None, means no filtering.
+            seismic['split']: boolen or dict, default is False.
+                whether to split the input continous data into unmasked traces without gaps.
+                seismic['split']['mask_value']: float, int or None
+                    input continous seismic data of the specified value will be recognized as gap, 
+                    and will be masked and used to split the traces.
+                    This is good for filtering, because filter the contious data with 
+                    0 (for example) filled gap will produce glitches. It is recommand
+                    to filter the data before merge the seismic data.
         
         traveltime parameters (For loading or generating traveltime tables):
             tt['vmodel']: str, optional, default is None.
@@ -182,6 +190,9 @@ class MALMI:
         
         if 'freqband' not in seismic:
             seismic['freqband'] = None
+            
+        if 'split' not in seismic:
+            seismic['split'] = False
         
         if (tt is not None):
             if ('vmodel' not in tt):
@@ -348,6 +359,7 @@ class MALMI:
         
         self.detect = detect.copy()  # detection parameters
         self.MIG = MIG.copy()  # migration parameters
+        self.seismic = seismic.copy()  # seismic related parameters
         
         return
 
@@ -376,6 +388,7 @@ class MALMI:
         DFMT['stainv'] = self.stainv
         DFMT['instrument_code'] = self.instrument_code
         DFMT['freqband'] = self.freqband
+        DFMT['split'] = self.seismic['split']
         
         seisdata_format_4ML(DFMT=DFMT)
         gc.collect()

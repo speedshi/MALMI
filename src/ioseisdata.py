@@ -16,6 +16,7 @@ import warnings
 from ioformatting import read_seismic_fromfd
 from pandas import to_datetime
 import fnmatch
+from utils_dataprocess import stream_split_gaps
 
 
 def seisdata_format_4ML(DFMT):
@@ -24,20 +25,20 @@ def seisdata_format_4ML(DFMT):
         # input seismic data files are stored simply in one folder
         # suitable for formatting small data set
         seisdate = format_AIO(dir_seismic=DFMT['dir_seismic_input'], instrument_code=DFMT['instrument_code'], 
-                              dir_output=DFMT['dir_seismic_output'], freqband=DFMT['freqband'])
+                              dir_output=DFMT['dir_seismic_output'], freqband=DFMT['freqband'], split=DFMT['split'])
     elif DFMT['seisdatastru_input'] == 'SDS':
         # input seismic data files are organized in SDS
         # suitable for formatting large or long-duration data set
         format_SDS(seisdate=DFMT['seismic_date'], stainv=DFMT['stainv'], 
                    dir_seismic=DFMT['dir_seismic_input'], dir_output=DFMT['dir_seismic_output'], 
-                   instrument_code=DFMT['instrument_code'], freqband=DFMT['freqband'])
+                   instrument_code=DFMT['instrument_code'], freqband=DFMT['freqband'], split=DFMT['split'])
     else:
         raise ValueError('Unrecognized input for: the input seismic data structure! Can\'t determine the structure of the input seismic data files!')
     
     return
 
 
-def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None):
+def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=False):
     """
     Format seismic data stored simply in one folder so that the ouput data
     can be feed to various ML models.
@@ -61,6 +62,14 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None):
         frequency range in Hz for filtering seismic data, 
         e.g. [3, 45] meaning filter seismic data to 3-45 Hz.
         default is None, means no filtering.
+    split: boolen or dict, default is False.
+        whether to split the input continous data into unmasked traces without gaps.
+        split['mask_value']: float, int or None
+            input continous seismic data of the specified value will be recognized as gap, 
+            and will be masked and used to split the traces.
+            This is good for filtering, because filter the contious data with 
+            0 (for example) filled gap will produce glitches. It is recommand
+            to filter the data before merge the seismic data.
 
     Returns
     -------
@@ -72,6 +81,9 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None):
     stream = read_seismic_fromfd(dir_seismic)
     seisdate = (stream[0].stats.starttime + (stream[0].stats.endtime - stream[0].stats.starttime)*0.5).date  # date when data exist
     
+    if isinstance(split, dict):
+        stream = stream_split_gaps(stream, split['mask_value'])
+    
     # output to the seismic data format that QET can handle 
     stream2EQTinput(stream=stream, dir_output=dir_output, instrument_code=instrument_code, freqband=freqband)
     del stream
@@ -79,7 +91,7 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None):
     return seisdate
 
 
-def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, location_code=['','00','R1', 'BT', 'SF', '*'], freqband=None):
+def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, location_code=['','00','R1', 'BT', 'SF', '*'], freqband=None, split=False):
     """
     Format seismic data organized in SDS data structure so that the ouput data
     can be feed to various ML models.
@@ -120,6 +132,14 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
         frequency range in Hz for filtering seismic data, 
         e.g. [3, 45] meaning filter seismic data to 3-45 Hz.
         default is None, means no filtering.
+    split: boolen or dict, default is False.
+        whether to split the input continous data into unmasked traces without gaps.
+        split['mask_value']: float, int or None
+            input continous seismic data of the specified value will be recognized as gap, 
+            and will be masked and used to split the traces.
+            This is good for filtering, because filter the contious data with 
+            0 (for example) filled gap will produce glitches. It is recommand
+            to filter the data before merge the seismic data.
         
     Raises
     ------
@@ -211,6 +231,10 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
                         # output data for the current station
                         if stream.count() > 0:
                             # have at least one component data
+                            
+                            if isinstance(split, dict):
+                                stream = stream_split_gaps(stream, split['mask_value'])
+                            
                             stream2EQTinput(stream=stream, dir_output=dir_output, instrument_code=None, freqband=freqband)
                             break  # already find and output data for this instrument code, no need to look at the rest instrument codes
                             del stream
