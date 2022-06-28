@@ -178,7 +178,7 @@ def chamferdist(datax, datay):
     return CD
 
 
-def stream_split_gaps(stream, mask_value=0):
+def stream_split_gaps(stream, mask_value=0, minimal_continous_points=3):
     """
     Split the stream into unmasked traces.
     Data of certain value will be recognized as gap, will be masked.
@@ -188,8 +188,11 @@ def stream_split_gaps(stream, mask_value=0):
     ----------
     stream : obspy stream object
         input continuous data.
-    mask_value : float or None, optional, The default is 0.
+    mask_value : float or None, optional, default is 0.
         the data with this value will be recoginzed as gap. 
+    minimal_continous_points : int, optional, default is 3.
+        this specifies that at least certain continuous points having the mask_value
+        will be recognized as gap.
 
     Returns
     -------
@@ -199,7 +202,21 @@ def stream_split_gaps(stream, mask_value=0):
     """
     
     for tr in stream:
-        tr.data = np.ma.masked_values(tr.data, mask_value)
+        NPTS = len(tr.data)
+        mask = np.full((NPTS,), fill_value=False)
+        ii = 0
+        while ii < NPTS:
+            if tr.data[ii] == mask_value:
+                for jj in range(ii+1, NPTS):
+                    if tr.data[jj] != mask_value:
+                        if (jj-ii) >= minimal_continous_points:
+                            mask[ii:jj] = True
+                        ii = jj
+                        break
+            else:
+                ii += 1
+            
+        tr.data = np.ma.array(tr.data, mask=mask)
     
     return stream.split()
 
