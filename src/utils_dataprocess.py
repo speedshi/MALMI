@@ -190,7 +190,7 @@ def stream_split_gaps(stream, mask_value=0, minimal_continous_points=100):
         input continuous data.
     mask_value : float or None, optional, default is 0.
         the data with this value will be recoginzed as gap. 
-    minimal_continous_points : int, optional, default is 3.
+    minimal_continous_points : int, optional, default is 100.
         this specifies that at least certain continuous points having the mask_value
         will be recognized as gap.
 

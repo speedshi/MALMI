@@ -70,7 +70,7 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=Fa
             This is good for filtering, because filter the contious data with 
             0 (for example) filled gap will produce glitches. It is recommand
             to filter the data before merge the seismic data.
-        split['minimal_continous_points'] : int, optional, default is 3.
+        split['minimal_continous_points'] : int
             this specifies that at least certain continuous points having the mask_value
             will be recognized as gap.
 
@@ -143,7 +143,7 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
             This is good for filtering, because filter the contious data with 
             0 (for example) filled gap will produce glitches. It is recommand
             to filter the data before merge the seismic data.
-        split['minimal_continous_points'] : int, optional, default is 3.
+        split['minimal_continous_points'] : int
             this specifies that at least certain continuous points having the mask_value
             will be recognized as gap.
         

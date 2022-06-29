@@ -69,6 +69,9 @@ class MALMI:
                     This is good for filtering, because filter the contious data with 
                     0 (for example) filled gap will produce glitches. It is recommand
                     to filter the data before merge the seismic data.
+                seismic['split']['minimal_continous_points'] : int
+                    this specifies that at least certain continuous points having the mask_value
+                    will be recognized as gap.
         
         traveltime parameters (For loading or generating traveltime tables):
             tt['vmodel']: str, optional, default is None.
