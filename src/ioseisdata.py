@@ -354,12 +354,6 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
     for ista in station_code:
         # select and output data for a perticular station
         
-        # creat a folder for each station and output data in the folder
-        # the data from the same station are output to the same folder
-        dir_output_sta = os.path.join(dir_output, ista)
-        if not os.path.exists(dir_output_sta):
-            os.makedirs(dir_output_sta)
-        
         stdata_ista = stream.select(station=ista)  # data for this station
         
         for iinstru in instrument_code:
@@ -397,6 +391,12 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
                             trdata.detrend('simple')
                             trdata.filter('bandpass', freqmin=freqband[0], freqmax=freqband[1], corners=2, zerophase=True)
                             trdata.taper(max_percentage=0.001, type='cosine', max_length=1)  # to avoid anormaly at bounday
+                        
+                        # creat a folder for each station and output data in the folder
+                        # the data from the same station are output to the same folder
+                        dir_output_sta = os.path.join(dir_output, ista)
+                        if not os.path.exists(dir_output_sta):
+                            os.makedirs(dir_output_sta)
                         
                         OfileName = trdata[0].id + '__' + starttime_str + '__' + endtime_str + '.mseed'
                         trdata.write(os.path.join(dir_output_sta, OfileName), format="MSEED")
