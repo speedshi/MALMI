@@ -25,7 +25,8 @@ def seisdata_format_4ML(DFMT):
         # input seismic data files are stored simply in one folder
         # suitable for formatting small data set
         seisdate = format_AIO(dir_seismic=DFMT['dir_seismic_input'], instrument_code=DFMT['instrument_code'], 
-                              dir_output=DFMT['dir_seismic_output'], freqband=DFMT['freqband'], split=DFMT['split'])
+                              dir_output=DFMT['dir_seismic_output'], freqband=DFMT['freqband'], 
+                              split=DFMT['split'], stainv=DFMT['stainv'])
     elif DFMT['seisdatastru_input'] == 'SDS':
         # input seismic data files are organized in SDS
         # suitable for formatting large or long-duration data set
@@ -38,7 +39,7 @@ def seisdata_format_4ML(DFMT):
     return
 
 
-def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=False):
+def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=False, stainv=None):
     """
     Format seismic data stored simply in one folder so that the ouput data
     can be feed to various ML models.
@@ -73,12 +74,20 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=Fa
         split['minimal_continous_points'] : int
             this specifies that at least certain continuous points having the mask_value
             will be recognized as gap.
-
+    stainv : obspy station inventory object.
+        obspy station inventory containing the station information.
+        
     Returns
     -------
     None.
 
     """
+
+    # get station names
+    stations = []
+    for inet in stainv:
+        for ista in inet:
+            stations.append(ista.code)
 
     # read in all continuous seismic data in the input folder as an obspy stream
     stream = read_seismic_fromfd(dir_seismic)
@@ -88,7 +97,7 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=Fa
         stream = stream_split_gaps(stream, mask_value=split['mask_value'], minimal_continous_points=split['minimal_continous_points'])
     
     # output to the seismic data format that QET can handle 
-    stream2EQTinput(stream=stream, dir_output=dir_output, instrument_code=instrument_code, freqband=freqband)
+    stream2EQTinput(stream=stream, dir_output=dir_output, instrument_code=instrument_code, freqband=freqband, station_code=stations)
     del stream
     
     return seisdate
@@ -258,7 +267,7 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
     return
 
 
-def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH", "HG", "HN"], component_code=['Z','N','E','1','2','3'], freqband=None):
+def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH", "HG", "HN"], component_code=['Z','N','E','1','2','3'], freqband=None, station_code=None):
     """
     This function is used to format the input obspy stream into the EQ-Transformer 
     acceptable seismic data inputs.
@@ -298,6 +307,9 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
         frequency range in Hz for filtering seismic data, 
         e.g. [3, 45] meaning filter seismic data to 3-45 Hz.
         default is None, means no filtering.
+    station_code : list of str, default is None
+        specify the stations for output.
+        If None or [], will output all avaliable stations.
 
     Returns
     -------
@@ -329,16 +341,17 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
                 component_code.append(tr.stats.channel[-1])
         del tr
     
-    # scan all traces to get the station names
-    stations = []
-    for tr in stream:
-        sname = tr.stats.station
-        if sname not in stations:
-            stations.append(sname)
-    del tr
+    if not station_code:
+        # no input station codes
+        # scan all traces to get the station names
+        for tr in stream:
+            sname = tr.stats.station
+            if sname not in station_code:
+                station_code.append(sname)
+        del tr
     
     # for a particular station, first check starttime and endtime, then output data
-    for ista in stations:
+    for ista in station_code:
         # select and output data for a perticular station
         
         # creat a folder for each station and output data in the folder

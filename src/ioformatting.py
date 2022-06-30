@@ -42,13 +42,14 @@ def read_seismic_fromfd(dir_seismic, channels=None):
     
     import fnmatch
     
-    # obtain the filename of each seismic data file 
-    file_seismicin = sorted([fname for fname in os.listdir(dir_seismic) if os.path.isfile(os.path.join(dir_seismic, fname))])
+    # # obtain the filename of each seismic data file 
+    # file_seismicin = sorted([fname for fname in os.listdir(dir_seismic) if os.path.isfile(os.path.join(dir_seismic, fname))])
+    # # read in seismic data
+    # stream = obspy.Stream()
+    # for dfile in file_seismicin:
+    #     stream += obspy.read(os.path.join(dir_seismic, dfile))
     
-    # read in seismic data
-    stream = obspy.Stream()
-    for dfile in file_seismicin:
-        stream += obspy.read(os.path.join(dir_seismic, dfile))
+    stream = obspy.read(os.path.join(dir_seismic, '*'))
     
     if channels is not None:
         # select channels
