@@ -138,21 +138,21 @@ def output_seissegment(stream, dir_output, starttime, endtime, freqband=None):
     return
 
 
-def stainv2json(stainfo, mseed_directory, dir_json):
+def stainv2json(stainfo, mseed_directory=None, dir_json='./'):
     """
     Parameters
     ----------
     stainfo : obspy invertory object
         contains station information, such as network code, station code, 
         longitude, latitude, evelvation etc. can be obtained using function: 'xstation.load_station'.
-    mseed_directory : str
+    mseed_directory : str, default in None
         String specifying the path to the directory containing miniseed files. 
         Directory must contain subdirectories of station names, which contain miniseed files 
         in the EQTransformer format. 
         Each component must be a seperate miniseed file, and the naming
         convention is GS.CA06.00.HH1__20190901T000000Z__20190902T000000Z.mseed, 
         or more generally NETWORK.STATION.LOCATION.CHANNEL__STARTTIMESTAMP__ENDTIMESTAMP.mseed
-    dir_json : str
+    dir_json : str, default is './'
         String specifying the path to the output json file.
 
     Returns
@@ -167,22 +167,28 @@ def stainv2json(stainfo, mseed_directory, dir_json):
     """
             
     # get the name of all used stations
-    sta_names = sorted([dname for dname in os.listdir(mseed_directory) if os.path.isdir(os.path.join(mseed_directory, dname))])
+    if mseed_directory is not None:
+        sta_names = sorted([dname for dname in os.listdir(mseed_directory) if os.path.isdir(os.path.join(mseed_directory, dname))])
+    else:
+        # no input mseed_directory
+        sta_names = None
+    
     station_list = {}
     
     # loop over each station for config the station jason file    
     for network in stainfo:
         for station in network:
-            if station.code in sta_names:
+            if (sta_names is None) or (station.code in sta_names):
                 # get the channel list for the current station
                 
-                # try to get the channel information from station inventory file
+                # try to get the channel information from station inventory file first
                 sta_channels = []
                 for channel in station:
                     sta_channels.append(channel.code)
                 
                 # correct station inventory file should contain channel information
                 # otherwise check the MSEED filename in 'mseed_directory' for "network" and "channels"
+                # in this situation we must input 'mseed_directory'
                 if not sta_channels:
                     # the input station inventory file does not contain channel information
                     # we need to find that information find the filename of the MSEED seismic data

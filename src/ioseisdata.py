@@ -24,8 +24,8 @@ def seisdata_format_4ML(DFMT):
     if DFMT['seisdatastru_input'] == "AIO":
         # input seismic data files are stored simply in one folder
         # suitable for formatting small data set
-        seisdate = format_AIO(dir_seismic=DFMT['dir_seismic_input'], instrument_code=DFMT['instrument_code'], 
-                              dir_output=DFMT['dir_seismic_output'], freqband=DFMT['freqband'], 
+        seisdate = format_AIO(dir_seismic=DFMT['dir_seismic_input'], dir_output=DFMT['dir_seismic_output'], 
+                              instrument_code=DFMT['instrument_code'], freqband=DFMT['freqband'], 
                               split=DFMT['split'], stainv=DFMT['stainv'])
     elif DFMT['seisdatastru_input'] == 'SDS':
         # input seismic data files are organized in SDS
@@ -33,13 +33,50 @@ def seisdata_format_4ML(DFMT):
         format_SDS(seisdate=DFMT['seismic_date'], stainv=DFMT['stainv'], 
                    dir_seismic=DFMT['dir_seismic_input'], dir_output=DFMT['dir_seismic_output'], 
                    instrument_code=DFMT['instrument_code'], freqband=DFMT['freqband'], split=DFMT['split'])
+    elif DFMT['seisdatastru_input'] == 'EVS':
+        # input seismic data are event segments organized in each folder
+        # suitable for events that have already been identified
+        format_EVS(dir_seismic=DFMT['dir_seismic_input'], dir_output=DFMT['dir_seismic_output'],
+                   instrument_code=DFMT['instrument_code'], freqband=DFMT['freqband'],
+                   split=DFMT['split'], stainv=DFMT['stainv'])
     else:
         raise ValueError('Unrecognized input for: the input seismic data structure! Can\'t determine the structure of the input seismic data files!')
     
     return
 
 
-def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=False, stainv=None):
+def format_EVS(dir_seismic, dir_output, instrument_code=None, freqband=None, split=False, stainv=None):
+    
+    # get station names
+    if not stainv:  # not None or []
+        # have input inventory
+        stations = []
+        for inet in stainv:
+            for ista in inet:
+                stations.append(ista.code)
+    else:
+        # no input inventory
+        stations = None
+    
+    # get the folder name of each event
+    event_folders = sorted([fdname for fdname in os.listdir(dir_seismic) if os.path.isdir(os.path.join(dir_seismic, fdname))])
+    
+    # loop over each event folder and format
+    for ifld in event_folders:
+        stream = read_seismic_fromfd(os.path.join(dir_seismic, ifld))
+        
+        if isinstance(split, dict):
+            stream = stream_split_gaps(stream, mask_value=split['mask_value'], minimal_continous_points=split['minimal_continous_points'])
+        
+        # format seismic data for this event
+        dir_output_ev = os.path.join(dir_output, ifld)
+        stream2EQTinput(stream=stream, dir_output=dir_output_ev, instrument_code=instrument_code, freqband=freqband, station_code=stations)
+        del stream
+        
+    return
+
+
+def format_AIO(dir_seismic, dir_output, instrument_code=["HH", "BH", "EH", "SH", "HG", "HN"], freqband=None, split=False, stainv=None):
     """
     Format seismic data stored simply in one folder so that the ouput data
     can be feed to various ML models.
@@ -52,13 +89,13 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=Fa
     ----------
     dir_seismic : str
         path to the directory where seismic data are stored all in this folder.
+    dir_output : str
+        directory for outputting seismic data, 
+        NOTE do not add '/' at the last.
     instrument_code : list of str
         the used instrument codes of the input seismic data,
         such as ["HH", "BH", "EH", "SH", "HG", "HN"];
         try to format and output data for all the listed instrument codes;
-    dir_output : str
-        directory for outputting seismic data, 
-        NOTE do not add '/' at the last.
     freqband : list of float
         frequency range in Hz for filtering seismic data, 
         e.g. [3, 45] meaning filter seismic data to 3-45 Hz.
@@ -84,10 +121,15 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=Fa
     """
 
     # get station names
-    stations = []
-    for inet in stainv:
-        for ista in inet:
-            stations.append(ista.code)
+    if not stainv:  # not None or []
+        # have input inventory
+        stations = []
+        for inet in stainv:
+            for ista in inet:
+                stations.append(ista.code)
+    else:
+        # no input inventory
+        stations = None
 
     # read in all continuous seismic data in the input folder as an obspy stream
     stream = read_seismic_fromfd(dir_seismic)
@@ -103,7 +145,7 @@ def format_AIO(dir_seismic, instrument_code, dir_output, freqband=None, split=Fa
     return seisdate
 
 
-def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, location_code=['','00','R1', 'BT', 'SF', '*'], freqband=None, split=False):
+def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code=["HH", "BH", "EH", "SH", "HG", "HN"], location_code=['','00','R1', 'BT', 'SF', '*'], freqband=None, split=False):
     """
     Format seismic data organized in SDS data structure so that the ouput data
     can be feed to various ML models.
@@ -267,7 +309,7 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code, locat
     return
 
 
-def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH", "HG", "HN"], component_code=['Z','N','E','1','2','3'], freqband=None, station_code=None):
+def stream2EQTinput(stream, dir_output, instrument_code=None, component_code=None, freqband=None, station_code=None):
     """
     This function is used to format the input obspy stream into the EQ-Transformer 
     acceptable seismic data inputs.
@@ -295,11 +337,11 @@ def stream2EQTinput(stream, dir_output, instrument_code=["HH", "BH", "EH", "SH",
     dir_output : str
         directory for outputting.
     instrument_code : list of str
-        instrument_code for outputting, default: ["HH", "BH", "EH", "SH", "HG", "HN"];
+        instrument_code for outputting, such as: ["HH", "BH", "EH", "SH", "HG", "HN"];
         only output data which have the listed instrument codes;
         if None or [], then searching for all avaliable instrument code in the input stream.
     component_code : list of str
-        component_code for outputting, default: ['Z','N','E','1','2','3'];
+        component_code for outputting, such as: ['Z','N','E','1','2','3'];
         only output data of the listed components; 
         Note complete data should have at least three component data, such as ['Z','N','E'];
         if None or [], then searching for all avaliable component code in the input stream.
