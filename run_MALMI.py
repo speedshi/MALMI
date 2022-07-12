@@ -19,12 +19,15 @@ seismic = {}
 seismic['dir'] = "../data/seismic_data/SDS"  # path to the SDS archive directory or parent directory where seismic data are stored all in one folder
 seismic['instrument_code'] = ["HH", "BH", "EH", "SH", "HG"]  # used instrument code of the input seismic data
 seismic['stainvf'] = '../data/station/station_location.csv'  # path to the station inventory file
-seismic['datastru'] = sys.argv[1]  # the input seismic data file structure, can be 'AIO' or 'SDS'
+seismic['datastru'] = sys.argv[1]  # the input seismic data file structure, can be 'AIO' or 'SDS' or 'EVS'
 if seismic['datastru'] == 'SDS':
     seismic['date'] = datetime.datetime.strptime(sys.argv[2], "%Y%m%d").date()  # the date of seismic data to be precessed, for example "20181205", only needed when seisdatastru is 'SDS'
 elif seismic['datastru'] == 'AIO':
     seismic['date'] = None  # the date of seismic data to be precessed, only needed when seisdatastru is 'SDS', otherwize use 'None'
     seismic['dir'] = os.path.join(seismic['dir'], sys.argv[2])
+elif seismic['datastru'] == 'EVS':
+    seismic['date'] = None
+    seismic['dir'] = seismic['dir']
 else:
     raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
 
@@ -39,6 +42,7 @@ control['n_processor'] = 6  # number of CPU processors for parallel processing
 tt = {}
 tt['vmodel'] = '../data/velocity/velocity.txt'  # filename including path of the velocity model
 tt['dir'] = '../data/traveltime/tt_150m'  # path to travetime data directory
+tt['build'] = True  # if you want to build the traveltime table or not, traveltime trable will be built when initialize MALMI class and only need to be built once 
 
 
 # %% grid parameters used for migration========================================
@@ -52,7 +56,6 @@ grid['xNum'] = 250  # number of grid nodes in the X direction (East)
 grid['yNum'] = 250  # number of grid nodes in the Y direction (North)
 grid['zNum'] = 60  # number of grid nodes in the Z direction (Vertical-down)
 grid['dgrid'] = 0.4  # grid spacing in kilometers
-# grid = None
 
 
 # %% detection parameters======================================================
@@ -67,7 +70,7 @@ detect['npha_thrd'] = 6  # minimal number of phases triggered during the specifi
 
 # %% migration parameters======================================================
 MIG = {}
-MIG['probthrd'] = 0.01  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
+MIG['probthrd'] = 0.05  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
 
 
 # %% Initialize MALMI
@@ -101,10 +104,6 @@ coseismiq.rsprocess_view()
 CL = {}
 CL['hdf5_prob'] = False
 coseismiq.clear_interm(CL)
-
-
-# %% try associate detected phases
-coseismiq.phase_associate()
 
 
 # %% retrive earthquake catalog from processing results

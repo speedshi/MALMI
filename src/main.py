@@ -269,7 +269,7 @@ class MALMI:
             MIG = {}
             
         if 'probthrd' not in MIG:
-            MIG['probthrd'] = 0.001
+            MIG['probthrd'] = min(detect['P_thrd'], detect['S_thrd'])
         
         if 'ppower' not in MIG:
             MIG['ppower'] = 4
