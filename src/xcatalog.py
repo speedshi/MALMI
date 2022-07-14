@@ -979,52 +979,7 @@ def load_catalog(catafile, outformat='original'):
     return catalog
 
 
-def merge_catdict(cat1, cat2):
-    """
-    Merge two catalogs of simple dict format.
-    
-    If the two catlaogs have different keys, the catalog without keys will be filled
-    with None.
 
-    The order of catalog makes sense.
-
-    Parameters
-    ----------
-    cat1 : dict
-        input catalog 1.
-    cat2 : dict
-        input catalog 2.
-
-    Returns
-    -------
-    catalog: dict
-        merged catalog.
-
-    """
-
-    catalog = {}
-    
-    # get the keys for the catalog
-    key1 = list(cat1.keys())
-    key2 = list(cat2.keys())
-    keys = list(set(key1 + key2))
-    
-    Nev1 = len(cat1[key1[0]])
-    Nev2 = len(cat2[key2[0]])
-    
-    for ikey in keys:
-        if (ikey in key1) and (ikey in key2):
-            catalog[ikey] = np.concatenate((cat1[ikey], cat2[ikey]), axis=0)  # note the order here
-        elif (ikey in key1):
-            temp = np.full((Nev2), fill_value=None)
-            catalog[ikey] = np.concatenate((cat1[ikey], temp), axis=0)
-        elif (ikey in key2):
-            temp = np.full((Nev1), fill_value=None)
-            catalog[ikey] = np.concatenate((temp, cat2[ikey]), axis=0)
-        else:
-            raise ValueError('Unrecognized keys: {}.'.format(ikey))
-
-    return catalog
 
 
 

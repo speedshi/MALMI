@@ -228,3 +228,54 @@ def stream_split_gaps(stream, mask_value=0, minimal_continous_points=100):
     return stream.split()
 
 
+def merge_dict(dict1, dict2):
+    """
+    Merge two dictionary.
+    Each item (key) in the input dictionary is a 1D numpy array or a list.
+    
+    If the two dictionary have different keys, the dict without keys will be filled
+    with None.
+
+    The input order of dictionary makes sense.
+
+    Parameters
+    ----------
+    dict1 : dict
+        input dictionary 1.
+    dict2 : dict
+        input dictionary 2.
+
+    Returns
+    -------
+    dict_m: dict
+        merged dictionary.
+
+    """
+
+    dict_m = {}
+    
+    # get the keys for the dictionary
+    key1 = list(dict1.keys())
+    key2 = list(dict2.keys())
+    keys = list(set(key1 + key2))
+    
+    Nev1 = len(dict1[key1[0]])
+    Nev2 = len(dict2[key2[0]])
+    
+    for ikey in keys:
+        if (ikey in key1) and (ikey in key2):
+            dict_m[ikey] = np.concatenate((dict1[ikey], dict2[ikey]), axis=0)  # note the order here
+        elif (ikey in key1):
+            temp = np.full((Nev2), fill_value=None)
+            dict_m[ikey] = np.concatenate((dict1[ikey], temp), axis=0)
+        elif (ikey in key2):
+            temp = np.full((Nev1), fill_value=None)
+            dict_m[ikey] = np.concatenate((temp, dict2[ikey]), axis=0)
+        else:
+            raise ValueError('Unrecognized keys: {}.'.format(ikey))
+
+    return dict_m
+
+
+
+

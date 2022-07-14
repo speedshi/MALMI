@@ -284,8 +284,8 @@ class MALMI:
         self.seisdate = copy.deepcopy(seismic['date'])  # date of seismic data
         self.freqband = copy.deepcopy(seismic['freqband'])  # frequency band in Hz for filtering seismic data
         self.n_processor = copy.deepcopy(control['n_processor'])  # number of threads for parallel processing
-        if self.seisdatastru == 'AIO':
-            # input seismic data files are stored simply in one folder
+        if (self.seisdatastru == 'AIO') or (self.seisdatastru == 'EVS'):
+            # input seismic data files are stored simply in one folder or event segments input
             # get the foldername of the input seismic data, used as the identifer of the input data set
             if self.dir_seismic[-1] == '/':
                 fd_seismic = self.dir_seismic.split('/')[-2]
@@ -295,10 +295,10 @@ class MALMI:
             # input seismic data files are organized in SDS
             # use the date as the identifer of the input data set
             fd_seismic = datetime.datetime.strftime(self.seisdate, "%Y%m%d")
-        elif self.seisdatastru == 'EVS':
-            # input seismic data are cutted event segments
-            # each event files are stored in one folder
-            fd_seismic = 'events_input'
+        # elif self.seisdatastru == 'EVS':
+        #     # input seismic data are cutted event segments
+        #     # each event files are stored in one folder
+        #     fd_seismic = 'events_input'
         else:
             raise ValueError('Unrecognized input for: seisdatastru! Can\'t determine the structure of the input seismic data files!')
         
@@ -410,8 +410,13 @@ class MALMI:
         Parameters
         ----------
         ML : dict, machine-learning related parameters.
+        ML['engine'] : str
+            machine learning engine to generate continous phase probabilities;
+            can be 'EQTransformer', 'seisench';
         ML['model'] : str
-            path to a trained ML model.
+            path to a pre-trained ML model for original EQTransformer, 
+            or a pretrained model name from seisbench in form of 'modelname.datasetname',
+            such as 'PhaseNet.stead';
         ML['overlap'] : float, default: 0.5
             overlap rate of time window for generating probabilities. 
             e.g. 0.6 means 60% of time window are overlapped.
@@ -430,6 +435,9 @@ class MALMI:
         """
         
         # set default parameters-----------------------------------------------
+        if 'engine' not in ML:
+            ML['egnine'] = 'EQTransformer'
+        
         if 'overlap' not in ML:
             ML['overlap'] = 0.5
         
@@ -437,78 +445,94 @@ class MALMI:
             ML['number_of_cpus'] = 2
         #----------------------------------------------------------------------
         
-        from ioformatting import stainv2json
-        from EQTransformer.utils.hdf5_maker import preprocessor
-        from EQTransformer.utils.plot import plot_data_chart
-        from EQTransformer.core.predictor import predictor
-        
         print('MALMI starts to generate event and phase probabilities using ML models:')
         
-        if self.seismic['datastru'] == 'EVS':
-            # input are event segments
+        if ML['engine'].lower() == 'eqtransformer':
+            from ioformatting import stainv2json
+            from EQTransformer.utils.hdf5_maker import preprocessor
+            from EQTransformer.utils.plot import plot_data_chart
+            from EQTransformer.core.predictor import predictor
             
-            # get the folder name of each event and sorted
-            event_folders = sorted([fdname for fdname in os.listdir(self.dir_seismic) if os.path.isdir(os.path.join(self.dir_seismic, fdname))])
-            hdf5_evdirs = []
-            prob_evdirs = []
+            if self.seismic['datastru'] == 'EVS':
+                # input are event segments
+                
+                # get the folder name of each event and sorted
+                event_folders = sorted([fdname for fdname in os.listdir(self.dir_seismic) if os.path.isdir(os.path.join(self.dir_seismic, fdname))])
+                hdf5_evdirs = []
+                prob_evdirs = []
+                
+                for ievfd in event_folders:
+                    # create hdf5 data for ML inputs--------------------------------------
+                    # create station jason file for EQT if it does not exist
+                    stations_json = os.path.join(self.dir_EQTjson, ievfd, "station_list.json")  # station JSON file
+                    mseed_directory_ev = os.path.join(self.dir_mseed, ievfd)  # mseed directory for each event
+                    if not os.path.exists(stations_json):
+                        stainv2json(stainfo=self.stainv, mseed_directory=mseed_directory_ev, dir_json=self.dir_EQTjson)
             
-            for ievfd in event_folders:
+                    preproc_dir_ev = os.path.join(self.dir_ML, "preproc_overlap{}".format(ML['overlap']), ievfd)  # path of the directory where will be located the summary files generated by preprocessor step
+                    hdf5_dir_ev = os.path.join(self.dir_hdf5, ievfd)
+                    preprocessor(preproc_dir=preproc_dir_ev, mseed_dir=mseed_directory_ev, output_dir=hdf5_dir_ev,
+                                 stations_json=stations_json, overlap=ML['overlap'], 
+                                 n_processor=1)
+                    gc.collect()
+                    
+                    # show data availablity for each station-------------------------------
+                    file_pkl = os.path.join(preproc_dir_ev, 'time_tracks.pkl')
+                    time_interval = 1  # Time interval in hours for tick spaces in xaxes
+                    plot_data_chart(time_tracks=file_pkl, time_interval=time_interval, dir_output=preproc_dir_ev)
+                    
+                    hdf5_evdirs.append(hdf5_dir_ev)
+                    prob_evdirs.append(os.path.join(self.dir_prob, ievfd))
+            
+                # generate event and phase probabilities-------------------------------
+                predictor(input_dir=hdf5_evdirs, input_model=ML['model'], output_dir=prob_evdirs,
+                          output_probabilities=True, estimate_uncertainty=False,
+                          detection_threshold=min(self.detect['P_thrd'], self.detect['S_thrd']), 
+                          P_threshold=self.detect['P_thrd'], S_threshold=self.detect['S_thrd'], 
+                          keepPS=False, number_of_cpus=ML['number_of_cpus'],
+                          number_of_plots=100, plot_mode='time_frequency')
+                gc.collect()
+            
+            else:
                 # create hdf5 data for ML inputs--------------------------------------
                 # create station jason file for EQT if it does not exist
-                stations_json = os.path.join(self.dir_EQTjson, ievfd, "station_list.json")  # station JSON file
-                mseed_directory_ev = os.path.join(self.dir_mseed, ievfd)  # mseed directory for each event
+                stations_json = os.path.join(self.dir_EQTjson, "station_list.json")  # station JSON file
                 if not os.path.exists(stations_json):
-                    stainv2json(stainfo=self.stainv, mseed_directory=mseed_directory_ev, dir_json=self.dir_EQTjson)
-        
-                preproc_dir_ev = os.path.join(self.dir_ML, "preproc_overlap{}".format(ML['overlap']), ievfd)  # path of the directory where will be located the summary files generated by preprocessor step
-                hdf5_dir_ev = os.path.join(self.dir_hdf5, ievfd)
-                preprocessor(preproc_dir=preproc_dir_ev, mseed_dir=mseed_directory_ev, output_dir=hdf5_dir_ev,
+                    stainv2json(self.stainv, self.dir_mseed, self.dir_EQTjson)
+                
+                preproc_dir = self.dir_ML + "/preproc_overlap{}".format(ML['overlap'])  # path of the directory where will be located the summary files generated by preprocessor step
+                preprocessor(preproc_dir=preproc_dir, mseed_dir=self.dir_mseed, 
                              stations_json=stations_json, overlap=ML['overlap'], 
                              n_processor=1)
                 gc.collect()
                 
                 # show data availablity for each station-------------------------------
-                file_pkl = os.path.join(preproc_dir_ev, 'time_tracks.pkl')
+                file_pkl = preproc_dir + '/time_tracks.pkl'
                 time_interval = 1  # Time interval in hours for tick spaces in xaxes
-                plot_data_chart(time_tracks=file_pkl, time_interval=time_interval, dir_output=preproc_dir_ev)
+                plot_data_chart(time_tracks=file_pkl, time_interval=time_interval, dir_output=preproc_dir)
                 
-                hdf5_evdirs.append(hdf5_dir_ev)
-                prob_evdirs.append(os.path.join(self.dir_prob, ievfd))
-        
-            # generate event and phase probabilities-------------------------------
-            predictor(input_dir=hdf5_evdirs, input_model=ML['model'], output_dir=prob_evdirs,
-                      output_probabilities=True, estimate_uncertainty=False,
-                      detection_threshold=min(self.detect['P_thrd'], self.detect['S_thrd']), 
-                      P_threshold=self.detect['P_thrd'], S_threshold=self.detect['S_thrd'], 
-                      keepPS=False, number_of_cpus=ML['number_of_cpus'],
-                      number_of_plots=100, plot_mode='time_frequency')
-            gc.collect()
-        
+                # generate event and phase probabilities-------------------------------
+                predictor(input_dir=self.dir_hdf5, input_model=ML['model'], output_dir=self.dir_prob,
+                          output_probabilities=True, estimate_uncertainty=False,
+                          detection_threshold=min(self.detect['P_thrd'], self.detect['S_thrd']), P_threshold=self.detect['P_thrd'], S_threshold=self.detect['S_thrd'], 
+                          keepPS=False, number_of_cpus=ML['number_of_cpus'],
+                          number_of_plots=100, plot_mode='time_frequency')
+                gc.collect()
+        elif ML['engine'].lower() == 'seisbench':
+            from xseisbench import seisbench_geneprob
+            sbppara = {}
+            sbppara['model'] = ML['model']
+            sbppara['P_thrd'] = self.detect['P_thrd']
+            sbppara['S_thrd'] = self.detect['S_thrd']
+            sbppara['dir_in'] = self.dir_mseed
+            sbppara['dir_out'] = self.dir_prob
+            if self.seismic['datastru'] == 'EVS':
+                sbppara['evsegments'] = True
+            else:
+                sbppara['evsegments'] = False
+            seisbench_geneprob(spara=sbppara)
         else:
-            # create hdf5 data for ML inputs--------------------------------------
-            # create station jason file for EQT if it does not exist
-            stations_json = os.path.join(self.dir_EQTjson, "station_list.json")  # station JSON file
-            if not os.path.exists(stations_json):
-                stainv2json(self.stainv, self.dir_mseed, self.dir_EQTjson)
-            
-            preproc_dir = self.dir_ML + "/preproc_overlap{}".format(ML['overlap'])  # path of the directory where will be located the summary files generated by preprocessor step
-            preprocessor(preproc_dir=preproc_dir, mseed_dir=self.dir_mseed, 
-                         stations_json=stations_json, overlap=ML['overlap'], 
-                         n_processor=1)
-            gc.collect()
-            
-            # show data availablity for each station-------------------------------
-            file_pkl = preproc_dir + '/time_tracks.pkl'
-            time_interval = 1  # Time interval in hours for tick spaces in xaxes
-            plot_data_chart(time_tracks=file_pkl, time_interval=time_interval, dir_output=preproc_dir)
-            
-            # generate event and phase probabilities-------------------------------
-            predictor(input_dir=self.dir_hdf5, input_model=ML['model'], output_dir=self.dir_prob,
-                      output_probabilities=True, estimate_uncertainty=False,
-                      detection_threshold=min(self.detect['P_thrd'], self.detect['S_thrd']), P_threshold=self.detect['P_thrd'], S_threshold=self.detect['S_thrd'], 
-                      keepPS=False, number_of_cpus=ML['number_of_cpus'],
-                      number_of_plots=100, plot_mode='time_frequency')
-            gc.collect()
+            raise ValueError('Unrecoginzed input for ML[\'engine\']: {}!'.format(ML['engine']))
         
         print('MALMI_generate_prob complete!')
         return
@@ -526,11 +550,11 @@ class MALMI:
 
         """
         
+        print('MALMI starts to detect events based on the ML predicted phase probabilites and output the corresponding phase probabilites of the detected events:')
+        
         # from event_detection import eqt_arrayeventdetect
         from event_detection import eqt_eventdetectfprob, arrayeventdetect
         from utils_dataprocess import maxP2Stt
-        
-        print('MALMI starts to detect events based on the ML predicted phase probabilites and output the corresponding phase probabilites of the detected events:')
         
         if self.detect['twind_srch'] is None:
             self.detect['twind_srch'], _, _ = maxP2Stt(self.dir_tt, self.tt_hdr_filename, self.tt_ftage, self.tt_precision)

@@ -391,7 +391,7 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
     Parameters
     ----------
     dir_probinput : str
-        path to the EQT probability data set of different stations.
+        path to the probability dataset of different stations.
     P_thrd : float
         detection threshold for P-phase. The threshold value depends on the performance of 
         the machine learning model. Use a low threshold to detect more weak events,
@@ -487,11 +487,11 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
             epindx = np.flatnonzero((pbdata[:,1] >= P_thrd))  # the indices of all data points with probability larger than threshold
             for iep in epindx:
                 if (iep == 0) or ((iep-1) not in epindx):
-                    # current time is the starttime
+                    # current time is the starttime of a detection
                     temp_startime = copy.deepcopy(pbtime[iep])  # get the starttime of the detected event
                     start_did = copy.deepcopy(iep)  # the data index of the starting point of the detected event
                 if (iep == (data_size_EQT-1)) or ((iep+1) not in epindx):
-                    # current time is the endtime
+                    # current time is the endtime of a detection
                     temp_endtime = copy.deepcopy(pbtime[iep])  # get the endtime of the detected event
                     end_did = copy.deepcopy(iep)  # the data index of the ending point of the detected event
                     temp_maxprob = max(pbdata[start_did:end_did+1,1])  # get the maximum probability of the detected event
@@ -621,11 +621,11 @@ def eqt_eventdetectfprob(dir_probinput, P_thrd, S_thrd):
             epindx = np.flatnonzero((pbdata[:,2] >= S_thrd))  # the indices of all data points with probability larger than threshold
             for iep in epindx:
                 if (iep == 0) or ((iep-1) not in epindx):
-                    # current time is the starttime
+                    # current time is the starttime of a detection
                     temp_startime = copy.deepcopy(pbtime[iep])  # get the starttime of the detected event
                     start_did = copy.deepcopy(iep)  # the data index of the starting point of the detected event
                 if (iep == (data_size_EQT-1)) or ((iep+1) not in epindx):
-                    # current time is the endtime
+                    # current time is the endtime of a detection
                     temp_endtime = copy.deepcopy(pbtime[iep])  # get the endtime of the detected event
                     end_did = copy.deepcopy(iep)  # the data index of the ending point of the detected event
                     temp_maxprob = max(pbdata[start_did:end_did+1,2])  # get the maximum probability of the detected event
