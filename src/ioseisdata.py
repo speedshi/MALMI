@@ -48,7 +48,7 @@ def seisdata_format_4ML(DFMT):
 def format_EVS(dir_seismic, dir_output, instrument_code=None, freqband=None, split=False, stainv=None):
     
     # get station names
-    if not stainv:  # not None or []
+    if stainv:  # not None or []
         # have input inventory
         stations = []
         for inet in stainv:
@@ -121,7 +121,7 @@ def format_AIO(dir_seismic, dir_output, instrument_code=["HH", "BH", "EH", "SH",
     """
 
     # get station names
-    if not stainv:  # not None or []
+    if stainv:  # not None or []
         # have input inventory
         stations = []
         for inet in stainv:
@@ -386,6 +386,7 @@ def stream2EQTinput(stream, dir_output, instrument_code=None, component_code=Non
     if not station_code:
         # no input station codes
         # scan all traces to get the station names
+        station_code = []
         for tr in stream:
             sname = tr.stats.station
             if sname not in station_code:

@@ -553,7 +553,7 @@ class MALMI:
         print('MALMI starts to detect events based on the ML predicted phase probabilites and output the corresponding phase probabilites of the detected events:')
         
         # from event_detection import eqt_arrayeventdetect
-        from event_detection import eqt_eventdetectfprob, arrayeventdetect
+        from event_detection import phasedetectfprob, arrayeventdetect
         from utils_dataprocess import maxP2Stt
         
         if self.detect['twind_srch'] is None:
@@ -570,7 +570,7 @@ class MALMI:
             
             for ievfd in event_folders:
                 dir_prob_ev = os.path.join(self.dir_prob, ievfd)
-                event_info = eqt_eventdetectfprob(dir_probinput=dir_prob_ev, P_thrd=self.detect['P_thrd'], S_thrd=self.detect['S_thrd'])
+                event_info = phasedetectfprob(dir_probinput=dir_prob_ev, P_thrd=self.detect['P_thrd'], S_thrd=self.detect['S_thrd'])
             
                 if self.detect['outseis']:
                     dir_seisdataset = os.path.join(self.dir_mseed, ievfd)
@@ -584,7 +584,7 @@ class MALMI:
                                  seismic_channels=seismic_channels, output_allsta=self.detect['output_allsta'])
         else:
             # eqt_arrayeventdetect(self.dir_prob, self.dir_lokiprob, sttd_max, twlex, d_thrd, nsta_thrd, spttdf_ssmax)
-            event_info = eqt_eventdetectfprob(self.dir_prob, self.detect['P_thrd'], self.detect['S_thrd'])
+            event_info = phasedetectfprob(self.dir_prob, self.detect['P_thrd'], self.detect['S_thrd'])
             gc.collect()
                 
             if self.detect['outseis']:

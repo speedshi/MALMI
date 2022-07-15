@@ -251,28 +251,35 @@ def merge_dict(dict1, dict2):
         merged dictionary.
 
     """
-
-    dict_m = {}
     
-    # get the keys for the dictionary
-    key1 = list(dict1.keys())
-    key2 = list(dict2.keys())
-    keys = list(set(key1 + key2))
-    
-    Nev1 = len(dict1[key1[0]])
-    Nev2 = len(dict2[key2[0]])
-    
-    for ikey in keys:
-        if (ikey in key1) and (ikey in key2):
-            dict_m[ikey] = np.concatenate((dict1[ikey], dict2[ikey]), axis=0)  # note the order here
-        elif (ikey in key1):
-            temp = np.full((Nev2), fill_value=None)
-            dict_m[ikey] = np.concatenate((dict1[ikey], temp), axis=0)
-        elif (ikey in key2):
-            temp = np.full((Nev1), fill_value=None)
-            dict_m[ikey] = np.concatenate((temp, dict2[ikey]), axis=0)
-        else:
-            raise ValueError('Unrecognized keys: {}.'.format(ikey))
+    if (dict1 == {}) and (dict2):
+        dict_m = dict2
+    elif (dict1) and (dict2 == {}):
+        dict_m = dict1
+    elif (dict1 == {}) and (dict2 =={}):
+        dict_m = {}
+    else:
+        dict_m = {}
+        
+        # get the keys for the dictionary
+        key1 = list(dict1.keys())
+        key2 = list(dict2.keys())
+        keys = list(set(key1 + key2))
+        
+        Nev1 = len(dict1[key1[0]])
+        Nev2 = len(dict2[key2[0]])
+        
+        for ikey in keys:
+            if (ikey in key1) and (ikey in key2):
+                dict_m[ikey] = np.concatenate((dict1[ikey], dict2[ikey]), axis=0)  # note the order here
+            elif (ikey in key1):
+                temp = np.full((Nev2), fill_value=None)
+                dict_m[ikey] = np.concatenate((dict1[ikey], temp), axis=0)
+            elif (ikey in key2):
+                temp = np.full((Nev1), fill_value=None)
+                dict_m[ikey] = np.concatenate((temp, dict2[ikey]), axis=0)
+            else:
+                raise ValueError('Unrecognized keys: {}.'.format(ikey))
 
     return dict_m
 

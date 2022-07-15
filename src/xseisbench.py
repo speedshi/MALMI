@@ -77,15 +77,17 @@ def seisbench_geneprob(spara):
                 os.makedirs(idir_save)
         
             # save prediction results
-            # for tr in annotations:
-            #     tr.stats.channel[-1].upper() == 'P'
-            #     tr.stats.channel[-1].upper() == 'S'
-            fname = os.path.join(idir_save, 'prediction.sac')
-            annotations.write(fname, format='SAC')
-            file_pk = os.path.join(idir_save, 'pick.csv')
+            for tr in annotations:
+                tr.stats.channel = 'PB'+tr.stats.channel[-1].upper()  # save mseed file, channel name maximum 3 char
+            fname = os.path.join(idir_save, 'prediction_probabilities.mseed')
+            annotations.write(fname, format='MSEED')
+            file_pk = os.path.join(idir_save, 'X_prediction_results.csv')
             picks_dict = {}
             for ipick in picks:
-                picks_dict = merge_dict(dict1=picks_dict, dict2=ipick.__dict__)
+                ipk_dict = ipick.__dict__
+                for ikk in ipk_dict:
+                    ipk_dict[ikk] = [ipk_dict[ikk]]  # to merge dict, item of each entry should be a list or numpy array
+                picks_dict = merge_dict(dict1=picks_dict, dict2=ipk_dict)
             dict2csv(indic=picks_dict, filename=file_pk, mode='w')
         
     return
@@ -93,6 +95,7 @@ def seisbench_geneprob(spara):
 
 def seisbench_stream2prob(stream, model, paras):
     
+    stream.merge()
     annotations = model.annotate(stream)
     
     if model.name == 'EQTransformer':
