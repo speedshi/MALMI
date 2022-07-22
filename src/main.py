@@ -442,7 +442,7 @@ class MALMI:
         
         # set default parameters-----------------------------------------------
         if 'engine' not in ML:
-            ML['egnine'] = 'EQTransformer'
+            ML['engine'] = 'EQTransformer'
         
         if 'overlap' not in ML:
             ML['overlap'] = 0.5
