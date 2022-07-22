@@ -715,21 +715,22 @@ def dict2csv(indic, filename=None, mode='auto'):
     outfile = open(filename, mode, newline='')
     ofcsv = csv.writer(outfile, delimiter=',', lineterminator="\n")
     
-    # write keys, i.e. CSV header row
-    dickeys = list(indic.keys())
-    if (mode.lower()[0] != 'a'):  # no need to wirte hearder row in append mode
-        ofcsv.writerow(dickeys)
-        outfile.flush()
-    
-    # write each row
-    NN = len(indic[dickeys[0]])  # total number of rows
-    for ii in range(NN):
-        crow = []
-        for ikey in dickeys:
-            crow.append(indic[ikey][ii])
-    
-        ofcsv.writerow(crow)
-        outfile.flush()
+    if indic:
+        # write keys, i.e. CSV header row
+        dickeys = list(indic.keys())
+        if (mode.lower()[0] != 'a'):  # no need to wirte hearder row in append mode
+            ofcsv.writerow(dickeys)
+            outfile.flush()
+        
+        # write each row
+        NN = len(indic[dickeys[0]])  # total number of rows
+        for ii in range(NN):
+            crow = []
+            for ikey in dickeys:
+                crow.append(indic[ikey][ii])
+        
+            ofcsv.writerow(crow)
+            outfile.flush()
     
     outfile.close()
     return

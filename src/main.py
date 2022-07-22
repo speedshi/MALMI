@@ -171,6 +171,9 @@ class MALMI:
                 specify whether to output the migrated data volume for each detected event.
                 The migrated data volume could be large if the migration grid is large;
                 If so to save disk space, set MIG['output_migv'] = False.
+            MIG['migv_4D'] : boolen, optional
+                specify to calculate 3D (xyz) or 4D (xyzt) stacking matrix, 
+                default is false , i.e. 3D.
 
         Returns
         -------
@@ -276,6 +279,9 @@ class MALMI:
             
         if 'output_migv' not in MIG:
             MIG['output_migv'] = True
+        
+        if 'migv_4D' not in MIG:    
+            MIG['migv_4D'] = False
         #----------------------------------------------------------------------
         
         self.seisdatastru = copy.deepcopy(seismic['datastru'])
@@ -637,6 +643,7 @@ class MALMI:
         inputs['normthrd'] = self.MIG['probthrd']  # if maximum value of the input phase probabilites is larger than this threshold, the input trace will be normalized (to 1)
         inputs['ppower'] = self.MIG['ppower']  # compute array element wise power over the input probabilities before stacking
         inputs['output_migv'] = self.MIG['output_migv']  # specify whether to output the migrated data volume for each event
+        inputs['migv_4D'] = self.MIG['migv_4D']  # speify to calculate 3D or 4D stacking matrix
         comp = ['P','S']  # when input data are probabilities of P- and S-picks, comp must be ['P', 'S']
         extension = '*'  # seismic data filename for loading, accept wildcard input, for all data use '*'
         
@@ -749,10 +756,16 @@ class MALMI:
         
         print('MALMI starts to clear some intermediate results for saving disk space:')
         if CL['mseed']:
-            shutil.rmtree(self.dir_mseed)  # remove the mseed directory which are the formated continuous seismic data set for ML inputs
+            try:
+                shutil.rmtree(self.dir_mseed)  # remove the mseed directory which are the formated continuous seismic data set for ML inputs
+            except Exception as emsg:
+                print(emsg)
         
         if CL['hdf5_seis']:
-            shutil.rmtree(self.dir_hdf5)  # remove the hdf5 directory which are formatted overlapping data segments of seismic data set for ML_EQT predictions
+            try:
+                shutil.rmtree(self.dir_hdf5)  # remove the hdf5 directory which are formatted overlapping data segments of seismic data set for ML_EQT predictions
+            except Exception as emsg:
+                print(emsg)
         
         if CL['hdf5_prob']:
             # remove the generated continuous probability hdf5 files
@@ -904,6 +917,7 @@ class MALMI:
             CAT['extract'] : str, default is None.
                 The filename including path of the catalog to load.
                 If None, will extrace catalog from MALMI processing result database 'CAT['dir_dateset']'.
+                If a str will load existing extracted catalog.
             CAT['search_fold'] : list of str, optional
                 The MALMI result folders which contains catalog files.
                 Will search catalog files from this fold list.
@@ -983,7 +997,7 @@ class MALMI:
                 CAT['rmrpev']['thrd_depth'] = 5
         
         if 'evselect' not in CAT:
-            CAT['evselect'] = {}
+            CAT['evselect'] = None
             
         if (CAT['evselect'] is not None) and ('fname' not in CAT['evselect']):
             CAT['evselect']['fname'] = 'MALMI_catalog_QC'

@@ -19,7 +19,9 @@ import pandas as pd
 from utils_dataprocess import dnormlz
 import matplotlib.ticker as ticker
 from obspy import UTCDateTime
+from pathlib import Path
 
+malmi_path = Path( __file__ ).parent.absolute()
 
 def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magnitude_cumulative_number.png', ydata_thrd=4.5, figsize=(12,4)):
     """
@@ -896,7 +898,9 @@ def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plo
     fig = pygmt.Figure()
     if rlf_resolution is not None:
         grid = pygmt.datasets.load_earth_relief(rlf_resolution, region=region, registration="gridline")
-        fig.grdimage(region=region, projection="M15c", grid=grid, cmap="grayC", shading="l+d", dpi=600)  # plot topography
+        fig.grdimage(region=region, projection="M15c", grid=grid, cmap=os.path.join(malmi_path,'gray.cpt'), shading="l+d", dpi=600)  # plot topography  cmap="grayC"
+        #dgrid = pygmt.grdgradient(grid=grid, radiance=[90, 0], normalize="e0.4")
+        #fig.grdimage(region=region, projection="M15c", grid=grid, cmap=os.path.join(malmi_path,'gray.cpt'), shading=dgrid, dpi=600)  # plot topography  cmap="grayC"
     fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
               projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
               water="skyblue",  # Set the color of the land t
@@ -913,7 +917,7 @@ def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plo
             for sta in net:
                 fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="blue", pen="0.35p,black")  
                 if plot_stationname:
-                    fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', D='0/-0.15c')
+                    fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', offset='0/-0.15c')
     
     # highlight a rectangular area
     if mkregion is not None:
