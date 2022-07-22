@@ -85,7 +85,6 @@ def eqt_arrayeventdetect(dir_probinput, dir_output, sttd_max, twlex, d_thrd, nst
     datainfo = {}
     datainfo['dt'] = dt_EQT
     
-
     # load timing info and the detection probability
     # obtain the folder name for the results of each station, each folder contain the probability data of one station
     db = {}  # for storing the whole data set: timestamp info + detection probability
@@ -861,6 +860,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
     timeformat = "%Y%m%dT%H%M%SZ"
     
     datainfo = {}
+    datainfo['dt'] = copy.deepcopy(dt_EQT)
     
     stations = list(event_info.keys())  # get all station names
     
