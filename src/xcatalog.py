@@ -13,8 +13,8 @@ catalog['longitude']: np.array of float, logitude in degree of each event;
 catalog['depth_km']: np.array of float, depth in km below the sea-level (down->positive) of each event;
 catalog['magnitude']: np.array of float, magnitude of each event;
 catalog['magnitude_type']: np.array of str or str, magnitude type, e.g. 'M', 'ML', 'Mw'
-catalog['pick']: list of dict, len(list) = number of events, each dict is the picking results, dict['network.station.location.instrument_code']['P'] for P-phase pick time, dict['network.station.location.instrument_code']['S'] for S-phase pick time
-catalog['arrivaltime']: list of dict, similar to 'pick', but is the theoretical calculated arrivaltimes of P- and S-phases;
+catalog['pick']: np.array of dict, len(list) = number of events, each dict is the picking results, dict['network.station.location.instrument_code']['P'] for P-phase pick time, dict['network.station.location.instrument_code']['S'] for S-phase pick time
+catalog['arrivaltime']: np.array of dict, similar to 'pick', but is the theoretical calculated arrivaltimes of P- and S-phases;
 
 @author: shipe
 """
@@ -24,7 +24,8 @@ import numpy as np
 from obspy.geodetics import gps2dist_azimuth
 import os
 import glob
-from ioformatting import read_lokicatalog, read_malmipsdetect, dict2csv, csv2dict
+from ioformatting import read_lokicatalog, read_malmipsdetect, dict2csv, csv2dict, read_arrivaltimes
+from utils_dataprocess import get_picknumber, pickarrvt_rmsd
 import pickle
 import copy
 import datetime
@@ -34,9 +35,12 @@ from obspy.core.event import Catalog as obspy_Catalog
 from obspy.core.event import Event as obspy_Event
 from obspy.core.event import Origin as obspy_Origin
 from obspy.core.event import Magnitude as obspy_Magnitude
+from obspy.core.event import Pick as obspy_Pick
+from obspy.core.event import WaveformStreamID
+from obspy.core.event import Arrival as obspy_Arrival
 
 
-def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', cata_fold='*', dete_fold='*', search_fold=None, evidtag='malmi'):
+def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', cata_fold='*', dete_fold='*', search_fold=None, evidtag='malmi', picktag='.MLpicks', arrvttag='.phs'):
     """
     This function is used to concatenate the catalogs together from the data base.
 
@@ -59,8 +63,14 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
         The MALMI result folders which contains catalog files. 
         (corresponding to the 'fd_seismic' folder in the MALMI main.py script).
         The default is None, which means all avaliable folders in 'dir_dateset'.
-    evidtag : str, default if 'malmi'
+    evidtag : str, default is 'malmi'
         event id tage;
+    picktag : str, default is '.MLpicks'
+        picking file filename tage for extracting picks;
+        if None, not extracting picks;
+    arrvttag : str, default is '.phs'
+        arrivaltime file filename tage for extracting theoretical arrivaltimes;
+        if None, not extracting arrivaltimes;
 
     Returns
     -------
@@ -78,30 +88,32 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
         mcatalog['endtime'] : detected endtime of the event;
         mcatalog['station_num'] : total number of stations triggered of the event;
         mcatalog['phase_num'] : total number of phases triggered of the event;
-        mcatalog['dir'] : directory of the migration results of the event.
+        mcatalog['dir'] : directory of the migration results of the event;
+        mcatalog['pick'] : picking time;
+        mcatalog['arrivaltime'] : theoretical arrivaltimes;
     """
     
     assert(os.path.exists(dir_dateset))
     
     if search_fold is None:
-        file_cata = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
-        file_dete = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(dete_fold,dete_ftag)), recursive = True))  # file list of detection files
+        file_cata = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(cata_fold,cata_ftag)), recursive=True))  # file list of catalogue files
+        file_dete = sorted(glob.glob(os.path.join(dir_dateset, '**/{}/{}'.format(dete_fold,dete_ftag)), recursive=True))  # file list of detection files
     elif isinstance(search_fold, list) and (isinstance(search_fold[0], str)):
         file_cata = []
         file_dete = []
         for ifld in search_fold:
-            file_cata += sorted(glob.glob(os.path.join(dir_dateset, '{}/{}/{}'.format(ifld,cata_fold,cata_ftag)), recursive = True))  # file list of catalogue files
-            file_dete += sorted(glob.glob(os.path.join(dir_dateset, '{}/{}/{}'.format(ifld,dete_fold,dete_ftag)), recursive = True))  # file list of detection files
+            file_cata += sorted(glob.glob(os.path.join(dir_dateset, '{}/{}/{}'.format(ifld,cata_fold,cata_ftag)), recursive=True))  # file list of catalogue files
+            file_dete += sorted(glob.glob(os.path.join(dir_dateset, '{}/{}/{}'.format(ifld,dete_fold,dete_ftag)), recursive=True))  # file list of detection files
     else:
         raise ValueError('Wrong input format for: {}! Can only be None or list of str!'.format(search_fold))
     
     assert(len(file_cata) == len(file_dete))  # should correspond
-    
+        
     eid = 0
     # loop over each catalog/detection file and concatenate them together to make the final version
     for ii in range(len(file_cata)):
         assert(file_cata[ii].split('/')[-3] == file_dete[ii].split('/')[-3])  # they should share the common parent path
-    
+            
         # load catalog file
         ctemp = read_lokicatalog(file_cata[ii])
         
@@ -119,35 +131,74 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
                 # inherit keys from detection dictionary
                 mcatalog[idkey] = []
             mcatalog['dir'] = []  # directory of the migration results of the event
-        
-        assert(len(ctemp['time']) == len(dtemp['phase_num']))  # event number should be the same
-        for iev in range(len(ctemp['time'])):
-            assert(ctemp['time'][iev] <= dtemp['endtime'][iev])
-            
-            for ickey in ctemp:
-                # inherit keys from loki catalog dictionary
-                mcatalog[ickey].append(ctemp[ickey][iev])
-            for idkey in dtemp:
-                # inherit keys from detection dictionary
-                mcatalog[idkey].append(dtemp[idkey][iev])
-            eid = eid + 1
-            evtimeid = ctemp['time'][iev].strftime('%Y%m%d%H%M%S%f')  # UTCDateTime to string
-            mcatalog['id'].append('{}_{}_{:06d}'.format(evidtag, evtimeid, eid))  # event identification
-            sss = file_cata[ii].split(os.path.sep)
-            if sss[0] == '':
-                # the input path: 'dir_dateset' is a absolute address
-                dir_ers = '{}'.format(os.path.sep)
-            else:
-                # the input path: 'dir_dateset' is a relative address
-                dir_ers = ''
+            if picktag is not None:
+                mcatalog['pick'] = []
+                mcatalog['asso_station_all'] = []
+                mcatalog['asso_station_PS'] = []
+                mcatalog['asso_station_P'] = []
+                mcatalog['asso_station_S'] = []
+                mcatalog['asso_P_all'] = []
+                mcatalog['asso_S_all'] = []
+                mcatalog['asso_phase_all'] = []
+            if arrvttag is not None:
+                mcatalog['arrivaltime'] = []
+            if (picktag is not None) and (arrvttag is not None):
+                mcatalog['rms_pickarvt'] = []  # the root-mean-square deviation between picking times and theoretical arrivaltimes     
                 
-            for pstr in sss[:-1]:
-                dir_ers = os.path.join(dir_ers, pstr)
-            dir_ers =  os.path.join(dir_ers, dtemp['starttime'][iev].isoformat())
-            assert(os.path.exists(dir_ers))
-            mcatalog['dir'].append(dir_ers)  # migration result direcotry of the event
-            
-        del ctemp, dtemp
+        if ctemp:  # not empty catalog
+            assert(len(ctemp['time']) == len(dtemp['phase_num']))  # event number should be the same
+            for iev in range(len(ctemp['time'])):
+                assert(ctemp['time'][iev] <= dtemp['endtime'][iev])
+                
+                for ickey in ctemp:
+                    # inherit keys from loki catalog dictionary
+                    mcatalog[ickey].append(ctemp[ickey][iev])
+                for idkey in dtemp:
+                    # inherit keys from detection dictionary
+                    mcatalog[idkey].append(dtemp[idkey][iev])
+                eid = eid + 1
+                evtimeid = ctemp['time'][iev].strftime('%Y%m%d%H%M%S%f')  # UTCDateTime to string
+                mcatalog['id'].append('{}_{}_{:06d}'.format(evidtag, evtimeid, eid))  # generate event identification
+                sss = file_cata[ii].split(os.path.sep)
+                if sss[0] == '':
+                    # the input path: 'dir_dateset' is a absolute address
+                    dir_ers = '{}'.format(os.path.sep)
+                else:
+                    # the input path: 'dir_dateset' is a relative address
+                    dir_ers = ''
+                    
+                for pstr in sss[:-1]:
+                    dir_ers = os.path.join(dir_ers, pstr)
+                dir_ers =  os.path.join(dir_ers, dtemp['starttime'][iev].isoformat())
+                assert(os.path.exists(dir_ers))
+                mcatalog['dir'].append(dir_ers)  # migration result direcotry of the event
+                
+                if picktag is not None:
+                    # load picking time
+                    file_pkev = glob.glob(os.path.join(dir_ers, '*{}*'.format(picktag)))
+                    assert(len(file_pkev)==1)
+                    pick_iev = read_arrivaltimes(file_pkev[0])
+                    mcatalog['pick'].append(pick_iev)
+                    num_station_all, num_station_PS, num_station_P, num_station_S, num_P_all, num_S_all = get_picknumber(pick_iev)
+                    mcatalog['asso_station_all'].append(num_station_all)  # total number of stations associated with picks
+                    mcatalog['asso_station_PS'].append(num_station_PS)  # total number of stations having both P and S picks
+                    mcatalog['asso_station_P'].append(num_station_P)  # total number of stations having only P picks
+                    mcatalog['asso_station_S'].append(num_station_S)  # total number of stations having only S picks
+                    mcatalog['asso_P_all'].append(num_P_all)  # total number of P picks
+                    mcatalog['asso_S_all'].append(num_S_all)  # total number of S picks
+                    mcatalog['asso_phase_all'].append(num_P_all+num_S_all)  # total number of phase picks
+                
+                if arrvttag is not None:
+                    # load theoretical arrival time
+                    file_arvtev = glob.glob(os.path.join(dir_ers, '*{}*'.format(arrvttag)))
+                    assert(len(file_arvtev)==1)
+                    arvt_iev = read_arrivaltimes(file_arvtev[0])
+                    mcatalog['arrivaltime'].append(arvt_iev)
+                
+                if (picktag is not None) and (arrvttag is not None):
+                    # calculate the root-mean-square deviation between picked arrivaltimes and theoretical arrivaltimes
+                    mcatalog['rms_pickarvt'].append(pickarrvt_rmsd(pick_iev, arvt_iev))
+            del ctemp, dtemp
     
     # convert to numpy array
     for ikey in list(mcatalog.keys()):
@@ -255,7 +306,6 @@ def catalog_rmrpev(catalog, thrd_time=0.3, thrd_hdis=None, thrd_depth=None, evkp
 
     """
     
-    
     Nev = len(catalog['time'])  # the total number of events in the catalog
     catakeys = list(catalog.keys())
     
@@ -322,6 +372,41 @@ def catalog_rmrpev(catalog, thrd_time=0.3, thrd_hdis=None, thrd_depth=None, evkp
         catalog_new[ikey] = np.array(catalog_new[ikey])
        
     return catalog_new
+
+
+def catalog_evchoose(catalog, select):
+    """
+    Choose events in the catalog that fullfill the select requirement.
+
+    Parameters
+    ----------
+    catalog : dict
+        input catalog.
+    select : dict
+        selection criterion.
+
+    Returns
+    -------
+    catalog_s : dict
+        catalog after selection.
+
+    """
+    
+    cat_keys = list(catalog.keys())  # keys of the input catalog
+    n_event = len(catalog[cat_keys[0]])  # total number of events in the input catalog
+    sindx = np.full((n_event,), True)  # true index
+    
+    sel_keys = list(select.keys())  # selecting keys
+    for ikey in sel_keys:
+        if (ikey != 'thrd_llbd') and (select[ikey] is not None):
+            sindx_temp = (catalog[ikey] >= select[ikey][0]) & (catalog[ikey] <= select[ikey][1])
+            sindx = np.logical_and(sindx, sindx_temp)
+    
+    catalog_s = {}
+    for ikey2 in cat_keys:
+        catalog_s[ikey2] = catalog[ikey2][sindx]
+    
+    return catalog_s
 
 
 def catalog_select(catalog, thrd_cmax=None, thrd_stanum=None, thrd_phsnum=None, thrd_lat=None, thrd_lon=None, thrd_cstd=None, thrd_depth=None):
@@ -738,32 +823,34 @@ def retrive_catalog_from_MALMI_database(CAT):
                 The default is 'MALMI_catalog_original'.
             CAT['fformat'] : str
                 the format of the output catalog file, can be 'pickle' and 'csv'.
+                Or other obspy compatible format, such as "QUAKEML", "NLLOC_OBS", "SC3ML". 
                 The default is 'pickle'.
             CAT['rmrpev'] : boolen, default is 'True'
                 whether to remove the deplicated events in the catalog.
             CAT['evselect'] : dict, default is {}
                 parameters controlling the selection of events from original catalog,
                 i.e. quality control of the orgiginal catalog.
-                CAT['evselect']['thrd_cmax'] : float, default is 0.036
-                    threshold of minimal coherence.
-                CAT['evselect']['thrd_cstd'] : float, default is 0.119
-                    threshold of maximum standard variance of stacking volume.
-                CAT['evselect']['thrd_stanum'] : int, default is None
-                    threshold of minimal number of triggered stations.
-                CAT['evselect']['thrd_phsnum'] : int, default is None
-                    threshold of minimal number of triggered phases.
-                CAT['evselect']['thrd_llbd'] : float, default is 0.002    
-                    lat/lon in degree for excluding migration boundary.
-                    e.g. latitude boundary is [lat_min, lat_max], event coordinates 
-                    must then within [lat_min+thrd_llbd, lat_max-thrd_llbd].
-                CAT['evselect']['thrd_lat'] : list of float
-                    threshold of latitude range in degree, e.g. [63.88, 64.14].
-                    default values are determined by 'thrd_llbd' and 'mgregion'.
-                CAT['evselect']['thrd_lon'] : list of float
-                    threshold of longitude range in degree, e.g. [-21.67, -21.06].
-                    default values are determined by 'thrd_llbd' and 'mgregion'.
-                CAT['evselect']['thrd_depth'] : list of float, default is None
-                    threshold of depth range in km, e.g. [-1, 12].
+                type 1:
+                    CAT['evselect']['thrd_cmax'] : float, default is 0.036
+                        threshold of minimal coherence.
+                    CAT['evselect']['thrd_cstd'] : float, default is 0.119
+                        threshold of maximum standard variance of stacking volume.
+                    CAT['evselect']['thrd_stanum'] : int, default is None
+                        threshold of minimal number of triggered stations.
+                    CAT['evselect']['thrd_phsnum'] : int, default is None
+                        threshold of minimal number of triggered phases.
+                    CAT['evselect']['thrd_llbd'] : float, default is 0.002    
+                        lat/lon in degree for excluding migration boundary.
+                        e.g. latitude boundary is [lat_min, lat_max], event coordinates 
+                        must then within [lat_min+thrd_llbd, lat_max-thrd_llbd].
+                    CAT['evselect']['latitude'] : list of float
+                        threshold of latitude range in degree, e.g. [63.88, 64.14].
+                        default values are determined by 'thrd_llbd' and 'mgregion'.
+                    CAT['evselect']['longitude'] : list of float
+                        threshold of longitude range in degree, e.g. [-21.67, -21.06].
+                        default values are determined by 'thrd_llbd' and 'mgregion'.
+                    CAT['evselect']['thrd_depth'] : list of float, default is None
+                        threshold of depth range in km, e.g. [-1, 12].
 
         Returns
         -------
@@ -772,7 +859,7 @@ def retrive_catalog_from_MALMI_database(CAT):
 
         """
     
-    # catalog output path
+    # set catalog output path
     if not os.path.exists(CAT['dir_output']):
         os.makedirs(CAT['dir_output'], exist_ok=True)
 
@@ -781,24 +868,33 @@ def retrive_catalog_from_MALMI_database(CAT):
         catalog = retrive_catalog(dir_dateset=CAT['dir_dateset'], cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', 
                                   cata_fold=CAT['cata_fold'], dete_fold=CAT['dete_fold'], search_fold=CAT['search_fold'], evidtag=CAT['evidtag'])
     else:
-        # directly load existing catalog
+        # directly load saved existing catalog
         if CAT['extract'].split('.')[-1].lower() == 'pickle':
             with open(CAT['extract'], 'rb') as handle:
                 catalog = pickle.load(handle)
         elif CAT['extract'].split('.')[-1].lower() == 'csv':
             catalog = csv2dict(CAT['extract'], delimiter=',')
         else:
-            raise ValueError("Wrong input for CAT[\'fformat\']: {}!".format(CAT['fformat']))
+            try:
+                # try using obspy to read event file
+                catalog = read_events(CAT['extract'])
+            except:
+                raise ValueError("Wrong input for CAT[\'fformat\']: {}!".format(CAT['fformat']))
     
     if CAT['evselect'] is not None:
         # select events from the original catalog using quality control parameters
-        catalog = catalog_select(catalog, thrd_cmax=CAT['evselect']['thrd_cmax'], 
-                                    thrd_stanum=CAT['evselect']['thrd_stanum'], 
-                                    thrd_phsnum=CAT['evselect']['thrd_phsnum'], 
-                                    thrd_lat=CAT['evselect']['thrd_lat'], 
-                                    thrd_lon=CAT['evselect']['thrd_lon'], 
-                                    thrd_cstd=CAT['evselect']['thrd_cstd'], 
-                                    thrd_depth=CAT['evselect']['thrd_depth'])
+        if 'thrd_cmax' in CAT['evselect']:
+            # select type 1
+            catalog = catalog_select(catalog, thrd_cmax=CAT['evselect']['thrd_cmax'], 
+                                              thrd_stanum=CAT['evselect']['thrd_stanum'], 
+                                              thrd_phsnum=CAT['evselect']['thrd_phsnum'], 
+                                              thrd_lat=CAT['evselect']['latitude'], 
+                                              thrd_lon=CAT['evselect']['longitude'], 
+                                              thrd_cstd=CAT['evselect']['thrd_cstd'], 
+                                              thrd_depth=CAT['evselect']['thrd_depth'])
+        else:
+            # select type 2
+            catalog = catalog_evchoose(catalog, select=CAT['evselect'])
         
     # remove repeated events
     if CAT['rmrpev']:
@@ -816,7 +912,12 @@ def retrive_catalog_from_MALMI_database(CAT):
             # save the extracted original catalog in csv format
             dict2csv(catalog, cfname, mode='w')
         else:
-            raise ValueError("Wrong input for CAT[\'fformat\']: {}!".format(CAT['fformat']))
+            try:
+                # obspy output catalog
+                catalog_obspy = dict2catalog(catalog)
+                catalog_obspy.write(cfname, format=CAT['fformat'])
+            except:
+                raise ValueError("Wrong input for CAT[\'fformat\']: {}!".format(CAT['fformat']))
 
     return catalog
 
@@ -903,7 +1004,7 @@ def dict2catalog(cat_dict):
         iorigin.time = cat_dict['time'][iev] 
         iorigin.latitude = cat_dict['latitude'][iev]
         iorigin.longitude = cat_dict['longitude'][iev]
-        iorigin.depth = cat_dict['depth_km'][iev] * 1000.0  # in meters
+        iorigin.depth = cat_dict['depth_km'][iev] * 1000.0  # unit in meters
         iorigin.depth_type = 'from location'
         if 'magnitude' in cat_dict:
             imag = obspy_Magnitude()
@@ -919,8 +1020,48 @@ def dict2catalog(cat_dict):
                 imag.magnitude_type = 'M'
         else:
             imag = None
-    
+        if 'arrivaltime' in cat_dict:
+            arrivals_list = []
+            stations_arrival = list(cat_dict['arrivaltime'].keys())  # station list having theoretical arrivaltimes
+            for iasta in stations_arrival:
+                if 'P' in cat_dict['arrivaltime'][iasta]:
+                    iarrival = obspy_Arrival()
+                    iarrival.resource_id = cat_dict['arrivaltime'][iasta]['P']
+                    iarrival.pick_id = iasta
+                    iarrival.phase = 'P'
+                    iarrival.comments = "theoretical arrivaltimes; saved in resource_id"
+                    arrivals_list.append(iarrival)
+                if 'S' in cat_dict['arrivaltime'][iasta]:
+                    iarrival = obspy_Arrival()
+                    iarrival.resource_id = cat_dict['arrivaltime'][iasta]['S']
+                    iarrival.pick_id = iasta
+                    iarrival.phase = 'S'
+                    iarrival.comments = "theoretical arrivaltimes; saved in resource_id"
+                    arrivals_list.append(iarrival)
+            iorigin.arrivals = arrivals_list
+        
         ievent = obspy_Event(origins=[iorigin], magnitudes=[imag])
+        
+        if 'pick' in cat_dict:
+            picks_list = []
+            stations_pick = list(cat_dict['pick'].keys())  # station list having picks
+            for ipsta in stations_pick:
+                if 'P' in cat_dict['pick'][ipsta]:
+                    ipick = obspy_Pick()
+                    ipick.time = cat_dict['pick'][ipsta]['P']
+                    ipick.waveform_id = WaveformStreamID(station_code=ipsta)  # or 'seed_string'
+                    ipick.phase_hint = "P"
+                    ipick.evaluation_mode = "automatic"
+                    picks_list.append(ipick)
+                if 'S' in cat_dict['pick'][ipsta]:
+                    ipick = obspy_Pick()
+                    ipick.time = cat_dict['pick'][ipsta]['S']
+                    ipick.waveform_id = WaveformStreamID(station_code=ipsta)  # or 'seed_string'
+                    ipick.phase_hint = "S"
+                    ipick.evaluation_mode = "automatic"
+                    picks_list.append(ipick)
+            ievent.picks = picks_list        
+        
         ievent.resource_id = cat_dict['id'][iev]
         ievent.preferred_origin_id = iorigin.resource_id
         ievent.preferred_magnitude_id = imag.resource_id

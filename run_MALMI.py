@@ -102,7 +102,7 @@ coseismiq.rsprocess_view()
 
 # %% Delete the input continuous seismic data for ML models for saving disk space
 CL = {}
-CL['hdf5_prob'] = False
+CL['hdf5_prob'] = True
 coseismiq.clear_interm(CL)
 
 

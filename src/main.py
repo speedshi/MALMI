@@ -6,7 +6,7 @@ Created on Wed Aug 11 13:41:56 2021
 @author: Peidong Shi
 @email: speedshi@hotmail.com
 
-MALMI main function - building a whole framework.
+MALMI main function - building an integrated framework.
 Coordinate convention: X-axis -> East; Y-axis -> North; Z-axis -> Depth (vertical-down).
 """
 
@@ -17,8 +17,6 @@ import copy
 import shutil
 import glob
 import datetime
-# import pickle
-# from ioformatting import csv2dict
 import numpy as np
 import obspy
 from xstation import load_station
@@ -693,7 +691,7 @@ class MALMI:
             
             # extract the ML picks according to theoretical arrivaltimes
             if getMLpick:
-                get_MLpicks_ftheart(dir_prob=dir_prob_ev, dir_io=dir_output_ev, maxtd_p=1.0, maxtd_s=1.0, 
+                get_MLpicks_ftheart(dir_prob=dir_prob_ev, dir_io=dir_output_ev, maxtd_p=2.0, maxtd_s=2.0, 
                                     P_thrd=self.detect['P_thrd'], S_thrd=self.detect['S_thrd'], 
                                     thephase_ftage='.phs', ofname=None)
             
@@ -935,29 +933,41 @@ class MALMI:
             CAT['rmrpev'] : dict, 
                 whether to remove the repeated events in the catalog, and the related parameters;
                 set to None or False if you do not want to remove.
-            CAT['evselect'] : dict, default is {}
+            CAT['evselect'] : dict, default is None
                 parameters controlling the selection of events from original catalog,
                 i.e. quality control of the orgiginal catalog.
-                CAT['evselect']['thrd_cmax'] : float, default is 0.036
-                    threshold of minimal coherence.
-                CAT['evselect']['thrd_cstd'] : float, default is 0.119
-                    threshold of maximum standard variance of stacking volume.
-                CAT['evselect']['thrd_stanum'] : int, default is None
-                    threshold of minimal number of triggered stations.
-                CAT['evselect']['thrd_phsnum'] : int, default is None
-                    threshold of minimal number of triggered phases.
-                CAT['evselect']['thrd_llbd'] : float, default is 0.002    
-                    lat/lon in degree for excluding migration boundary.
-                    e.g. latitude boundary is [lat_min, lat_max], event coordinates 
-                    must then within [lat_min+thrd_llbd, lat_max-thrd_llbd].
-                CAT['evselect']['thrd_lat'] : list of float
-                    threshold of latitude range in degree, e.g. [63.88, 64.14].
-                    default values are determined by 'thrd_llbd' and 'mgregion'.
-                CAT['evselect']['thrd_lon'] : list of float
-                    threshold of longitude range in degree, e.g. [-21.67, -21.06].
-                    default values are determined by 'thrd_llbd' and 'mgregion'.
-                CAT['evselect']['thrd_depth'] : list of float, default is None
-                    threshold of depth range in km, e.g. [-1, 12].
+                type 1:
+                    CAT['evselect']['thrd_cmax'] : float, required
+                        threshold of minimal coherence, e.g. 0.036
+                    CAT['evselect']['thrd_cstd'] : float
+                        threshold of maximum standard variance of stacking volume, e.g. 0.119
+                    CAT['evselect']['thrd_stanum'] : int, default is None
+                        threshold of minimal number of triggered stations.
+                    CAT['evselect']['thrd_phsnum'] : int, default is None
+                        threshold of minimal number of triggered phases.
+                    CAT['evselect']['thrd_llbd'] : float, default is 0.002    
+                        lat/lon in degree for excluding migration boundary.
+                        e.g. latitude boundary is [lat_min, lat_max], event coordinates 
+                        must then within [lat_min+thrd_llbd, lat_max-thrd_llbd].
+                    CAT['evselect']['latitude'] : list of float
+                        threshold of latitude range in degree, e.g. [63.88, 64.14].
+                        default values are determined by 'thrd_llbd' and 'mgregion'.
+                    CAT['evselect']['longitude'] : list of float
+                        threshold of longitude range in degree, e.g. [-21.67, -21.06].
+                        default values are determined by 'thrd_llbd' and 'mgregion'.
+                    CAT['evselect']['thrd_depth'] : list of float, default is None
+                        threshold of depth range in km, e.g. [-1, 12].
+                type 2: 
+                    key values keep consistent with catalog dict, selecting event
+                    according to the setted lower and higher bounday. For example:
+                    CAT['evselect']['coherence_max']=[0.05, np.inf]: events with stacked coherency >= 0.05;
+                    CAT['evselect']['asso_station_all']=[3, np.inf]: events with associated stations >= 3;
+                    CAT['evselect']['asso_station_PS']=[2, np.inf]: events with associated stations having both P and S phases >= 2;
+                    CAT['evselect'][''asso_phase_all'']=[4, np.inf]: events with associated phases >= 4;
+                    CAT['evselect']['rms_pickarvt']=[-np.inf, 1.0]: events with rms error (between picked arrivaltime and theoretical arrivaltime) <= 1.0 second;
+                    CAT['evselect']['latitude']=[10, 11]: events within latitude range between 10 and 11, can autolatically set using CAT['evselect']['thrd_llbd'];
+                    CAT['evselect']['longitude']=[50, 51.2]: events within longitude range between 50 and 51.2, can autolatically set using CAT['evselect']['thrd_llbd'];
+                    CAT['evselect']['depth_km']=[0, 10]: events within depth range between 0 and 10 km;
 
         Returns
         -------
@@ -998,38 +1008,32 @@ class MALMI:
         
         if 'evselect' not in CAT:
             CAT['evselect'] = None
-            
-        if (CAT['evselect'] is not None) and ('fname' not in CAT['evselect']):
-            CAT['evselect']['fname'] = 'MALMI_catalog_QC'
-            
-        if (CAT['evselect'] is not None) and ('thrd_cmax' not in CAT['evselect']):    
-            CAT['evselect']['thrd_cmax'] = 0.036  
-        
-        if (CAT['evselect'] is not None) and ('thrd_cstd' not in CAT['evselect']):
-            CAT['evselect']['thrd_cstd'] = 0.119
-            
-        if (CAT['evselect'] is not None) and ('thrd_stanum' not in CAT['evselect']):
-            CAT['evselect']['thrd_stanum'] = None
-            
-        if (CAT['evselect'] is not None) and ('thrd_phsnum' not in CAT['evselect']):    
-            CAT['evselect']['thrd_phsnum'] = None
         
         if (CAT['evselect'] is not None) and ('thrd_llbd' not in CAT['evselect']):
             CAT['evselect']['thrd_llbd'] = 0.002
         
-        if (CAT['evselect'] is not None) and ('thrd_lat' not in CAT['evselect']):
+        if (CAT['evselect'] is not None) and ('latitude' not in CAT['evselect']):
             if (CAT['evselect']['thrd_llbd'] is not None):    
-                CAT['evselect']['thrd_lat'] = [self.grid['mgregion'][2]+CAT['evselect']['thrd_llbd'], self.grid['mgregion'][3]-CAT['evselect']['thrd_llbd']]
+                CAT['evselect']['latitude'] = [self.grid['mgregion'][2]+CAT['evselect']['thrd_llbd'], self.grid['mgregion'][3]-CAT['evselect']['thrd_llbd']]
             else:
-                CAT['evselect']['thrd_lat'] = None
+                CAT['evselect']['latitude'] = None
         
-        if (CAT['evselect'] is not None) and ('thrd_lon' not in CAT['evselect']):
+        if (CAT['evselect'] is not None) and ('longitude' not in CAT['evselect']):
             if (CAT['evselect']['thrd_llbd'] is not None):
-                CAT['evselect']['thrd_lon'] = [self.grid['mgregion'][0]+CAT['evselect']['thrd_llbd'], self.grid['mgregion'][1]-CAT['evselect']['thrd_llbd']]    
+                CAT['evselect']['longitude'] = [self.grid['mgregion'][0]+CAT['evselect']['thrd_llbd'], self.grid['mgregion'][1]-CAT['evselect']['thrd_llbd']]    
             else:
-                CAT['evselect']['thrd_lon'] = None
+                CAT['evselect']['longitude'] = None
         
-        if (CAT['evselect'] is not None) and ('thrd_depth' not in CAT['evselect']):    
+        if (CAT['evselect'] is not None) and ('thrd_cmax' in CAT['evselect']) and ('thrd_cstd' not in CAT['evselect']):
+            CAT['evselect']['thrd_cstd'] = None
+        
+        if (CAT['evselect'] is not None) and ('thrd_cmax' in CAT['evselect']) and ('thrd_stanum' not in CAT['evselect']):
+                CAT['evselect']['thrd_stanum'] = None
+            
+        if (CAT['evselect'] is not None) and ('thrd_cmax' in CAT['evselect']) and ('thrd_phsnum' not in CAT['evselect']):    
+            CAT['evselect']['thrd_phsnum'] = None    
+        
+        if (CAT['evselect'] is not None) and ('thrd_cmax' in CAT['evselect']) and ('thrd_depth' not in CAT['evselect']):    
             CAT['evselect']['thrd_depth'] = None
         
         if 'dir_dateset' not in CAT:

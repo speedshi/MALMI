@@ -284,5 +284,62 @@ def merge_dict(dict1, dict2):
     return dict_m
 
 
+def get_picknumber(picks):
+    # get the total number of stations and phases associated with picks
+    
+    key_stations = list(picks.keys())  # station names
+    num_station_all = len(key_stations)  # total number of stations having picks
+    num_station_PS = 0  # total number of stations having both P and S picks
+    num_station_P = 0  # total number of stations having only P pick
+    num_station_S = 0  # total number of stations having only S pick
+    num_P_all = 0  # total number of P picks
+    num_S_all = 0  # total number of S picks
+    for ista in key_stations:
+        if ('P' in picks[ista]) and ('S' in picks[ista]):
+            # have both P and S picks
+            num_station_PS += 1  
+            num_P_all += 1
+            num_S_all += 1
+        elif ('P' in picks[ista]):
+            # have only P pick
+            num_station_P += 1
+            num_P_all += 1
+        elif ('S' in picks[ista]):
+            # have only S pick
+            num_station_S += 1
+            num_S_all += 1
+        else:
+            raise ValueError('Case not expected: {}!'.format(picks[ista]))
+    
+    assert(num_station_all == num_station_PS + num_station_P + num_station_S)
+    assert(num_P_all == num_station_PS + num_station_P)
+    assert(num_S_all == num_station_PS + num_station_S)
+    
+    return num_station_all, num_station_PS, num_station_P, num_station_S, num_P_all, num_S_all
+
+
+def pickarrvt_rmsd(pick, arrvt):
+    # calculate the root-mean-square deviation between picks and theoretical arrivaltimes in second
+    # not all stations and phases have picks, but all have theoretical arrivaltimes
+    
+    if pick:  # not empty
+        rmsd = 0.0  # root-mean-square deviation
+        npicks = 0  # total number of picks
+        pick_stations = list(pick.keys())  # picked stations
+        for ista in pick_stations:  # loop over each picked station
+            if 'P' in pick[ista]:
+                rmsd += (pick[ista]['P']-arrvt[ista]['P']) * (pick[ista]['P']-arrvt[ista]['P'])
+                npicks += 1
+            if 'S' in pick[ista]:
+                rmsd += (pick[ista]['S']-arrvt[ista]['S']) * (pick[ista]['S']-arrvt[ista]['S'])
+                npicks += 1
+        rmsd = np.sqrt(rmsd/npicks)
+    else:
+        rmsd = None
+    return rmsd
+
+
+
+
 
 

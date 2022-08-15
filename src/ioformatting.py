@@ -388,53 +388,55 @@ def read_lokicatalog(file_catalog):
     """
     
     ff = open(file_catalog)
-    flines = ff.readlines()
+    line1 = ff.readline()
     ff.close()
     
-    if (len(flines[0].split()[0])==19) or (len(flines[0].split()[0])==26):  # the first colume is time
-        # time format
-        datetime_format_26 = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
-        datetime_format_19 = '%Y-%m-%dT%H:%M:%S'  # datetime format in the input file
-        
-        # set catalog format
-        Ncol = len(flines[0].split())  # total number of columes
-        if Ncol == 7:  # indicate the meaning of each colume
-            format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'coherence_std', 'coherence_med', 'coherence_max']  
-        elif Ncol == 12:
-            format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'coherence_std', 'coherence_med', 'coherence_max', 
-                              'coherence_mean', 'coherence_min', 'coherence_MAD', 'coherence_kurtosis', 'coherence_skewness']
-        elif Ncol == 16:
-            format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'coherence_std', 'coherence_med', 'coherence_max', 
-                              'coherence_mean', 'coherence_min', 'coherence_MAD', 'coherence_kurtosis', 'coherence_skewness', 
-                              'coherence_normstd', 'coherence_normMAD', 'coherence_normkurtosis', 'coherence_normskewness']
+    catalog = {}
+    
+    if len(line1) > 0:  # not empty
+        if (len(line1.split()[0])==19) or (len(line1.split()[0])==26):  # the first colume is time
+            # time format
+            datetime_format_26 = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
+            datetime_format_19 = '%Y-%m-%dT%H:%M:%S'  # datetime format in the input file
+            
+            # set catalog format
+            Ncol = len(line1.split())  # total number of columes
+            if Ncol == 7:  # indicate the meaning of each colume
+                format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'coherence_std', 'coherence_med', 'coherence_max']  
+            elif Ncol == 12:
+                format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'coherence_std', 'coherence_med', 'coherence_max', 
+                                  'coherence_mean', 'coherence_min', 'coherence_MAD', 'coherence_kurtosis', 'coherence_skewness']
+            elif Ncol == 16:
+                format_catalog = ['time', 'latitude', 'longitude', 'depth_km', 'coherence_std', 'coherence_med', 'coherence_max', 
+                                  'coherence_mean', 'coherence_min', 'coherence_MAD', 'coherence_kurtosis', 'coherence_skewness', 
+                                  'coherence_normstd', 'coherence_normMAD', 'coherence_normkurtosis', 'coherence_normskewness']
+            else:
+                raise ValueError('Unrecognized catalog format for {}!'.format(file_catalog))
+            
+            # read catalog
+            cadf = pd.read_csv(file_catalog, delimiter=' ', header=None, names=format_catalog,
+                               skipinitialspace=True, encoding='utf-8')
+            
+            # format catalog information
+            # need to parse time information
+            etimes = list(cadf['time'])
+            catalog['time'] = []
+            for itime in etimes:
+                if len(itime) == 19:
+                    catalog['time'].append(UTCDateTime(datetime.datetime.strptime(itime, datetime_format_19)))  # origin time
+                elif len(itime) == 26:
+                    catalog['time'].append(UTCDateTime(datetime.datetime.strptime(itime, datetime_format_26)))  # origin time
+                else:
+                    raise ValueError('Error! Input datetime format not recoginzed!')
+            
+            for ikey in format_catalog:
+                if ikey.lower() != 'time':
+                    catalog[ikey] = list(cadf[ikey])
         else:
             raise ValueError('Unrecognized catalog format for {}!'.format(file_catalog))
         
-        # read catalog
-        cadf = pd.read_csv(file_catalog, delimiter=' ', header=None, names=format_catalog,
-                           skipinitialspace=True, encoding='utf-8')
-        
-        # format catalog information
-        catalog = {}
-        
-        # need to parse time information
-        etimes = list(cadf['time'])
-        catalog['time'] = []
-        for itime in etimes:
-            if len(itime) == 19:
-                catalog['time'].append(UTCDateTime(datetime.datetime.strptime(itime, datetime_format_19)))  # origin time
-            elif len(itime) == 26:
-                catalog['time'].append(UTCDateTime(datetime.datetime.strptime(itime, datetime_format_26)))  # origin time
-            else:
-                raise ValueError('Error! Input datetime format not recoginzed!')
-        
-        for ikey in format_catalog:
-            if ikey.lower() != 'time':
-                catalog[ikey] = list(cadf[ikey])
-    else:
-        raise ValueError('Unrecognized catalog format for {}!'.format(file_catalog))
+        del cadf, etimes
     
-    del cadf, etimes
     return catalog
 
 
@@ -518,11 +520,11 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
     maxtd_p : float, optional
         time duration in second, [P_theoratical_arrt-maxtd_p, P_theoratical_arrt+maxtd_p] 
         is the time range to consider possible ML picks for P-phase.
-        The default is 3.0.
+        The default is 3.0 second.
     maxtd_s : TYPE, optional
         time duration in second, [S_theoratical_arrt-maxtd_s, S_theoratical_arrt+maxtd_s] 
         is the time range to consider possible ML picks for S-phase.
-        The default is 3.0.
+        The default is 3.0 second.
     P_thrd : float, optional
         probability threshold above which is considered as acceptable P-picks. 
         The default is 0.1.
@@ -530,7 +532,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
         probability threshold above which is considered as acceptable S-picks. 
         The default is 0.1.
     thephase_ftage : str, optional
-        The filename tage of theoratical arrivaltime file, better use the suffix ('.phs') 
+        The filename tage of theoratical arrivaltime file, such as use the suffix ('.phs') 
         of the theoratical arrivaltime file. The default is '.phs'.
     ofname : TYPE, optional
         The output ML picking filename. The default is None, then it share the 
@@ -559,70 +561,78 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
     thearrvtt = read_arrivaltimes(file_thephase[0])
     stations = list(thearrvtt.keys())  # station list which have theoretical arrivaltimes
     
+    # load probability data
+    stream_all = read_seismic_fromfd(dir_prob, channels=None)
+    
     if ofname is None:
         # set default output filename if it is not setted by inputs
         ofname = file_thephase[0].split('/')[-1].split(thephase_ftage)[0] + '.MLpicks'
     
     # initialize the output file
-    ofile = open(os.path.join(dir_io, ofname), 'w')
-    ofile.write('# station P_arrivaltime S_arrivaltime \n')
+    ofile = open(os.path.join(dir_io, ofname), 'w', newline='')
+    ofcsv = csv.writer(ofile, delimiter=',', lineterminator="\n")
+    ofcsv.writerow(['station', 'P', 'S'])
     ofile.flush()
     
     # loop over each station to find the ML picks and output to file
     for sta in stations:
         if 'P' in thearrvtt[sta]:
             # P-phase theoretical arrivaltime exist
-            fprob_P = glob.glob(os.path.join(dir_prob, sta+'*PBP*'))
-            assert(len(fprob_P) < 2)
-            if len(fprob_P) == 1:
-                stream = obspy.read(fprob_P[0])  # load P-phase probability
+            stream = stream_all.select(station=sta, component="P")  # get P-phase probability for the current station
+            # fprob_P = glob.glob(os.path.join(dir_prob, sta+'*PBP*'))
+            if stream.count() == 1:
                 art_start = thearrvtt[sta]['P'] - datetime.timedelta(seconds=maxtd_p)  # earliest possible P-phase arrivaltime
                 art_end = thearrvtt[sta]['P'] + datetime.timedelta(seconds=maxtd_p)  # latest possible P-phase arrivaltime
                 stream_sl = stream.slice(starttime=UTCDateTime(art_start), endtime=UTCDateTime(art_end))  # the probability segment between the earliest and latest possible phase arrivaltimes
                 if (stream_sl.count() > 0) and (stream_sl[0].data.max() >= P_thrd):
-                    # larger than threshold, is a good pick
+                    # larger than threshold, claim a pick
                     P_picks = stream_sl[0].times(type='utcdatetime')[np.argmax(stream_sl[0].data)].datetime  # P-phase pick time
                 else:
                     # P-phase probability not larger than threshold, no acceptable picks
                     P_picks = None
-            else:
+            elif stream.count() == 0:
                 # no P-phase probabilities
                 P_picks = None
+            else:
+                print(stream)
+                raise ValueError('More than one P-prob trace are found for station: {}!'.format(sta))
         else:
             # no P-phase theoretical arrivaltime
             P_picks = None
         
         if 'S' in thearrvtt[sta]:
             # S-phase theoretical arrivaltime exist
-            fprob_S = glob.glob(os.path.join(dir_prob, sta+'*PBS*'))
-            assert(len(fprob_S) < 2)
-            if len(fprob_S) == 1:
-                stream = obspy.read(fprob_S[0])  # load P-phase probability
+            stream = stream_all.select(station=sta, component="S")  # get S-phase probability for the current station
+            if stream.count() == 1:
                 art_start = thearrvtt[sta]['S'] - datetime.timedelta(seconds=maxtd_s)  # earliest possible S-phase arrivaltime
                 art_end = thearrvtt[sta]['S'] + datetime.timedelta(seconds=maxtd_s)  # latest possible S-phase arrivaltime
                 stream_sl = stream.slice(starttime=UTCDateTime(art_start), endtime=UTCDateTime(art_end))  # the probability segment between the earliest and latest possible phase arrivaltimes
                 if (stream_sl.count() > 0) and (stream_sl[0].data.max() >= S_thrd):
-                    # larger than threshold, is a good pick
+                    # larger than threshold, claim a pick
                     S_picks = stream_sl[0].times(type='utcdatetime')[np.argmax(stream_sl[0].data)].datetime  # S-phase pick time
                 else:
                     # S-phase probability not larger than threshold, no acceptable picks
                     S_picks = None
-            else:
+            elif stream.count() == 0:
                 # no S-phase probabilities
                 S_picks = None
+            else:
+                print(stream)
+                raise ValueError('More than one S-prob trace are found for station: {}!'.format(sta))
         else:
             # no S-phase theoretical arrivaltime
             S_picks = None
         
-        # output to file
+        # output picks to file for the current station
+        t2sfromat = "%Y-%m-%dT%H:%M:%S.%f"  # output datetime format, presion down to millisecond, e.g. '2009-08-24T00:20:03.000000'
         if (P_picks is not None) and (S_picks is not None):
-            ofile.write(sta+' '+P_picks.isoformat()+' '+S_picks.isoformat()+'\n')
+            ofcsv.writerow([sta, P_picks.strftime(t2sfromat), S_picks.strftime(t2sfromat)])
             ofile.flush()
         elif (P_picks is not None) and (S_picks is None):
-            ofile.write(sta+' '+P_picks.isoformat()+' None\n')
+            ofcsv.writerow([sta, P_picks.strftime(t2sfromat), 'None'])
             ofile.flush()
         elif (P_picks is None) and (S_picks is not None):
-            ofile.write(sta+' None '+S_picks.isoformat()+'\n')
+            ofcsv.writerow([sta, 'None', S_picks.strftime(t2sfromat)])
             ofile.flush()
 
     ofile.close()
@@ -643,38 +653,49 @@ def read_arrivaltimes(file_arrvt):
     arrvtt : dic
         dictionary contains P- and S-wave arrivaltime information of different
         stations.
-        arrvtt['station']['P'] : P-wave arrivaltime;
-        arrvtt['station']['S'] : S-wave arrivaltime.
+        arrvtt['station_name']['P'] : P-wave arrivaltime;
+        arrvtt['station_name']['S'] : S-wave arrivaltime.
 
     """
     
     # set arrivaltime file input format
-    format_arrvt = ['station', 'Pt', 'St']  # indicate the meaning of each colume
     datetime_format_26 = '%Y-%m-%dT%H:%M:%S.%f'  # datetime format in the input file
     datetime_format_19 = '%Y-%m-%dT%H:%M:%S'  # datetime format in the input file
     
+    # read the first line to determine the input file format
+    file1 = open(file_arrvt, 'r')
+    line1 = file1.readline()
+    file1.close()
+    
     # read arrivaltime file
-    arvtdf = pd.read_csv(file_arrvt, delimiter=' ', header=None, names=format_arrvt,
-                         skipinitialspace=True, encoding='utf-8', comment='#')
+    if line1[0] == '#':
+        format_arrvt = ['station', 'P', 'S']  # indicate the meaning of each colume
+        arvtdf = pd.read_csv(file_arrvt, delimiter=' ', header=None, names=format_arrvt,
+                             skipinitialspace=True, encoding='utf-8', comment='#')
+    else:
+        # csv format with headline
+        arvtdf = csv2dict(file_arrvt, delimiter=',')
     
     arrvtt = {}
-    for ii in range(len(arvtdf)):
-        arrvtt[arvtdf.loc[ii, 'station']] = {}
-        if len(arvtdf.loc[ii, 'Pt']) == 26:
-            arrvtt[arvtdf.loc[ii, 'station']]['P'] = datetime.datetime.strptime(arvtdf.loc[ii, 'Pt'], datetime_format_26)
-        elif len(arvtdf.loc[ii, 'Pt']) == 19:
-            arrvtt[arvtdf.loc[ii, 'station']]['P'] = datetime.datetime.strptime(arvtdf.loc[ii, 'Pt'], datetime_format_19)
-        elif arvtdf.loc[ii, 'Pt'] == 'None':
+    for ii in range(len(arvtdf['station'])):
+        ista = arvtdf['station'][ii]  # station name
+        arrvtt[ista] = {}
+        
+        if len(arvtdf['P'][ii]) == 26:
+            arrvtt[ista]['P'] = UTCDateTime.strptime(arvtdf['P'][ii], datetime_format_26)
+        elif len(arvtdf['P'][ii]) == 19:
+            arrvtt[ista]['P'] = UTCDateTime.strptime(arvtdf['P'][ii], datetime_format_19)
+        elif arvtdf['P'][ii] == 'None':
             # no P-phase arrivaltimes
             pass
         else:
             raise ValueError('Error! Input datetime format not recoginzed!')
             
-        if len(arvtdf.loc[ii, 'St']) == 26:
-            arrvtt[arvtdf.loc[ii, 'station']]['S'] = datetime.datetime.strptime(arvtdf.loc[ii, 'St'], datetime_format_26)
-        elif len(arvtdf.loc[ii, 'St']) == 19:
-            arrvtt[arvtdf.loc[ii, 'station']]['S'] = datetime.datetime.strptime(arvtdf.loc[ii, 'St'], datetime_format_19)
-        elif arvtdf.loc[ii, 'St'] == 'None':
+        if len(arvtdf['S'][ii]) == 26:
+            arrvtt[ista]['S'] = UTCDateTime.strptime(arvtdf['S'][ii], datetime_format_26)
+        elif len(arvtdf['S'][ii]) == 19:
+            arrvtt[ista]['S'] = UTCDateTime.strptime(arvtdf['S'][ii], datetime_format_19)
+        elif arvtdf['S'][ii] == 'None':
             # no S-phase arrivaltimes
             pass
         else:
