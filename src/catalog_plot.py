@@ -115,9 +115,9 @@ def catalog_plot_depth(region, catalog, depthrg=None, cmap="polar", sta_inv=None
         else:
             pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), catalog['depth_km'].max()])
         if isinstance(eq_size, float):
-            fig.plot(x=catalog['longitude'], y=catalog['latitude'], color=catalog['depth_km'], cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30
+            fig.plot(x=catalog['longitude'], y=catalog['latitude'], color=catalog['depth_km'], cmap=True, style="c{}c".format(eq_size), pen="0.02p,black", transparency=20)  # , no_clip="r"
         else:
-            fig.plot(x=catalog['longitude'], y=catalog['latitude'], size=eq_size, color=catalog['depth_km'], cmap=True, style="cc", pen="0.01p,black", transparency=10)  # , no_clip="r"
+            fig.plot(x=catalog['longitude'], y=catalog['latitude'], size=eq_size, color=catalog['depth_km'], cmap=True, style="cc", pen="0.02p,black", transparency=20)  # , no_clip="r"
         fig.colorbar(frame='af+l"Depth (km)"')  # frame='a2f+l"Depth (km)"', position="JMR"
         
         # plot the markers

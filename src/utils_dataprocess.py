@@ -339,7 +339,25 @@ def pickarrvt_rmsd(pick, arrvt):
     return rmsd
 
 
-
+def pickarrvt_mae(pick, arrvt):
+    # calculate the mean absolute error between picks and theoretical arrivaltimes in second
+    # not all stations and phases have picks, but all have theoretical arrivaltimes
+    
+    if pick:  # not empty
+        mae = 0.0  # mean absolute error
+        npicks = 0  # total number of picks
+        pick_stations = list(pick.keys())  # picked stations
+        for ista in pick_stations:  # loop over each picked station
+            if 'P' in pick[ista]:
+                mae += abs(pick[ista]['P']-arrvt[ista]['P'])
+                npicks += 1
+            if 'S' in pick[ista]:
+                mae += abs(pick[ista]['S']-arrvt[ista]['S'])
+                npicks += 1
+        mae = mae/npicks
+    else:
+        mae = None
+    return mae
 
 
 

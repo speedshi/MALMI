@@ -25,7 +25,7 @@ from obspy.geodetics import gps2dist_azimuth
 import os
 import glob
 from ioformatting import read_lokicatalog, read_malmipsdetect, dict2csv, csv2dict, read_arrivaltimes
-from utils_dataprocess import get_picknumber, pickarrvt_rmsd
+from utils_dataprocess import get_picknumber, pickarrvt_rmsd, pickarrvt_mae
 import pickle
 import copy
 import datetime
@@ -143,7 +143,8 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
             if arrvttag is not None:
                 mcatalog['arrivaltime'] = []
             if (picktag is not None) and (arrvttag is not None):
-                mcatalog['rms_pickarvt'] = []  # the root-mean-square deviation between picking times and theoretical arrivaltimes     
+                mcatalog['rms_pickarvt'] = []  # the root-mean-square deviation between picking times and theoretical arrivaltimes    
+                mcatalog['mae_pickarvt'] = []  # the mean absolute error between picking times and theoretical arrivaltimes
                 
         if ctemp:  # not empty catalog
             assert(len(ctemp['time']) == len(dtemp['phase_num']))  # event number should be the same
@@ -196,8 +197,9 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
                     mcatalog['arrivaltime'].append(arvt_iev)
                 
                 if (picktag is not None) and (arrvttag is not None):
-                    # calculate the root-mean-square deviation between picked arrivaltimes and theoretical arrivaltimes
-                    mcatalog['rms_pickarvt'].append(pickarrvt_rmsd(pick_iev, arvt_iev))
+                    # calculate the root-mean-square deviation and mean-absolute-error between picked arrivaltimes and theoretical arrivaltimes
+                    mcatalog['rms_pickarvt'].append(pickarrvt_rmsd(pick_iev, arvt_iev))  # rms
+                    mcatalog['mae_pickarvt'].append(pickarrvt_mae(pick_iev, arvt_iev))  # mae
             del ctemp, dtemp
     
     # convert to numpy array

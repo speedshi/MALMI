@@ -963,8 +963,9 @@ class MALMI:
                     CAT['evselect']['coherence_max']=[0.05, np.inf]: events with stacked coherency >= 0.05;
                     CAT['evselect']['asso_station_all']=[3, np.inf]: events with associated stations >= 3;
                     CAT['evselect']['asso_station_PS']=[2, np.inf]: events with associated stations having both P and S phases >= 2;
-                    CAT['evselect'][''asso_phase_all'']=[4, np.inf]: events with associated phases >= 4;
-                    CAT['evselect']['rms_pickarvt']=[-np.inf, 1.0]: events with rms error (between picked arrivaltime and theoretical arrivaltime) <= 1.0 second;
+                    CAT['evselect']['asso_phase_all']=[4, np.inf]: events with associated phases >= 4;
+                    CAT['evselect']['rms_pickarvt']=[-np.inf, 1.5]: events with rms error (between picked arrivaltime and theoretical arrivaltime) <= 1.5 second;
+                    CAT['evselect']['mae_pickarvt']=[-np.inf, 1.5]: events with mean-absolute-error (between picked arrivaltime and theoretical arrivaltime) <= 1.5 second;
                     CAT['evselect']['latitude']=[10, 11]: events within latitude range between 10 and 11, can autolatically set using CAT['evselect']['thrd_llbd'];
                     CAT['evselect']['longitude']=[50, 51.2]: events within longitude range between 50 and 51.2, can autolatically set using CAT['evselect']['thrd_llbd'];
                     CAT['evselect']['depth_km']=[0, 10]: events within depth range between 0 and 10 km;
