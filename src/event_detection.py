@@ -867,8 +867,12 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
     # make sure output directory exist
     if not os.path.exists(dir_output):
         os.makedirs(dir_output)
-    fepinfo = open(dir_output+'/'+'event_station_phase_info.txt', 'a')  # file to record the event trigger and phase information
-    fepinfo.write('# starttime            endtime            station    phase    \n')  # title line
+    evstaphsfile = os.path.join(dir_output, 'event_station_phase_info.txt')
+    if os.path.exists(evstaphsfile):
+        fepinfo = open(evstaphsfile, 'a')  # file to record the event trigger and phase information
+    else:
+        fepinfo = open(evstaphsfile, 'a')  # file to record the event trigger and phase information
+        fepinfo.write('# starttime            endtime            station    phase    \n')  # title line
     
     # get the earliest starttime and the latest endtime of all detections for each station
     etime_sta = []  # the earliest starttime of all detections for each station

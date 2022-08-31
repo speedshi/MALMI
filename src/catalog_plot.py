@@ -13,7 +13,7 @@ import pygmt
 from xcatalog import catalog_select
 
 
-def catalog_plot_depth(region, catalog, depthrg=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None):
+def catalog_plot_depth(region, catalog, depthrg=None, cmap="hot", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None):
     """
     To plot the basemap with seismic events color-coded using event depth.
     
@@ -34,6 +34,8 @@ def catalog_plot_depth(region, catalog, depthrg=None, cmap="polar", sta_inv=None
         when input is a float or list with only 1 entry, it specify the maximum depth in km for showing. 
         when input is a list of two entries, it specify the depth range in km for showing.
         Default is None, i.e. show all depths.    
+    cmap : string, name of the colormap,
+        such as "polar", "plasma", "hot", "viridis";
     sta_inv : obspy invertory format, optional
         station inventory containing station metadata. The default is None.
     mkregion : list of float or list of lists, optional
@@ -153,7 +155,7 @@ def catalog_plot_depth(region, catalog, depthrg=None, cmap="polar", sta_inv=None
     return
 
 
-def catalog_plot_otime(region, catalog, time_ref=None, cmap="polar", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None):
+def catalog_plot_otime(region, catalog, time_ref=None, cmap="hot", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None):
     """
     To plot the basemap with seismic events color-coded using event origin time.
     
@@ -172,7 +174,9 @@ def catalog_plot_otime(region, catalog, time_ref=None, cmap="polar", sta_inv=Non
             origin times of seismic events in datetime format.
     time_ref : datetime
         Reference time for calculate time difference. Default is None, 
-        i.e. maximum origin time of the input event.    
+        i.e. maximum origin time of the input event.   
+    cmap : string, name of the colormap,
+        such as "polar", "plasma", "hot", "viridis";
     sta_inv : obspy invertory format, optional
         station inventory containing station metadata. The default is None.
     mkregion : list of float or list of lists, optional

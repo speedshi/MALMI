@@ -14,6 +14,7 @@ import obspy
 import seisbench.models as sbm
 from utils_dataprocess import merge_dict
 from ioformatting import dict2csv
+import numpy as np
 
 
 def seisbench_geneprob(spara):
@@ -72,23 +73,24 @@ def seisbench_geneprob(spara):
             stream = obspy.read(os.path.join(iddir, '*'))  # 3-component data of a station
             annotations, picks = seisbench_stream2prob(stream=stream, model=model, paras=sbs2ppara)
         
-            idir_save = os.path.join(dir_probsave, ifd)
-            if not os.path.exists(idir_save):
-                os.makedirs(idir_save)
-        
-            # save prediction results
-            for tr in annotations:
-                tr.stats.channel = 'PB'+tr.stats.channel[-1].upper()  # save mseed file, channel name maximum 3 char
-            fname = os.path.join(idir_save, 'prediction_probabilities.mseed')
-            annotations.write(fname, format='MSEED')
-            file_pk = os.path.join(idir_save, 'X_prediction_results.csv')
-            picks_dict = {}
-            for ipick in picks:
-                ipk_dict = ipick.__dict__
-                for ikk in ipk_dict:
-                    ipk_dict[ikk] = [ipk_dict[ikk]]  # to merge dict, item of each entry should be a list or numpy array
-                picks_dict = merge_dict(dict1=picks_dict, dict2=ipk_dict)
-            dict2csv(indic=picks_dict, filename=file_pk, mode='w')
+            if annotations.count()>0:  # in case no enough data for a successful prediction
+                idir_save = os.path.join(dir_probsave, ifd)
+                if not os.path.exists(idir_save):
+                    os.makedirs(idir_save)
+            
+                # save prediction results
+                for tr in annotations:
+                    tr.stats.channel = 'PB'+tr.stats.channel[-1].upper()  # save mseed file, channel name maximum 3 char
+                fname = os.path.join(idir_save, 'prediction_probabilities.mseed')
+                annotations.write(fname, format='MSEED')
+                file_pk = os.path.join(idir_save, 'X_prediction_results.csv')
+                picks_dict = {}
+                for ipick in picks:
+                    ipk_dict = ipick.__dict__
+                    for ikk in ipk_dict:
+                        ipk_dict[ikk] = [ipk_dict[ikk]]  # to merge dict, item of each entry should be a list or numpy array
+                    picks_dict = merge_dict(dict1=picks_dict, dict2=ipk_dict)
+                dict2csv(indic=picks_dict, filename=file_pk, mode='w')
         
     return
 
@@ -96,6 +98,29 @@ def seisbench_geneprob(spara):
 def seisbench_stream2prob(stream, model, paras):
     
     stream.merge()
+    if stream.count()<3:
+        # having only 1 or 2 component
+        comps = [itr.stats.channel[-1] for itr in stream]
+        if ('1' in comps) or ('2' in comps) or ('3' in comps):
+            for iii in ['1','2','3']:
+                if iii not in comps: 
+                    comps_add = [iii]
+                    break
+        else:
+            comps_add = list(set(['Z','N','E']) - set(comps))
+        for icomp in comps_add:
+            itrace = stream[0].copy()
+            itrace.stats.channel = stream[0].stats.channel[:-1]+icomp
+            itrace.data = np.zeros_like(stream[0].data)
+            stream.append(itrace.copy())
+
+    # trim data to the same time range
+    starttime = [itr.stats.starttime for itr in stream]
+    endtime = [itr.stats.endtime for itr in stream]
+    starttime_min = min(starttime)
+    endtime_max = max(endtime)
+    stream.trim(starttime=starttime_min, endtime=endtime_max, pad=True, fill_value=0)
+
     annotations = model.annotate(stream)
     
     if model.name == 'EQTransformer':
