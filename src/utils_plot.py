@@ -12,14 +12,15 @@ Plot related functions.
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.ticker import FormatStrFormatter
+import matplotlib.ticker as ticker
+from obspy import UTCDateTime
 import numpy as np
 import os
 import obspy
 import pandas as pd
 from utils_dataprocess import dnormlz
-import matplotlib.ticker as ticker
-from obspy import UTCDateTime
 from pathlib import Path
+
 
 malmi_path = Path( __file__ ).parent.absolute()
 
@@ -546,10 +547,10 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                 if staname[ii] in arrvtt:
                     if 'P' in arrvtt[staname[ii]]:
                         # plot P arrivaltimes
-                        ax.vlines(arrvtt[staname[ii]]['P'], ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
+                        ax.vlines(np.datetime64(arrvtt[staname[ii]]['P']), ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
                     if 'S' in arrvtt[staname[ii]]:
                         # plot S arrivaltimes
-                        ax.vlines(arrvtt[staname[ii]]['S'], ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
+                        ax.vlines(np.datetime64(arrvtt[staname[ii]]['S']), ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
         
         if timerg is not None:
             ax.set_xlim(timerg)
