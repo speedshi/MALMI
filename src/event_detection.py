@@ -888,7 +888,10 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
         elif (len(event_info[sta]['P']['starttime']) == 0) and (len(event_info[sta]['S']['starttime']) > 0):
             etime_sta.append(copy.deepcopy(min(event_info[sta]['S']['starttime'])))
             ltime_sta.append(copy.deepcopy(max(event_info[sta]['S']['endtime'])))       
-            
+    
+    if (not etime_sta) and (not ltime_sta):
+        return
+        
     time_min = copy.deepcopy(min(etime_sta))  # the earliest starttime of all events, used to set the start point of the searched time range
     time_max = copy.deepcopy(max(ltime_sta))  # the latest endtime of all events, used to limit the searched time range
     del etime_sta, ltime_sta, sta
