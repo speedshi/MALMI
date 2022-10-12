@@ -634,6 +634,9 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
         elif (P_picks is None) and (S_picks is not None):
             ofcsv.writerow([sta, 'None', S_picks.strftime(t2sfromat)])
             ofile.flush()
+        elif (P_picks is None) and (S_picks is None):
+            # no picks for P and S-phases, no output
+            pass
 
     ofile.close()
     return
