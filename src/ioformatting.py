@@ -505,7 +505,7 @@ def read_malmipsdetect(file_detect):
     return detect_info
 
 
-def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, S_thrd=0.1, thephase_ftage='.phs', ofname=None):
+def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, S_thrd=0.1, thephase_ftage='.phs', ofname=None, dir_seis=None, snr_para=None):
     """
     This function is used to extract ML picks according to the calculated 
     theoratical arrivaltimes.
@@ -534,9 +534,13 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
     thephase_ftage : str, optional
         The filename tage of theoratical arrivaltime file, such as use the suffix ('.phs') 
         of the theoratical arrivaltime file. The default is '.phs'.
-    ofname : TYPE, optional
+    ofname : str, optional
         The output ML picking filename. The default is None, then it share the 
         same filename as the theoratical arrivaltime file.
+    dir_seis : str
+        The directory to where seismic data are stored.
+    snr_para : dict
+        Parameters related to SNR estimation of picks.
 
     Raises
     ------
@@ -564,6 +568,28 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
     # load probability data
     stream_all = read_seismic_fromfd(dir_prob, channels=None)
     
+    # load seismic data, needed for calculating SNR
+    if dir_seis is not None:
+        # set default snr calculation parameters
+        if snr_para is None:
+            snr_para = {}
+        if 'fband' not in snr_para:
+            snr_para['fband'] = None
+        if 'method' not in snr_para:
+            snr_para['method'] = 'maxamp'
+        if 'noise_window_P' not in snr_para:
+            snr_para['noise_window_P'] = [-4, -2]
+        if 'signal_window_P' not in snr_para:
+            snr_para['signal_window_P'] = [-0.5, 0.8]
+        if 'noise_window_S' not in snr_para:
+            snr_para['noise_window_S'] = [-5, -3]
+        if 'signal_window_S' not in snr_para:
+            snr_para['signal_window_S'] = [-0.4, 1.0]
+
+        seismic_all = read_seismic_fromfd(dir_seis, channels=None)
+        
+        
+
     if ofname is None:
         # set default output filename if it is not setted by inputs
         ofname = file_thephase[0].split('/')[-1].split(thephase_ftage)[0] + '.MLpicks'
