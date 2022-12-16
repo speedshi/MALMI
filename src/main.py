@@ -692,9 +692,11 @@ class MALMI:
             
             # extract the ML picks according to theoretical arrivaltimes
             if getMLpick:
+                snr_para = {}
+                snr_para['fband'] = self.seismic['freqband']
                 get_MLpicks_ftheart(dir_prob=dir_prob_ev, dir_io=dir_output_ev, maxtd_p=2.0, maxtd_s=2.0, 
                                     P_thrd=self.detect['P_thrd'], S_thrd=self.detect['S_thrd'], 
-                                    thephase_ftage='.phs', ofname=None)
+                                    thephase_ftage='.phs', ofname=None, dir_seis=dir_seis_ev, snr_para=snr_para)
             
             # plot waveforms overlapped with ML probabilites and theoretical arrivaltimes
             if PLT is not None:

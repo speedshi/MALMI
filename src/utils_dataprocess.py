@@ -10,6 +10,19 @@ Created on Tue Jul 13 14:26:55 2021
 import numpy as np
 
 
+def stfilter(stream, fband):
+    # filter seismic stream
+    # operation is performed in place
+    # so no return parameters
+    
+    stream.detrend('demean')
+    stream.detrend('simple')
+    stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1], corners=2, zerophase=True)
+    #stream.taper(max_percentage=0.01, type='cosine', max_length=0.1)  # to avoid anormaly at boundary
+    
+    return
+
+
 def stream_resampling(stream, sampling_rate=100.0):
     """
     To resample the input seismic data.
@@ -32,20 +45,27 @@ def stream_resampling(stream, sampling_rate=100.0):
             if (len(tr.data) > 10):
                 # perform resampling
                 try:
-                    if tr.stats.sampling_rate > sampling_rate:
-                        # need lowpass filter before resampling
-                        tr.filter('lowpass',freq=0.5*sampling_rate,zerophase=True)
-                    tr.resample(sampling_rate=sampling_rate)    
+                    trace_resampling(tr, sampling_rate)
                 except:
-                    try:
-                        tr.interpolate(sampling_rate, method="linear")
-                    except:
-                        stream.remove(tr)
+                    stream.remove(tr)
             else:
-                # remove the trave if it only contains too few data points
+                # remove the trace if it only contains too few data points
                 stream.remove(tr)
     
     return stream
+
+
+def trace_resampling(trace, sampling_rate):
+    # perform resampling
+    try:
+        if trace.stats.sampling_rate > sampling_rate:
+            # need lowpass filter before resampling
+            trace.filter('lowpass', freq=0.5*sampling_rate, zerophase=True)
+        trace.resample(sampling_rate=sampling_rate)    
+    except:
+        trace.interpolate(sampling_rate, method="linear")
+
+    return   # it seems we do not need to return trace, as the process is performed in-place
 
 
 def maxP2Stt(db_path, hdr_filename, model, precision):

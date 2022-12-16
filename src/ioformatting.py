@@ -19,6 +19,8 @@ import numpy as np
 import glob
 import csv
 import copy
+from utils_dataprocess import stfilter
+from xsnr import estimate_snr
 
 
 def read_seismic_fromfd(dir_seismic, channels=None):
@@ -568,7 +570,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
     # load probability data
     stream_all = read_seismic_fromfd(dir_prob, channels=None)
     
-    # load seismic data, needed for calculating SNR
+    # load seismic data which are needed for calculating SNR
     if dir_seis is not None:
         # set default snr calculation parameters
         if snr_para is None:
@@ -587,8 +589,8 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
             snr_para['signal_window_S'] = [-0.4, 1.0]
 
         seismic_all = read_seismic_fromfd(dir_seis, channels=None)
-        
-        
+        if snr_para['fband'] is not None:
+            stfilter(seismic_all, snr_para['fband'])
 
     if ofname is None:
         # set default output filename if it is not setted by inputs
@@ -597,7 +599,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
     # initialize the output file
     ofile = open(os.path.join(dir_io, ofname), 'w', newline='')
     ofcsv = csv.writer(ofile, delimiter=',', lineterminator="\n")
-    ofcsv.writerow(['station', 'P', 'S'])
+    ofcsv.writerow(['station', 'P', 'P_snr', 'S', 'S_snr'])
     ofile.flush()
     
     # loop over each station to find the ML picks and output to file
@@ -613,18 +615,28 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
                 if (stream_sl.count() > 0) and (stream_sl[0].data.max() >= P_thrd):
                     # larger than threshold, claim a pick
                     P_picks = stream_sl[0].times(type='utcdatetime')[np.argmax(stream_sl[0].data)].datetime  # P-phase pick time
+
+                    # estimate the SNR of this pick
+                    if dir_seis is not None:
+                        P_snr = estimate_snr(trace=seismic_all.select(station=sta).merge(), stime=P_picks,
+                                             noise_window=snr_para['noise_window_P'], signal_window=snr_para['signal_window_P'], method=snr_para['method'])
+                    else:
+                        P_snr = None
                 else:
                     # P-phase probability not larger than threshold, no acceptable picks
                     P_picks = None
+                    P_snr = None
             elif stream.count() == 0:
                 # no P-phase probabilities
                 P_picks = None
+                P_snr = None
             else:
                 print(stream)
                 raise ValueError('More than one P-prob trace are found for station: {}!'.format(sta))
         else:
             # no P-phase theoretical arrivaltime
             P_picks = None
+            P_snr = None
         
         if 'S' in thearrvtt[sta]:
             # S-phase theoretical arrivaltime exist
@@ -636,29 +648,39 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
                 if (stream_sl.count() > 0) and (stream_sl[0].data.max() >= S_thrd):
                     # larger than threshold, claim a pick
                     S_picks = stream_sl[0].times(type='utcdatetime')[np.argmax(stream_sl[0].data)].datetime  # S-phase pick time
+
+                    # estimate the SNR of this pick
+                    if dir_seis is not None:
+                        S_snr = estimate_snr(trace=seismic_all.select(station=sta).merge(), stime=S_picks,
+                                             noise_window=snr_para['noise_window_S'], signal_window=snr_para['signal_window_S'], method=snr_para['method'])
+                    else:
+                        S_snr = None
                 else:
                     # S-phase probability not larger than threshold, no acceptable picks
                     S_picks = None
+                    S_snr = None
             elif stream.count() == 0:
                 # no S-phase probabilities
                 S_picks = None
+                S_snr = None
             else:
                 print(stream)
                 raise ValueError('More than one S-prob trace are found for station: {}!'.format(sta))
         else:
             # no S-phase theoretical arrivaltime
             S_picks = None
+            S_snr = None
         
         # output picks to file for the current station
         t2sfromat = "%Y-%m-%dT%H:%M:%S.%f"  # output datetime format, presion down to millisecond, e.g. '2009-08-24T00:20:03.000000'
         if (P_picks is not None) and (S_picks is not None):
-            ofcsv.writerow([sta, P_picks.strftime(t2sfromat), S_picks.strftime(t2sfromat)])
+            ofcsv.writerow([sta, P_picks.strftime(t2sfromat), str(P_snr), S_picks.strftime(t2sfromat), str(S_snr)])
             ofile.flush()
         elif (P_picks is not None) and (S_picks is None):
-            ofcsv.writerow([sta, P_picks.strftime(t2sfromat), 'None'])
+            ofcsv.writerow([sta, P_picks.strftime(t2sfromat), str(P_snr), 'None', str(S_snr)])
             ofile.flush()
         elif (P_picks is None) and (S_picks is not None):
-            ofcsv.writerow([sta, 'None', S_picks.strftime(t2sfromat)])
+            ofcsv.writerow([sta, 'None', str(P_snr), S_picks.strftime(t2sfromat), str(S_snr)])
             ofile.flush()
         elif (P_picks is None) and (S_picks is None):
             # no picks for P and S-phases, no output
