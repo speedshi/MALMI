@@ -23,7 +23,7 @@ def estimate_snr(trace, stime, noise_window, signal_window, method='maxamp'):
     # check traces are coming from the same station
     assert(trace.count()<=3)
     for itrace in trace:
-        assert(itrace.id == trace[0].id)
+        assert(itrace.stats.station == trace[0].stats.station)
 
     stime = UTCDateTime(stime)
 
