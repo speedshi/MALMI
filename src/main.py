@@ -694,7 +694,7 @@ class MALMI:
             if getMLpick:
                 snr_para = {}
                 snr_para['fband'] = self.seismic['freqband']
-                get_MLpicks_ftheart(dir_prob=dir_prob_ev, dir_io=dir_output_ev, maxtd_p=2.0, maxtd_s=2.0, 
+                get_MLpicks_ftheart(dir_prob=dir_prob_ev, dir_io=dir_output_ev, maxtd_p=1.3, maxtd_s=1.3, 
                                     P_thrd=self.detect['P_thrd'], S_thrd=self.detect['S_thrd'], 
                                     thephase_ftage='.phs', ofname=None, dir_seis=dir_seis_ev, snr_para=snr_para)
             

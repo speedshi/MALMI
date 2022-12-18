@@ -580,11 +580,11 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
         if 'method' not in snr_para:
             snr_para['method'] = 'maxamp'
         if 'noise_window_P' not in snr_para:
-            snr_para['noise_window_P'] = [-4, -2]
+            snr_para['noise_window_P'] = [-2.5, -1.5]
         if 'signal_window_P' not in snr_para:
-            snr_para['signal_window_P'] = [-0.5, 0.8]
+            snr_para['signal_window_P'] = [-0.5, 0.7]
         if 'noise_window_S' not in snr_para:
-            snr_para['noise_window_S'] = [-5, -3]
+            snr_para['noise_window_S'] = [-3.5, -2.5]
         if 'signal_window_S' not in snr_para:
             snr_para['signal_window_S'] = [-0.4, 1.0]
 
@@ -705,7 +705,9 @@ def read_arrivaltimes(file_arrvt):
         dictionary contains P- and S-wave arrivaltime information of different
         stations.
         arrvtt['station_name']['P'] : P-wave arrivaltime;
-        arrvtt['station_name']['S'] : S-wave arrivaltime.
+        arrvtt['station_name']['P_snr'] : P-wave pick signal_noise_ratio;
+        arrvtt['station_name']['S'] : S-wave arrivaltime;
+        arrvtt['station_name']['S_snr'] : S-wave pick signal_noise_ratio;
 
     """
     
@@ -741,7 +743,13 @@ def read_arrivaltimes(file_arrvt):
             pass
         else:
             raise ValueError('Error! Input datetime format not recoginzed!')
-            
+
+        if arvtdf['P_snr'][ii] == 'None':
+            # no P-pick snr
+            pass
+        else:
+            arrvtt[ista]['P_snr'] = float(arvtdf['P_snr'][ii])
+
         if len(arvtdf['S'][ii]) == 26:
             arrvtt[ista]['S'] = UTCDateTime.strptime(arvtdf['S'][ii], datetime_format_26)
         elif len(arvtdf['S'][ii]) == 19:
@@ -752,6 +760,12 @@ def read_arrivaltimes(file_arrvt):
         else:
             raise ValueError('Error! Input datetime format not recoginzed!')
     
+        if arvtdf['S_snr'][ii] == 'None':
+            # no S-pick snr
+            pass
+        else:
+            arrvtt[ista]['S_snr'] = float(arvtdf['S_snr'][ii]) 
+            
     return arrvtt
 
 
