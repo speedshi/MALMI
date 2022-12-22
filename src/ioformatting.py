@@ -744,11 +744,12 @@ def read_arrivaltimes(file_arrvt):
         else:
             raise ValueError('Error! Input datetime format not recoginzed!')
 
-        if arvtdf['P_snr'][ii] == 'None':
-            # no P-pick snr
-            pass
-        else:
-            arrvtt[ista]['P_snr'] = float(arvtdf['P_snr'][ii])
+        if 'P_snr' in arvtdf:
+            if arvtdf['P_snr'][ii] == 'None':
+                # no P-pick snr
+                pass
+            else:
+                arrvtt[ista]['P_snr'] = float(arvtdf['P_snr'][ii])
 
         if len(arvtdf['S'][ii]) == 26:
             arrvtt[ista]['S'] = UTCDateTime.strptime(arvtdf['S'][ii], datetime_format_26)
@@ -760,11 +761,12 @@ def read_arrivaltimes(file_arrvt):
         else:
             raise ValueError('Error! Input datetime format not recoginzed!')
     
-        if arvtdf['S_snr'][ii] == 'None':
-            # no S-pick snr
-            pass
-        else:
-            arrvtt[ista]['S_snr'] = float(arvtdf['S_snr'][ii]) 
+        if 'S_snr' in arvtdf:
+            if arvtdf['S_snr'][ii] == 'None':
+                # no S-pick snr
+                pass
+            else:
+                arrvtt[ista]['S_snr'] = float(arvtdf['S_snr'][ii]) 
             
     return arrvtt
 
