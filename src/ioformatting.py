@@ -779,6 +779,7 @@ def dict2csv(indic, filename=None, mode='auto'):
     ----------
     indic : dict
         The input dictionary.
+        inside this dictionary, each entry much be a list;
     filename : str, optional
         The output filename including path. The default is None.
     mode : str, optional, default is 'auto'
