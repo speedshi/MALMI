@@ -64,7 +64,7 @@ source ~/.bashrc
 ```
 
 ## Usage 
-Follow the [user maual page](https://github.com/speedshi/MALMI/blob/main/user_manual.md) to use MALMI. 
+Follow the [user manual page](https://github.com/speedshi/MALMI/blob/main/user_manual.md) to use MALMI. 
 
 ## Reference 
 Please cite the following paper in your documents if you use MALMI in your work.  
