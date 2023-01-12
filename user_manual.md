@@ -60,7 +60,7 @@ In 'run_MALMI.py' script, you need at least check and modify the following param
 6. set the input velocity model for generating traveltime tables: tt['vmodel'];   
 7. set where to store or find the traveltime tables: tt['dir'];  
 8. set whether we want to generate the traveltime tables when run MALMI workflow: tt['build']. Note we might run MALMI workflow mutiple times (such as for data at different days), but we only need to generate the traveltime table once. Once traveltime tables have been generated, we can just reuse it, so in this situation set "tt['build']=Flase";  
-9. set the migration grid parameters: *grid*. The *grid* parameters depend on the mnitoring region and location resolution (grid spacing);  
+9. set the migration grid parameters: *grid*. The *grid* parameters depend on the monitoring region and location resolution (grid spacing); perform migration location on a large grid (millions of grid points) might be slow;  
 10. set the detection parameters: *detect*;  
 11. set the migration location parameters: *MIG*;  
 12. set the adopted ML model: ML['model'];  
