@@ -1,20 +1,20 @@
-# Step-by-step instructions on how to use MALMI on your dataset
+# MALMI user manual
 
 ## Prepare input dataset
 
 **MALMI** generally requires three kinds of input dataset: continuous raw seismic data, station inventory and velocity model (or traveltime tables).  
-### Continuous raw seismic data 
+### (1) Continuous raw seismic data 
 *continuous raw data* can be in any format that is recognizable by [ObsPy read](https://docs.obspy.org/packages/autogen/obspy.core.stream.read.html). The continuous data files can be organized in two structures: 
 1. store all data files in the same folder (suitable for small dateset); 
 2. SeisComP Data Structure ([SDS](https://www.seiscomp.de/doc/base/concepts/waveformarchives.html)) (suitable for large dateset).  
 
 Simply set the input parameter: seisdatastru as 'AIO' or 'SDS' for these two dataset structures.
 
-### Station inventory 
+### (2) Station inventory 
 *station inventory* can be in any format that is recognizable by [ObsPy read_inventory](https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html) or a simple CSV file. The required infomation of stations are: newwork code, staiton code, latitude, longitude, latitude, elevation.  
 If the input is a CSV file, the delimiter must be ',' and the first row is the column name which must contain: 'network', 'station', 'latitude', 'longitude', 'elevation'. Latitude and longitude are in decimal degree and elevation in meters relative to the sea-level (positive for above the sea-level). 
 
-### Velocity model 
+### (3) Velocity model 
 *velocity model* is used to generate traveltime tables for migration location (NonLinLoc must be installed beforehand and the 'grid' parameters must be set).  
 The text format velocity file can specify a constant or gradient velocity layer (conform with NonLinLoc velocity model format).  
 Format of the velocity model file: "depth Vp_top Vp_grad Vs_top Vs_grad rho_top rho_grad"  
