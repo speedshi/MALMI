@@ -185,7 +185,7 @@ class MALMI:
         
         # set default parameters----------------------------------------------- 
         if 'instrument_code' not in seismic:
-            seismic['instrument_code'] = ["HH", "BH", "EH", "SH", "HG", "HN"]
+            seismic['instrument_code'] = ["HH", "BH", "EH", "SH", "HG", "HN", "FP"]
         
         if 'datastru' not in seismic:
             seismic['datastru'] = 'AIO'
@@ -276,7 +276,7 @@ class MALMI:
             MIG['ppower'] = 4
             
         if 'output_migv' not in MIG:
-            MIG['output_migv'] = True
+            MIG['output_migv'] = False
         
         if 'migv_4D' not in MIG:    
             MIG['migv_4D'] = False
