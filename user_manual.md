@@ -53,27 +53,27 @@ Follow the example script: 'run_MALMI.py' to use the code. You could copy it any
 Below is a brief instruction on a few important parameters and enssential steps for setting up a MALMI workflow. There are other parameters and steps that can be used, you can check them in 'run_MALMI.py' and 'src/main.py' and feel free to explore more.  
 In 'run_MALMI.py' script, you need at least check and modify the following parameters:  
 1. since I haven't set up the MALMI installtion script, you need to manually add MALMI scripts into the python path by change this line "sys.path.append('/THIS_SHOULD_BE_YOUR_PATH_TO_THE_MALMI_CODE/MALMI/src')";  
-2. set the input seismic data directory: seismic['dir'];  
-3. set the station inventory file: seismic['stainvf'];  
-4. set input seismic data structure: seismic['datastru'];  
-5. set the output directory: control['dir_output'];  
-6. set the input velocity model for generating traveltime tables: tt['vmodel'];   
-7. set where to store or find the traveltime tables: tt['dir'];  
-8. set whether we want to generate the traveltime tables when run MALMI workflow: tt['build']. Note we might run MALMI workflow mutiple times (such as for data at different days), but we only need to generate the traveltime table once. Once traveltime tables have been generated, we can just reuse it, so in this situation set "tt['build']=Flase";  
-9. set the migration grid parameters: *grid*. The *grid* parameters depend on the monitoring region and location resolution (grid spacing); perform migration location on a large grid (millions of grid points) might be slow;  
-10. set the detection parameters: *detect*;  
-11. set the migration location parameters: *MIG*;  
-12. set the adopted ML model: ML['model'];  
+2. set the input seismic data directory: **seismic['dir']**;  
+3. set the station inventory file: **seismic['stainvf']**;  
+4. set input seismic data structure: **seismic['datastru']**;  
+5. set the output directory: **control['dir_output']**;  
+6. set the input velocity model for generating traveltime tables: **tt['vmodel']**;   
+7. set where to store or find the traveltime tables: **tt['dir']**;  
+8. set whether we want to generate the traveltime tables when run MALMI workflow: **tt['build']**. Note we might run MALMI workflow mutiple times (such as for data at different days), but we only need to generate the traveltime table once. Once traveltime tables have been generated, we can just reuse it, so in this situation set **"tt['build']=Flase"**;  
+9. set the migration grid parameters: **grid**. The **grid** parameters depend on the monitoring region and location resolution (grid spacing); perform migration location on a large grid (millions of grid points) might be slow;  
+10. set the detection parameters: **detect**;  
+11. set the migration location parameters: **MIG**;  
+12. set the adopted ML model: **ML['model']**;  
 
 A general MALMI workflow would be:
-1. setup output directory and traveltime tables: myworkflow = MALMI(seismic=seismic, tt=tt, grid=grid, control=control, detect=detect, MIG=MIG)  
-2. format input seismic data for ML: myworkflow.format_ML_inputs()  
-3. generate continous phase probalities: myworkflow.generate_prob(ML)  
-4. detect events and trim phase probabilites segments: myworkflow.event_detect_ouput()  
-5. perform migration location for the detected events: myworkflow.migration()  
-6. plot waveforms and migration profiles of the located events: myworkflow.rsprocess_view()  
-7. clean some generated file during ML or migration process to save diskspace: myworkflow.clear_interm()    
-8. extrace the located events information to a single file (catalog): myworkflow.get_catalog()
+1. setup output directory and traveltime tables: **myworkflow = MALMI(seismic=seismic, tt=tt, grid=grid, control=control, detect=detect, MIG=MIG)**    
+2. format input seismic data for ML: **myworkflow.format_ML_inputs()**  
+3. generate continous phase probalities: **myworkflow.generate_prob(ML)**  
+4. detect events and trim phase probabilites segments: **myworkflow.event_detect_ouput()**  
+5. perform migration location for the detected events: **myworkflow.migration()**  
+6. plot waveforms and migration profiles of the located events: **myworkflow.rsprocess_view()**  
+7. clean some generated file during ML or migration process to save diskspace: **myworkflow.clear_interm()**    
+8. extrace the located events information to a single file (catalog): **myworkflow.get_catalog()**
 
 If parameters have been properly setup, run MALMI by using:
 ```bash
