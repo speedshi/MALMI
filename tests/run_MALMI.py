@@ -19,6 +19,7 @@ seismic = {}
 seismic['dir'] = "./inputs/seismic_data/seismic_raw_20181230"  # path to the SDS archive directory or parent directory where seismic data are stored all in one folder
 seismic['stainvf'] = './inputs/station_inventory/stations.csv'  # path to the station inventory file
 seismic['datastru'] =  'AIO'  # the input seismic data file structure, can be 'AIO' or 'SDS' or 'EVS'
+seismic['freqband'] = [2, 50]  # frequency bandpass range in Hz, sometimes lower frequencies are not necessary and filtering may improve the ML performance
 
 
 # %% control parameters========================================================
