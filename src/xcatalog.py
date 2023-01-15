@@ -12,9 +12,9 @@ catalog['latitude']: np.array of float, latitude in degree of each event;
 catalog['longitude']: np.array of float, logitude in degree of each event;
 catalog['depth_km']: np.array of float, depth in km below the sea-level (down->positive) of each event;
 catalog['magnitude']: np.array of float, magnitude of each event;
-catalog['magnitude_type']: np.array of str or str, magnitude type, e.g. 'M', 'ML', 'Mw'
-catalog['pick']: np.array of dict, len(list) = number of events, each dict is the picking results, dict['network.station.location.instrument_code']['P'] for P-phase pick time, dict['network.station.location.instrument_code']['S'] for S-phase pick time
-catalog['arrivaltime']: np.array of dict, similar to 'pick', but is the theoretical calculated arrivaltimes of P- and S-phases;
+catalog['magnitude_type']: np.array of str or str, magnitude type, e.g. 'M', 'ML', 'Mw';
+catalog['pick']: np.array or list of dict, len(list or np.array) = number of events, each dict is the picking results, e.g. dict['network.station.location.channel_code']['P'] for P-phase pick time, dict['network.station.location.channel_code']['S'] for S-phase pick time;
+catalog['arrivaltime']: np.array or list of dict, similar to 'pick', but is the theoretical calculated arrivaltimes of P- and S-phases;
 
 @author: shipe
 """
@@ -1062,23 +1062,33 @@ def dict2catalog(cat_dict):
         ievent = obspy_Event(origins=[iorigin], magnitudes=[imag])
         
         if 'pick' in cat_dict:
-            picks_list = []
-            stations_pick = list(cat_dict['pick'][iev].keys())  # station list having picks for the current event
-            for ipsta in stations_pick:
-                if 'P' in cat_dict['pick'][iev][ipsta]:
+            picks_list = []  # obspy pick list
+            stationids_pick = list(cat_dict['pick'][iev].keys())  # station_id list that have picks for the current event
+            # station_id should be composed of 'network.station.location.channel', e.g. 'BW.FUR..EHZ'
+            for ipsta in stationids_pick:
+                # loop over each picked station of the current event
+                for iphase in list(cat_dict['pick'][iev][ipsta].keys()):  
+                    # loop over each picked phase of the current station
                     ipick = obspy_Pick()
-                    ipick.time = cat_dict['pick'][iev][ipsta]['P']
-                    ipick.waveform_id = WaveformStreamID(station_code=ipsta)  # or use 'seed_string'
-                    ipick.phase_hint = "P"
+                    ipick.time = cat_dict['pick'][iev][ipsta][iphase]
+                    ipick.waveform_id = WaveformStreamID(seed_string=ipsta)  # use 'seed_string' or station_code=ipsta
+                    ipick.phase_hint = iphase
                     ipick.evaluation_mode = "automatic"
                     picks_list.append(ipick)
-                if 'S' in cat_dict['pick'][iev][ipsta]:
-                    ipick = obspy_Pick()
-                    ipick.time = cat_dict['pick'][iev][ipsta]['S']
-                    ipick.waveform_id = WaveformStreamID(station_code=ipsta)  # or use 'seed_string'
-                    ipick.phase_hint = "S"
-                    ipick.evaluation_mode = "automatic"
-                    picks_list.append(ipick)
+                # if ('P' in cat_dict['pick'][iev][ipsta]):
+                #     ipick = obspy_Pick()
+                #     ipick.time = cat_dict['pick'][iev][ipsta]['P']
+                #     ipick.waveform_id = WaveformStreamID(seed_string=ipsta)  # use 'seed_string' or station_code=ipsta
+                #     ipick.phase_hint = "P"
+                #     ipick.evaluation_mode = "automatic"
+                #     picks_list.append(ipick)
+                # if ('S' in cat_dict['pick'][iev][ipsta]):
+                #     ipick = obspy_Pick()
+                #     ipick.time = cat_dict['pick'][iev][ipsta]['S']
+                #     ipick.waveform_id = WaveformStreamID(seed_string=ipsta)  # use 'seed_string' or station_code=ipsta
+                #     ipick.phase_hint = "S"
+                #     ipick.evaluation_mode = "automatic"
+                #     picks_list.append(ipick)
             ievent.picks = picks_list        
         
         ievent.resource_id = cat_dict['id'][iev]
