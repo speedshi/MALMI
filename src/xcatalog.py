@@ -1009,12 +1009,27 @@ def dict2catalog(cat_dict):
     catalog = obspy_Catalog()
     for iev in range(nev):
         iorigin = obspy_Origin()
-        iorigin.resource_id = '{}_origin'.format(cat_dict['id'][iev])
-        iorigin.time = cat_dict['time'][iev] 
-        iorigin.latitude = cat_dict['latitude'][iev]
-        iorigin.longitude = cat_dict['longitude'][iev]
-        iorigin.depth = cat_dict['depth_km'][iev] * 1000.0  # unit in meters
-        iorigin.depth_type = 'from location'
+        try:
+            iorigin.resource_id = '{}_origin'.format(cat_dict['id'][iev])
+        except:
+            pass
+        try:
+            iorigin.time = cat_dict['time'][iev] 
+        except:
+            pass
+        try:
+            iorigin.latitude = cat_dict['latitude'][iev]
+        except:
+            pass
+        try:
+            iorigin.longitude = cat_dict['longitude'][iev]
+        except:
+            pass
+        try:
+            iorigin.depth = cat_dict['depth_km'][iev] * 1000.0  # unit in meters
+        except:
+            pass
+        # iorigin.depth_type = 'from location'
         
         if 'magnitude' in cat_dict:
             imag = obspy_Magnitude()
@@ -1053,9 +1068,18 @@ def dict2catalog(cat_dict):
         
         if 'pick' in cat_dict:
             ioriginqlt = obspy_OriginQuality()
-            ioriginqlt.associated_phase_count = cat_dict['asso_phase_all'][iev]
-            ioriginqlt.associated_station_count = cat_dict['asso_station_all'][iev]
-            ioriginqlt.standard_error = cat_dict['rms_pickarvt'][iev]
+            try:
+                ioriginqlt.associated_phase_count = cat_dict['asso_phase_all'][iev]
+            except:
+                pass
+            try:
+                ioriginqlt.associated_station_count = cat_dict['asso_station_all'][iev]
+            except:
+                pass
+            try:
+                ioriginqlt.standard_error = cat_dict['rms_pickarvt'][iev]
+            except:
+                pass
             # ioriginqlt.azimuthal_gap = 
             iorigin.quality = ioriginqlt
         
@@ -1073,7 +1097,7 @@ def dict2catalog(cat_dict):
                     ipick.time = cat_dict['pick'][iev][ipsta][iphase]
                     ipick.waveform_id = WaveformStreamID(seed_string=ipsta)  # use 'seed_string' or station_code=ipsta
                     ipick.phase_hint = iphase
-                    ipick.evaluation_mode = "automatic"
+                    # ipick.evaluation_mode = "automatic"
                     picks_list.append(ipick)
                 # if ('P' in cat_dict['pick'][iev][ipsta]):
                 #     ipick = obspy_Pick()
