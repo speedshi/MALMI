@@ -86,24 +86,32 @@ def stainv2stadict(stainv):
     stainv : obspy station inventory object
         station inventory.
 
+    unique station is identified by network.station.location;
+    unique station should have the same depth;
+
     Returns
     -------
     stadict : dict
         station inventory.
-        stadict['network']: np.array of str, network code of each station;
-        stadict['station']: np.array of str, station code of each station;
-        stadict['latitude']: np.array of float, latitude in decimal degree of each station;
-        stadict['longitude']: np.array of float, longitude in decimal degree of each station;
-        stadict['elevation']: np.array of float, elevation in meters relative to the sea-level (positive for up) of each station;
-
+        stadict['network']: network code of each station;
+        stadict['station']: station code of each station;
+        stadict['latitude']: latitude in decimal degree of each station;
+        stadict['longitude']: longitude in decimal degree of each station;
+        stadict['elevation']: elevation in meters relative to the sea-level (positive for up) of each station;
+        stadict['location']: location code of each station;
+        stadict['depth']: depth in meter of each station;
+        stadict['channel']: channel code of each station;
     """
     
     stadict = {}
     stadict['network'] = []
     stadict['station'] = []
+    stadict['location'] = []
     stadict['latitude'] = [] 
     stadict['longitude'] = []
     stadict['elevation'] = []
+    stadict['depth'] = []
+    stadict['channel'] = []
     
     for inet in stainv:
         for ista in inet:
@@ -114,13 +122,22 @@ def stainv2stadict(stainv):
             stadict['elevation'].append(ista.elevation)
             if len(ista.channels) > 0:
                 # have channel information
-                # to be completed
                 # add location code, depth, instrument code, and component code
-                pass
+                locations = []
+                channels = []
+                depths = []
+                for icha in ista:
+                    locations.append(icha.location_code)
+                    channels.append(icha.code)
+                    depths.append(icha.depth)
+
+            else:
+                stadict['location'].append(None)
+                stadict['depth'].append(None)
     
-    # convert to numpy array
-    for ikey in list(stadict.keys()):
-        stadict[ikey] = np.array(stadict[ikey])
+    # # convert to numpy array
+    # for ikey in list(stadict.keys()):
+    #     stadict[ikey] = np.array(stadict[ikey])
     
     return stadict
 
