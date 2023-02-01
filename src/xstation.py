@@ -86,8 +86,9 @@ def stainv2stadict(stainv):
     stainv : obspy station inventory object
         station inventory.
 
-    unique station is identified by network.station.location;
+    unique station is identified by network.station.location.instrument;
     unique station should have the same depth;
+    Note latitude, longitude, elevation are taken from station-level not channel level.
 
     Returns
     -------
@@ -100,18 +101,20 @@ def stainv2stadict(stainv):
         stadict['elevation']: elevation in meters relative to the sea-level (positive for up) of each station;
         stadict['location']: location code of each station;
         stadict['depth']: depth in meter of each station;
-        stadict['channel']: channel code of each station;
+        stadict['instrument']: instrument code of each station, e.g. "SH", "HH";
+        stadict['component']: component code for each station, e.g. "ZNE", "Z12";
     """
     
     stadict = {}
     stadict['network'] = []
     stadict['station'] = []
-    stadict['location'] = []
     stadict['latitude'] = [] 
     stadict['longitude'] = []
     stadict['elevation'] = []
+    stadict['location'] = []
     stadict['depth'] = []
-    stadict['channel'] = []
+    stadict['instrument'] = []
+    stadict['component'] = []
     
     for inet in stainv:
         for ista in inet:
@@ -123,21 +126,39 @@ def stainv2stadict(stainv):
             if len(ista.channels) > 0:
                 # have channel information
                 # add location code, depth, instrument code, and component code
-                locations = []
-                channels = []
-                depths = []
+                chas = {}
                 for icha in ista:
-                    locations.append(icha.location_code)
-                    channels.append(icha.code)
-                    depths.append(icha.depth)
-
+                    cha_key = "{}.{}".format(icha.location_code, icha.code[:-1])  # location.instrument
+                    if cha_key not in chas:
+                        # current station identification not exist
+                        chas[cha_key] = {}
+                        chas[cha_key]['location'] = icha.location_code
+                        chas[cha_key]['depth'] = icha.depth
+                        chas[cha_key]['instrument'] = icha.code[:-1]
+                        chas[cha_key]['component'] = "{}".format(icha.code[-1])
+                    else:
+                        # current station identification exist 
+                        assert(chas[cha_key]['location'] == icha.location_code)
+                        assert(chas[cha_key]['depth'] == icha.depth)
+                        assert(chas[cha_key]['instrument'] == icha.code[:-1])
+                        if icha.code[-1] not in chas[cha_key]['component']:
+                            chas[cha_key]['component'] += icha.code[-1]
+                for jstac in list(chas.keys()):
+                    stadict['location'].append(chas[jstac]['location'])
+                    stadict['depth'].append(chas[jstac]['depth'])
+                    stadict['instrument'].append(chas[jstac]['instrument'])
+                    stadict['component'].append(chas[jstac]['component'])
             else:
+                # no channel information
                 stadict['location'].append(None)
                 stadict['depth'].append(None)
+                stadict['instrument'].append(None)
+                stadict['component'].append(None)
     
-    # # convert to numpy array
-    # for ikey in list(stadict.keys()):
-    #     stadict[ikey] = np.array(stadict[ikey])
+    NN = len(stadict['station'])
+    for ikey in list(stadict.keys()):
+        assert(len(stadict[ikey]) == NN)
+        # stadict[ikey] = np.array(stadict[ikey])
     
     return stadict
 
