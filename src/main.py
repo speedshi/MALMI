@@ -643,10 +643,16 @@ class MALMI:
         inputs['ppower'] = self.MIG['ppower']  # compute array element wise power over the input probabilities before stacking
         inputs['output_migv'] = self.MIG['output_migv']  # specify whether to output the migrated data volume for each event
         inputs['migv_4D'] = self.MIG['migv_4D']  # speify to calculate 3D or 4D stacking matrix
+        if (len(self.stainv[0][0].channels) > 0):
+            # have channel information
+            inputs['station_idmode'] = 'network.station.location.instrument'
+        else:
+            # no channel information
+            inputs['station_idmode'] = 'network.station'
         comp = ['P','S']  # when input data are probabilities of P- and S-picks, comp must be ['P', 'S']
         extension = '*'  # seismic data filename for loading, accept wildcard input, for all data use '*'
         
-        l1 = Loki(self.dir_lokiprob, self.dir_lokiout, self.dir_tt, self.tt_hdr_filename, mode='locator')
+        l1 = Loki(data_path=self.dir_lokiprob, output_path=self.dir_lokiout, db_path=self.dir_tt, hdr_filename=self.tt_hdr_filename, mode='locator')
         l1.location(extension, comp, self.tt_precision, **inputs)
         gc.collect()
         print('MALMI_migration complete!')

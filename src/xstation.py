@@ -11,6 +11,15 @@ stadict['station']: np.array of str, station code of each station;
 stadict['latitude']: np.array of float, latitude in decimal degree of each station;
 stadict['longitude']: np.array of float, longitude in decimal degree of each station;
 stadict['elevation']: np.array of float, elevation in meters relative to the sea-level (positive for up) of each station;
+stadict['location']: location code of each station, e.g. "00", "01";
+stadict['depth']: depth in meter of each station; 
+                  The local depth or overburden of the instruments location. 
+                  For downhole instruments, the depth of the instrument under the surface ground level. 
+                  For underground vaults, the distance from the instrument to the local ground level above.
+stadict['instrument']: instrument code of each station, e.g. "SH", "HH", "FP";
+stadict['component']: component code for each station, e.g. "ZNE", "Z12";
+
+Each unique station is identified by network.station.location.instrument (such as: TA.N59A..BH)
 
 @author: shipe
 """
@@ -18,8 +27,67 @@ stadict['elevation']: np.array of float, elevation in meters relative to the sea
 
 import numpy as np
 from obspy import read_inventory
-from obspy.core.inventory import Inventory, Network, Station
+from obspy.core.inventory import Inventory, Network, Station, Channel
 import pandas as pd
+
+
+def get_station_ids(stainv):
+    """
+    Get the unique station id and location information.
+    If channel information exist in station inventory, 
+    each unique station is identified by "network.station.location.instrument" (such as: TA.N59A..BH).
+    If no channel information exist in station inventory,
+    each unique station is identified by "network.station" (such as: TA.N59A).
+
+    INPUT:
+        stainv: obspy station inventory object.
+
+    RETURNS:
+        staids: list containing station id.
+        stainfo: dict containing station location information.
+
+    """
+
+    staids = []
+    stainfo = {}
+    for network in stainv:
+        for station in network:
+            # loop over each station
+            if len(station.channels) > 0:
+                # have channel information
+                for ichannel in station.chennels:
+                    istaid = "{}.{}.{}.{}".format(network.code, station.code. ichannel.location_code, ichannel.code[:-1])  # station identification: network.station.location.instrument
+                    if istaid not in staids:
+                        staids.append(istaid)
+                        stainfo[istaid] = {}
+                        stainfo[istaid]['network'] = network.code
+                        stainfo[istaid]['station'] = station.code
+                        stainfo[istaid]['latitude'] = station.latitude
+                        stainfo[istaid]['longitude'] = station.longitude
+                        stainfo[istaid]['elevation'] = station.elevation
+                        stainfo[istaid]['location'] = ichannel.location_code
+                        stainfo[istaid]['instrument'] = ichannel.code[:-1]
+                        stainfo[istaid]['depth'] = ichannel.depth
+                        stainfo[istaid]['component'] = "{}".format(ichannel.code[-1])
+                    else:
+                        assert(stainfo[istaid]['depth'] == ichannel.depth)  # should have the same depth
+                        assert(stainfo[istaid]['location'] == ichannel.location_code)  # should have the same location code
+                        assert(stainfo[istaid]['instrument'] == ichannel.code[:-1])  # should have the same instrument code
+                        if ichannel.code[-1] not in stainfo[istaid]['component']:
+                            stainfo[istaid]['component'] += ichannel.code[-1]  # append the component code
+            else:
+                # no channel information
+                istaid = "{}.{}".format(network.code, station.code)  # station identification: network.station
+                if istaid not in staids:
+                    staids.append(istaid)
+                    stainfo[istaid] = {}
+                    stainfo[istaid]['network'] = network.code
+                    stainfo[istaid]['station'] = station.code
+                    stainfo[istaid]['latitude'] = station.latitude
+                    stainfo[istaid]['longitude'] = station.longitude
+                    stainfo[istaid]['elevation'] = station.elevation
+    assert(staids == list(stainfo.keys()))
+    return staids, stainfo
 
 
 def station_select(station, latrg=None, lonrg=None, elerg=None):
@@ -128,7 +196,7 @@ def stainv2stadict(stainv):
                 # add location code, depth, instrument code, and component code
                 chas = {}
                 for icha in ista:
-                    cha_key = "{}.{}".format(icha.location_code, icha.code[:-1])  # location.instrument
+                    cha_key = "{}.{}.{}.{}".format(inet.code, ista.code, icha.location_code, icha.code[:-1])  # network.station.location.instrument
                     if cha_key not in chas:
                         # current station identification not exist
                         chas[cha_key] = {}
@@ -216,10 +284,18 @@ def read_stainv_csv(file_stainv):
     """
     Read the csv format station inventory file, and format it to obspy station inventory object.
 
+    Each peculiar station is identified by network.station.location.instrument (such as: TA.N59A..BH)
+
     The input CSV file using ',' as the delimiter in which the first row 
     is column name and must contain: 'network', 'station', 'latitude', 
     'longitude', 'elevation'. Latitude and longitude are in decimal degree 
     and elevation in meters relative to the sea-level (positive for up).
+
+    Other optional colume names are:
+    location: location code of station, such as "00", "", "01". Default: "".
+    depth: the local depth or overburden of the instruments location in meter. Default: 0.
+    instrument: instrument code, such as "SH", "HH", "BH", "FP";
+    component: component code, shch as "ZNE", "Z12";
 
     Parameters
     ----------
@@ -235,13 +311,43 @@ def read_stainv_csv(file_stainv):
     stainv = Inventory(networks=[])
     stadf = pd.read_csv(file_stainv, delimiter=',', encoding='utf-8', 
                         header="infer", skipinitialspace=True)
+    if ('instrument' in stadf.columns) and ('component' in stadf.columns):
+        have_channels = True
+    elif ('instrument' not in stadf.columns) and ('component' not in stadf.columns):
+        have_channels = False
+    else:
+        raise ValueError("Instrument code and component code must exist at the same time! You cannot present only one of them!")
+    
     net_dict = {}
     for rid, row in stadf.iterrows():
-        if row['network'] not in net_dict.keys():
+        if row['network'] not in list(net_dict.keys()):
+            # network not include in net_dict
             net = Network(code=row['network'], stations=[])
             net_dict[row['network']] = net
+        
         sta = Station(code=row['station'], latitude=row['latitude'], 
-                      longitude=row['longitude'], elevation=row['elevation'])
+                    longitude=row['longitude'], elevation=row['elevation'])
+        if have_channels:
+            # add channel information
+            if len(row['component']) != 3:
+                raise ValueError("Must input three components! Current is {}!".format(row['component']))
+
+            if 'location' in row.columns:
+                jlocation = row['location']
+            else:
+                jlocation = ""  # default location code
+
+            if 'depth' in row.columns:
+                jdepth = row['depth']
+            else:
+                jdepth = 0  # default depth 
+
+            for icomp in row['component']:
+                jcha = Channel(code=row['instrument']+icomp, location_code=jlocation,
+                               latitude=row['latitude'], longitude=row['longitude'], 
+                               elevation=row['elevation'], depth=jdepth)
+                sta.channels.append(jcha)
+            
         net_dict[row['network']].stations.append(sta)
     
     for inet in net_dict.keys():

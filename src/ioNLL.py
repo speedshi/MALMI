@@ -11,6 +11,7 @@ Input and output functions for NonLinLoc.
 
 import os
 import numpy as np
+from xstation import get_station_ids
 
 
 def gene_NLLinputs(inpara):
@@ -221,11 +222,18 @@ def gene_NLLinputs(inpara):
     ofile.write('# =============================================================================\n')
     ofile.write('GTFILES    {}    {}    {}\n'.format(VGOUT, ttfileroot, ttwaveType))
     ofile.write('GTMODE    GRID3D    ANGLES_YES\n')  # time grid modes
-    for network in stainv:
-        for station in network:
-            # loop over each station for output
-            ofile.write('GTSRCE    {}    LATLON    {}    {}    0.0    {}\n'.format(
-                station.code, station.latitude, station.longitude, station.elevation/1000.0))
+    staids, stainfo = get_station_ids(stainv)  # get the unique station id and location information
+    for istaid in staids:  # loop over each unique station
+        sta_id = istaid
+        sta_latitude = stainfo[istaid]['latitude']
+        sta_longitude = stainfo[istaid]['longitude']
+        sta_elevation = stainfo[istaid]['elevation'] / 1000.0
+        if 'depth' in stainfo[istaid]:
+            sta_depth = stainfo[istaid]['depth'] / 1000.0
+        else:
+            sta_depth = 0.0
+        ofile.write('GTSRCE    {}    LATLON    {}    {}    {}    {}\n'.format(
+                    sta_id, sta_latitude, sta_longitude, sta_depth, sta_elevation))
     ofile.write('GT_PLFD    1.0e-3    2\n')  # Podvin & Lecomte FD params
     ofile.write('# =============================================================================\n')
     ofile.write('# END of Grid2Time control file statements\n')

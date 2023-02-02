@@ -11,6 +11,7 @@ Functions for generating traveltimes.
 
 import numpy as np
 from ioNLL import gene_NLLinputs
+from xstation import get_station_ids
 import os
 import subprocess
 import warnings
@@ -67,16 +68,16 @@ def check_NLLtt(ttfileroot, stainv):
 
     """
     
-    for network in stainv:
-        for station in network:
-            # loop over each station to check
-            phases = ['P', 'S']
-            tformat = ['hdr', 'buf']
-            for ips in phases:
-                for itf in tformat:
-                    tfile = ttfileroot + '.{}.{}.time.{}'.format(ips, station.code, itf)
-                    if not os.path.isfile(tfile):
-                        warnings.warn('Traveltime file: {} does not exist!'.format(tfile))
+    staids, _ = get_station_ids(stainv)
+
+    for ista in staids:        
+        phases = ['P', 'S']
+        tformat = ['hdr', 'buf']
+        for ips in phases:
+            for itf in tformat:
+                tfile = ttfileroot + '.{}.{}.time.{}'.format(ips, ista, itf)
+                if not os.path.isfile(tfile):
+                    warnings.warn('Traveltime file: {} does not exist!'.format(tfile))
 
     return
 
@@ -115,30 +116,30 @@ def build_tthdr(ttdir, ttftage, stainv, filename='header.hdr'):
     if os.path.isfile(ofile):
         warnings.warn('Header file: {} already exist! Skip header file generation, use the exist header file.'.format(ofile))
     else:
-        # construct header file
+        # compile header file
+        staids, stainfo = get_station_ids(stainv)
+
         ofile = open(ofile, 'a')
         ii = 0
-        for network in stainv:
-            for station in network:
-                # loop over each station
-                statthdr = os.path.join(ttdir, ttftage+'.P.{}.time.hdr'.format(station.code))
-                if os.path.isfile(statthdr):
-                    f = open(statthdr)
-                    lines = f.readlines()
-                    f.close()
-                    if ii == 0:
-                        line0 = lines[0].split()
-                        ofile.write('{} {} {}\n'.format(line0[0], line0[1], line0[2]))  # xNum, yNum, zNum
-                        ofile.write('{} {} {}\n'.format(line0[3], line0[4], line0[5]))  # xOrig, yOrig, zOrig
-                        ofile.write('{} {} {}\n'.format(line0[6], line0[7], line0[8]))  # dx, dy, dz
-                        line2 = lines[2].split()
-                        ofile.write('{} {}\n'.format(line2[3], line2[5]))  # LatOrig, LongOrig
+        for ista in staids:
+            statthdr = os.path.join(ttdir, ttftage+'.P.{}.time.hdr'.format(ista))
+            if os.path.isfile(statthdr):
+                f = open(statthdr)
+                lines = f.readlines()
+                f.close()
+                if ii == 0:
+                    line0 = lines[0].split()
+                    ofile.write('{} {} {}\n'.format(line0[0], line0[1], line0[2]))  # xNum, yNum, zNum
+                    ofile.write('{} {} {}\n'.format(line0[3], line0[4], line0[5]))  # xOrig, yOrig, zOrig
+                    ofile.write('{} {} {}\n'.format(line0[6], line0[7], line0[8]))  # dx, dy, dz
+                    line2 = lines[2].split()
+                    ofile.write('{} {}\n'.format(line2[3], line2[5]))  # LatOrig, LongOrig
 
-                    ofile.write('{} {} {} {}\n'.format(station.code, station.latitude, station.longitude, station.elevation/1000.0))  # station_code, station_lat, station_lon, station_ele
-                    ofile.flush()
-                    ii += 1
-                else:
-                    warnings.warn('Traveltime file: {} does not exist!'.format(statthdr))
+                ofile.write('{} {} {} {}\n'.format(ista, stainfo[ista]['latitude'], stainfo[ista]['longitude'], stainfo[ista]['elevation']/1000.0))  # station_code, station_lat, station_lon, station_ele
+                ofile.flush()
+                ii += 1
+            else:
+                warnings.warn('Traveltime file: {} does not exist!'.format(statthdr))
         ofile.close()
     return
 
