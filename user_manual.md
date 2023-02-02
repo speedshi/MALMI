@@ -13,7 +13,8 @@ Example seismic data stored in the 'AIO' dataset structure can be seen in 'test/
 
 ### (2) Station inventory 
 *station inventory* can be in any format that is recognizable by [ObsPy read_inventory](https://docs.obspy.org/packages/autogen/obspy.core.inventory.inventory.read_inventory.html) or a simple CSV file. The required infomation of stations are: newwork code, staiton code, latitude, longitude, latitude, elevation.  
-If the input is a CSV file, the delimiter must be ',' and the first row is the column name which must contain: 'network', 'station', 'latitude', 'longitude', 'elevation'. Latitude and longitude are in decimal degree and elevation in meters relative to the sea-level (positive for above the sea-level). 
+
+If the input is a CSV file, the delimiter must be ',' and the first row is the column name which must contain: 'network' (network code, such as "IV"), 'station' (station code, such "AQU"), 'latitude', 'longitude', 'elevation'. Latitude and longitude are in decimal degree and elevation in meters relative to the sea-level (positive for above the sea-level). Optional columns are 'location' (station location code, such as "" or "01"), 'instrument' (instrument code, such as "HH" or "SH"), 'component' (channel component codes, such as "ZNE" or "Z12"), 'depth' (the local depth or overburden of the instrument’s location in meters, such as 500.0). Note 'instrument' and 'component' must coexist in the CSV file.     
 
 Example station inventory file in CSV format can be seen in 'test/inputs/station_inventory'.
 
