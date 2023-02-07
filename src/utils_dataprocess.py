@@ -306,6 +306,9 @@ def merge_dict(dict1, dict2):
 
 def get_picknumber(picks):
     # get the total number of stations and phases associated with picks
+    # picks: dict, containing picking information,
+    # picks['station_name']['P'] : P-wave arrivaltime;
+    # picks['station_name']['S'] : S-wave arrivaltime;
     
     key_stations = list(picks.keys())  # station names
     num_station_all = len(key_stations)  # total number of stations having picks
@@ -315,27 +318,41 @@ def get_picknumber(picks):
     num_P_all = 0  # total number of P picks
     num_S_all = 0  # total number of S picks
     for ista in key_stations:
-        if ('P' in picks[ista]) and ('S' in picks[ista]):
-            # have both P and S picks
+        if ('P' in picks[ista] and picks[ista]['P'] is not None) and ('S' in picks[ista] and picks[ista]['S'] is not None):
+            # have both effective P and S picks
             num_station_PS += 1  
             num_P_all += 1
             num_S_all += 1
-        elif ('P' in picks[ista]):
-            # have only P pick
+        elif ('P' in picks[ista] and picks[ista]['P'] is not None):
+            # have only effective P pick
             num_station_P += 1
             num_P_all += 1
-        elif ('S' in picks[ista]):
-            # have only S pick
+        elif ('S' in picks[ista] and picks[ista]['S'] is not None):
+            # have only effective S pick
             num_station_S += 1
             num_S_all += 1
         else:
-            raise ValueError('Case not expected: {}!'.format(picks[ista]))
+            pass
+            # raise ValueError('Case not expected: {}!'.format(picks[ista]))
     
     assert(num_station_all == num_station_PS + num_station_P + num_station_S)
     assert(num_P_all == num_station_PS + num_station_P)
     assert(num_S_all == num_station_PS + num_station_S)
     
     return num_station_all, num_station_PS, num_station_P, num_station_S, num_P_all, num_S_all
+
+
+def get_picknumber_snr(picks, snr):
+    # get the total number of stations and phases associated with picks that have snr
+    # larger than the input threshold.
+    # picks: dict, containing picking information,
+    # picks['station_name']['P'] : P-wave arrivaltime;
+    # picks['station_name']['P_snr'] : P-wave pick signal_noise_ratio;
+    # picks['station_name']['S'] : S-wave arrivaltime;
+    # picks['station_name']['S_snr'] : S-wave pick signal_noise_ratio;
+
+
+    return
 
 
 def pickarrvt_rmsd(pick, arrvt):
