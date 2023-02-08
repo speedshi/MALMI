@@ -414,7 +414,7 @@ def catalog_evchoose(catalog, select):
     
     sel_keys = list(select.keys())  # selecting keys
     for ikey in sel_keys:
-        if  (select[ikey] is not None) and (isinstance(select[ikey],list)) and (len(select[ikey])==2):
+        if (select[ikey] is not None) and (isinstance(select[ikey],list)) and (len(select[ikey])==2):
             sindx_temp = (catalog[ikey] >= select[ikey][0]) & (catalog[ikey] <= select[ikey][1])
             sindx = np.logical_and(sindx, sindx_temp)
     
@@ -904,6 +904,7 @@ def retrive_catalog_from_MALMI_database(CAT):
             snr_para = {}
             snr_para['P'] = CAT['evselect']['pick_snr']
             snr_para['S'] = CAT['evselect']['pick_snr']
+            assert(len(catalog['id']) == len(catalog['time']))
             Nevt = len(catalog['id'])  # total number of events in the catalog
             for iiev in range(Nevt):
                 picks_s = picks_select(picks=catalog['pick'][iiev], arriv_para=None, snr_para=snr_para)
