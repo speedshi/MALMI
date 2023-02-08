@@ -414,7 +414,7 @@ def catalog_evchoose(catalog, select):
     
     sel_keys = list(select.keys())  # selecting keys
     for ikey in sel_keys:
-        if (len(select[ikey])==2) and (select[ikey] is not None):
+        if  (select[ikey] is not None) and (isinstance(select[ikey],list)) and (len(select[ikey])==2):
             sindx_temp = (catalog[ikey] >= select[ikey][0]) & (catalog[ikey] <= select[ikey][1])
             sindx = np.logical_and(sindx, sindx_temp)
     
