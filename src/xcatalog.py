@@ -42,6 +42,7 @@ from obspy.core.event import WaveformStreamID
 from obspy.core.event import Arrival as obspy_Arrival
 from obspy.core.event import OriginQuality as obspy_OriginQuality
 from obspy.core.event.base import Comment
+from xpick import picks_select
 
 
 def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', cata_fold='*', dete_fold='*', search_fold=None, evidtag='malmi', picktag='.MLpicks', arrvttag='.phs'):
@@ -95,6 +96,15 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
         mcatalog['dir'] : directory of the migration results of the event;
         mcatalog['pick'] : picking time;
         mcatalog['arrivaltime'] : theoretical arrivaltimes;
+        mcatalog['asso_station_all'] : total number of stations associated with picks;
+        mcatalog['asso_station_PS'] : total number of stations associated with both P and S picks;
+        mcatalog['asso_station_P'] : total number of stations associated with only P picks;
+        mcatalog['asso_station_S'] : total number of stations associated with only S picks;
+        mcatalog['asso_P_all'] : total number of P picks;
+        mcatalog['asso_S_all'] : total number of S picks;
+        mcatalog['asso_phase_all'] : total number of phase picks;
+        mcatalog['rms_pickarvt'] : the root-mean-square deviation between picking times and theoretical arrivaltimes;   
+        mcatalog['mae_pickarvt'] : the mean absolute error between picking times and theoretical arrivaltimes;
     """
     
     assert(os.path.exists(dir_dateset))
@@ -161,7 +171,7 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
                 for idkey in dtemp:
                     # inherit keys from detection dictionary
                     mcatalog[idkey].append(dtemp[idkey][iev])
-                eid = eid + 1
+                eid = eid + 1  # start from 1
                 evtimeid = ctemp['time'][iev].strftime('%Y%m%d%H%M%S%f')  # UTCDateTime to string
                 mcatalog['id'].append('{}_{}_{:06d}'.format(evidtag, evtimeid, eid))  # generate event identification
                 sss = file_cata[ii].split(os.path.sep)
@@ -184,7 +194,7 @@ def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station
                     assert(len(file_pkev)==1)
                     pick_iev = read_arrivaltimes(file_pkev[0])
                     mcatalog['pick'].append(pick_iev)
-                    num_station_all, num_station_PS, num_station_P, num_station_S, num_P_all, num_S_all = get_picknumber(pick_iev)
+                    num_station_all, num_station_PS, num_station_P, num_station_S, num_P_all, num_S_all = get_picknumber(picks=pick_iev)
                     mcatalog['asso_station_all'].append(num_station_all)  # total number of stations associated with picks
                     mcatalog['asso_station_PS'].append(num_station_PS)  # total number of stations having both P and S picks
                     mcatalog['asso_station_P'].append(num_station_P)  # total number of stations having only P picks
@@ -404,7 +414,7 @@ def catalog_evchoose(catalog, select):
     
     sel_keys = list(select.keys())  # selecting keys
     for ikey in sel_keys:
-        if (ikey != 'thrd_llbd') and (select[ikey] is not None):
+        if (len(select[ikey])==2) and (select[ikey] is not None):
             sindx_temp = (catalog[ikey] >= select[ikey][0]) & (catalog[ikey] <= select[ikey][1])
             sindx = np.logical_and(sindx, sindx_temp)
     
@@ -889,6 +899,26 @@ def retrive_catalog_from_MALMI_database(CAT):
     
     if CAT['evselect'] is not None:
         # select events from the original catalog using quality control parameters
+        if ('pick_snr' in CAT['evselect']) and (CAT['evselect']['pick_snr'] is not None):
+            # need to select picks according to snr threshold
+            snr_para = {}
+            snr_para['P'] = CAT['evselect']['pick_snr']
+            snr_para['S'] = CAT['evselect']['pick_snr']
+            Nevt = len(catalog[id])  # total number of events in the catalog
+            for iiev in range(Nevt):
+                picks_s = picks_select(picks=catalog['pick'][iiev], arriv_para=None, snr_para=snr_para)
+                catalog['pick'][iiev] = picks_s
+                num_station_all, num_station_PS, num_station_P, num_station_S, num_P_all, num_S_all = get_picknumber(picks=picks_s)
+                catalog['asso_station_all'][iiev]= num_station_all  # total number of stations associated with picks
+                catalog['asso_station_PS'][iiev] = num_station_PS  # total number of stations having both P and S picks
+                catalog['asso_station_P'][iiev] = num_station_P  # total number of stations having only P picks
+                catalog['asso_station_S'][iiev] = num_station_S  # total number of stations having only S picks
+                catalog['asso_P_all'][iiev] = num_P_all  # total number of P picks
+                catalog['asso_S_all'][iiev] = num_S_all  # total number of S picks
+                catalog['asso_phase_all'][iiev] = num_P_all+num_S_all  # total number of phase picks
+                catalog['rms_pickarvt'][iiev] = pickarrvt_rmsd(picks_s, catalog['arrivaltime'][iiev])  # rms
+                catalog['mae_pickarvt'][iiev] = pickarrvt_mae(picks_s, catalog['arrivaltime'][iiev])  # mae
+
         if 'thrd_cmax' in CAT['evselect']:
             # select type 1
             catalog = catalog_select(catalog, thrd_cmax=CAT['evselect']['thrd_cmax'], 
@@ -1081,6 +1111,7 @@ def dict2catalog(cat_dict):
                     # ipick.evaluation_mode = "automatic"
                     picks_list.append(ipick)
 
+                    # associate this pick to an arrival in origin
                     iarrival = obspy_Arrival()
                     iarrival_id = "{}_arrival_{}_{}".format(cat_dict['id'][iev],ipsta,iphase)
                     iarrival.resource_id = iarrival_id
@@ -1088,6 +1119,7 @@ def dict2catalog(cat_dict):
                     iarrival.phase = iphase
                     try:
                         iarrival.comments = [Comment(text="{}".format(cat_dict['arrivaltime'][iev][ipsta][iphase]))]
+                        iarrival.time_residual = cat_dict['pick'][iev][ipsta][iphase] - cat_dict['arrivaltime'][iev][ipsta][iphase]  # Residual between observed and expected arrival time. Unit: second
                     except:
                         pass
                     arrivals_list.append(iarrival)
@@ -1102,6 +1134,7 @@ def dict2catalog(cat_dict):
                 for iarr in list(cat_dict['arrivaltime'][iev][iasta].keys()):  # loop over each phase of the current station
                     iarr_id = "{}_arrival_{}_{}".format(cat_dict['id'][iev],iasta,iarr)
                     if iarr_id not in arrivals_ids:
+                        # no arrival yet
                         iarrival = obspy_Arrival()
                         iarrival.resource_id = iarr_id
                         iarrival.phase = iarr

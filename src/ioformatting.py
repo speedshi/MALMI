@@ -523,7 +523,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
         time duration in second, [P_theoratical_arrt-maxtd_p, P_theoratical_arrt+maxtd_p] 
         is the time range to consider possible ML picks for P-phase.
         The default is 3.0 second.
-    maxtd_s : TYPE, optional
+    maxtd_s : float, optional
         time duration in second, [S_theoratical_arrt-maxtd_s, S_theoratical_arrt+maxtd_s] 
         is the time range to consider possible ML picks for S-phase.
         The default is 3.0 second.

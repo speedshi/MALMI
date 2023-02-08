@@ -945,6 +945,9 @@ class MALMI:
             CAT['evselect'] : dict, default is None
                 parameters controlling the selection of events from original catalog,
                 i.e. quality control of the orgiginal catalog.
+                CAT['evselect']['pick_snr'] : float, the snr threshold to further select picks;
+                    e.g. CAT['evselect']['pick_snr']=1.2 will select picks with snr >= 1.2;
+                    if None, not selecting. Selecting picks is performed before type1 or type2 quality control.
                 type 1:
                     CAT['evselect']['thrd_cmax'] : float, required
                         threshold of minimal coherence, e.g. 0.036

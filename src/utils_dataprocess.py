@@ -305,19 +305,20 @@ def merge_dict(dict1, dict2):
 
 
 def get_picknumber(picks):
-    # get the total number of stations and phases associated with picks
+    # Get the total number of stations and phases associated with picks
+    # Note this function only consider P and S phases. Other phases are not considered!
     # picks: dict, containing picking information,
-    # picks['station_name']['P'] : P-wave arrivaltime;
-    # picks['station_name']['S'] : S-wave arrivaltime;
+    # picks['station_id']['P'] : P-wave picked arrivaltime;
+    # picks['station_id']['S'] : S-wave picked arrivaltime;
     
-    key_stations = list(picks.keys())  # station names
+    key_stations = list(picks.keys())  # station ids
     num_station_all = len(key_stations)  # total number of stations having picks
     num_station_PS = 0  # total number of stations having both P and S picks
     num_station_P = 0  # total number of stations having only P pick
     num_station_S = 0  # total number of stations having only S pick
     num_P_all = 0  # total number of P picks
     num_S_all = 0  # total number of S picks
-    for ista in key_stations:
+    for ista in key_stations:  # loop over each station
         if ('P' in picks[ista] and picks[ista]['P'] is not None) and ('S' in picks[ista] and picks[ista]['S'] is not None):
             # have both effective P and S picks
             num_station_PS += 1  
@@ -342,17 +343,80 @@ def get_picknumber(picks):
     return num_station_all, num_station_PS, num_station_P, num_station_S, num_P_all, num_S_all
 
 
-def get_picknumber_snr(picks, snr):
+def get_picknumber_snr(picks, snr=None):
     # get the total number of stations and phases associated with picks that have snr
     # larger than the input threshold.
     # picks: dict, containing picking information,
-    # picks['station_name']['P'] : P-wave arrivaltime;
-    # picks['station_name']['P_snr'] : P-wave pick signal_noise_ratio;
-    # picks['station_name']['S'] : S-wave arrivaltime;
-    # picks['station_name']['S_snr'] : S-wave pick signal_noise_ratio;
+    # picks['station_id']['P'] : P-wave picked arrivaltime;
+    # picks['station_id']['P_snr'] : P-wave pick signal_noise_ratio;
+    # picks['station_id']['S'] : S-wave picked arrivaltime;
+    # picks['station_id']['S_snr'] : S-wave pick signal_noise_ratio;
+    # snr: float, the signal-to-noise ratio threshold for selecting picks.
+    #     None for not selecting.
 
+    key_stations = list(picks.keys())  # station ids
+    num_station_all = len(key_stations)  # total number of stations having picks
+    num_station_PS = 0  # total number of stations having both P and S picks
+    num_station_P = 0  # total number of stations having only P pick
+    num_station_S = 0  # total number of stations having only S pick
+    num_P_all = 0  # total number of P picks
+    num_S_all = 0  # total number of S picks
+    if snr is None:
+        # not snr constraint
+        for ista in key_stations:  # loop over each station
+            if ('P' in picks[ista] and picks[ista]['P'] is not None) and ('S' in picks[ista] and picks[ista]['S'] is not None):
+                # have both effective P and S picks
+                num_station_PS += 1  
+                num_P_all += 1
+                num_S_all += 1
+            elif ('P' in picks[ista] and picks[ista]['P'] is not None):
+                # have only effective P pick
+                num_station_P += 1
+                num_P_all += 1
+            elif ('S' in picks[ista] and picks[ista]['S'] is not None):
+                # have only effective S pick
+                num_station_S += 1
+                num_S_all += 1
+            else:
+                pass
+                # raise ValueError('Case not expected: {}!'.format(picks[ista]))
+    elif (isinstance(snr,(int,float))):
+        # use snr threshold to constrain picks
+        for ista in key_stations:  # loop over each station
+            if (
+                ('P' in picks[ista]) and (picks[ista]['P'] is not None) 
+                and (picks[ista]['P_snr'] is not None) and (picks[ista]['P_snr']>=snr)
+                and ('S' in picks[ista]) and (picks[ista]['S'] is not None)
+                and (picks[ista]['S_snr'] is not None) and (picks[ista]['S_snr']>=snr)
+                ):
+                # have both effective P and S picks
+                num_station_PS += 1  
+                num_P_all += 1
+                num_S_all += 1
+            elif (
+                ('P' in picks[ista]) and (picks[ista]['P'] is not None)
+                and (picks[ista]['P_snr'] is not None) and (picks[ista]['P_snr']>=snr)
+                ):
+                # have only effective P pick
+                num_station_P += 1
+                num_P_all += 1
+            elif (
+                ('S' in picks[ista] and picks[ista]['S'] is not None)
+                and (picks[ista]['S_snr'] is not None) and (picks[ista]['S_snr']>=snr)
+                ):
+                # have only effective S pick
+                num_station_S += 1
+                num_S_all += 1
+            else:
+                pass
+    else:
+        raise ValueError('Unrecognized input for snr: {}!'.format(snr))
+    
+    assert(num_station_all == num_station_PS + num_station_P + num_station_S)
+    assert(num_P_all == num_station_PS + num_station_P)
+    assert(num_S_all == num_station_PS + num_station_S)
 
-    return
+    return num_station_all, num_station_PS, num_station_P, num_station_S, num_P_all, num_S_all
 
 
 def pickarrvt_rmsd(pick, arrvt):
