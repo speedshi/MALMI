@@ -904,7 +904,7 @@ def retrive_catalog_from_MALMI_database(CAT):
             snr_para = {}
             snr_para['P'] = CAT['evselect']['pick_snr']
             snr_para['S'] = CAT['evselect']['pick_snr']
-            Nevt = len(catalog[id])  # total number of events in the catalog
+            Nevt = len(catalog['id'])  # total number of events in the catalog
             for iiev in range(Nevt):
                 picks_s = picks_select(picks=catalog['pick'][iiev], arriv_para=None, snr_para=snr_para)
                 catalog['pick'][iiev] = picks_s
