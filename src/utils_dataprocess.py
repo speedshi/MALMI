@@ -362,7 +362,7 @@ def get_picknumber_snr(picks, snr=None):
     num_P_all = 0  # total number of P picks
     num_S_all = 0  # total number of S picks
     if snr is None:
-        # not snr constraint
+        # no snr constraint
         for ista in key_stations:  # loop over each station
             if ('P' in picks[ista] and picks[ista]['P'] is not None) and ('S' in picks[ista] and picks[ista]['S'] is not None):
                 # have both effective P and S picks

@@ -77,7 +77,8 @@ def picks_select(picks, arriv_para=None, snr_para=None):
 
                 if select:
                     # pass selection criteria, add into list
-                    picks_s[ista] = {}
+                    if ista not in picks_s:
+                        picks_s[ista] = {}
                     picks_s[ista][iphs] = picks[ista][iphs]
                     picks_s[ista][iphs+'_snr'] = picks[ista][iphs+'_snr']
 
