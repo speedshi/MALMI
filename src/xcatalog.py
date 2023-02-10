@@ -907,6 +907,7 @@ def retrive_catalog_from_MALMI_database(CAT):
             assert(len(catalog['id']) == len(catalog['time']))
             Nevt = len(catalog['id'])  # total number of events in the catalog
             for iiev in range(Nevt):
+                print(iiev, catalog['time'][iiev])
                 picks_s = picks_select(picks=catalog['pick'][iiev], arriv_para=None, snr_para=snr_para)
                 catalog['pick'][iiev] = picks_s
                 num_station_all, num_station_PS, num_station_P, num_station_S, num_P_all, num_S_all = get_picknumber(picks=picks_s)
