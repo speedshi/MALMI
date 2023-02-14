@@ -71,8 +71,8 @@ def picks_select(picks, arriv_para=None, snr_para=None):
                         select = False
 
                 if snr_para is not None:
-                    if (iphs+'_snr' not in picks[ista]) or (picks[ista][iphs+'_snr'] < snr_para[iphs]):
-                        # do not pass snr requirement: no picking snr or low picking snr
+                    if (iphs+'_snr' not in picks[ista]) or (picks[ista][iphs+'_snr'] < snr_para[iphs]) or (picks[ista][iphs+'_snr'] == np.inf):
+                        # do not pass snr requirement: no picking_snr or low picking snr or picking_snr = inf
                         select = False
 
                 if select:
