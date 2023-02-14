@@ -17,6 +17,9 @@ arrivals['station_id']['S']: S-wave arrivaltime;
 '''
 
 
+import numpy as np
+
+
 def prob2pick(trace_prob, pick_thrd):
     '''
     trace_prob: Obspy trace object,
