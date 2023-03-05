@@ -1376,8 +1376,8 @@ def catalogcomp_magfreq(catalog, catalog_ref, bins_dv=0.5, figsize=(6,6), dir_fi
     data_ref = np.array(catalog_ref['magnitude'])
     
     # calculate accumulated numbers
-    data_min = min(data.min(), data_ref.min())  # the smallest value
-    data_max = max(data.max(), data_ref.max())  # the lastest value
+    data_min = min(np.nanmin(data), np.nanmin(data_ref))  # the smallest value
+    data_max = max(np.nanmax(data), np.nanmax(data_ref))  # the lastest value
     
     bins = np.arange(data_min, data_max+bins_dv, bins_dv)  # the edges of bins for bar plot
     events_hist, bin_edges = np.histogram(data, bins=bins)  # number of events in each bin
