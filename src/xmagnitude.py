@@ -204,6 +204,7 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
             for pptt in pathtemp:
                 # seismic data segment directory of current event
                 ev_seisdir = os.path.join(ev_seisdir, pptt)
+            print(ev_seisdir)
             assert(os.path.exists(ev_seisdir))
             
             # load phase file
