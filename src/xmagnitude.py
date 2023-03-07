@@ -200,11 +200,17 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
             ev_resdir = catalog['dir'][iev]  # result directory of the current event whose magnitude need to be determined
             pathtemp = ev_resdir.split('/')
             pathtemp[-2] = seismic_foldername
-            ev_seisdir = ''
+            if (pathtemp[0] == '..') or (pathtemp[0] == '.'):
+                # relative path
+                ev_seisdir = ''
+            elif (pathtemp[0] == ''):
+                # absolute path
+                ev_seisdir = '/'
+            else:
+                raise ValueError('Path [{}] cannot be correctly handelled!'.format(pathtemp))
             for pptt in pathtemp:
                 # seismic data segment directory of current event
                 ev_seisdir = os.path.join(ev_seisdir, pptt)
-            print(ev_seisdir)
             assert(os.path.exists(ev_seisdir))
             
             # load phase file
@@ -277,7 +283,14 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                 evref_resdir = event_match_dir[ekk]  # result directory of the matched event
                 pathtemp_ref = evref_resdir.split('/')
                 pathtemp_ref[-2] = seismic_foldername
-                evref_seisdir = ''
+                if (pathtemp_ref[0] == '..') or (pathtemp_ref[0] == '.'):
+                    # relative path
+                    evref_seisdir = ''
+                elif (pathtemp_ref[0] == ''):
+                    # absolute path
+                    evref_seisdir = '/'
+                else:
+                    raise ValueError('Path [{}] cannot be correctly handelled!'.format(pathtemp_ref))
                 for pptt in pathtemp_ref:
                     # seismic data segment directory of current reference event
                     evref_seisdir = os.path.join(evref_seisdir, pptt)
