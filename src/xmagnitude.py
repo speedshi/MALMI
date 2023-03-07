@@ -116,12 +116,12 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
     
     if mgcalpara is None:
         mgcalpara = {}
-        mgcalpara['freq'] = [3, 40]  # in Hz
+        mgcalpara['freq'] = [2, 50]  # in Hz
         mgcalpara['phase'] = 'S'  # which phase to use for extracting amplitude ratio, can be 'P', 'S' or 'PS'
         mgcalpara['P_start'] = -0.5  # negtive value means time duration before a datetime
         mgcalpara['P_end'] = 0.6
         mgcalpara['S_start'] = -0.5  # negtive value means time duration before a datetime
-        mgcalpara['S_end'] = 0.8
+        mgcalpara['S_end'] = 0.9
     
     Nev_in = len(catalog['time'])  # total number of events in the input catalog   
       
