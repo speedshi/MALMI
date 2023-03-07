@@ -117,6 +117,10 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
         mgcalpara['S_end'] = 3.0
         mgcalpara['PStime'] = 4.0
     
+    # conver each key to numpy array
+    for istkey in list(stations.keys()):
+        stations[istkey] = np.array(stations[istkey])
+
     Nev_in = len(catalog['time'])  # total number of events in the input catalog   
       
     # initialize the output catalog
