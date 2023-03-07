@@ -21,7 +21,7 @@ import warnings
 from xcatalog import catalog_matchref
 
 
-def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='amplitude', staavenum='all'):
+def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='station_dist', staavenum='all'):
     """
     To calculate magnitude according to relative amplitude ratio.
     At least one event must match between the input catalog and the reference catalog.
@@ -54,41 +54,37 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
     stations : dict
         contains station information.
         required keys:
-            stations['station'] : the station name
-            stations['latitude']
-            stations['longitude']
-            stations['elevation']
+            stations['station'] : the station name;
+            stations['latitude'] : latitude in degree;
+            stations['longitude'] : longitude in degree;
+            stations['elevation'] : evevation in meter;
     mgcalpara : dict, optional
         parameters realted to magnitude estimation.
         The default is None, means use default parameters.
         required keys:
             mgcalpara['freq'] : filtering frequency band for pre-processing seismic data;
-            mgcalpara['phase'] : use which phase for determine event magnitude:
-                'P' for using P-phase only;
-                'S' for using S-phase only;
-                'PS' for using P-phase and S-phase to get event magnitude independently, then averge the two to get the final value;
-            mgcalpara['P_start'] : start time relative to P-picking time for getting P-phase amplitude;
-            mgcalpara['P_end'] : end time relative to P-picking time for getting P-phase amplitude.
-            mgcalpara['S_start'] : start time relative to S-picking time for getting S-phase amplitude;
-            mgcalpara['S_end'] : end time relative to S-picking time for getting S-phase amplitude.
+            mgcalpara['P_start'] : starttime relative to P-picking time for getting amplitude;
+            mgcalpara['S_end'] : endtime relative to S-picking time for getting amplitude.
+            mgcalpara['PStime'] : an estimation of P-to-S time in second; if only one phase pick exist,
+                                  will use PStime to extend to the whole PS time range;
             Note nagtive means time before the picking time, positive means time after the picking time.
             Maximum absolute amplitude (3D partical motion) between starttime and endtime
             is chosen as the phase amplitude.
-    mode : char, optional
+    mode : str, optional
         Determine the order of refernce events for magnitude estimation. 
         "closest" : determine event magnitude from the closest avaliable matched-event in the reference catalog;
         "largest" : determine event magnitude from the largest avaliable matched-event in the reference catalog;
         The default is 'closest'.
-    distmode : char, optional
+    distmode : str, optional
         clarify how to calculate inter-event distance.
         "3D" : calculating distance in 3D.
         "horizontal" : only calculate horizontal distance, ignoring depth information.
         The default is '3D'.
-    sorder : char, optional
-        Determine the order of comment stations for magnitude estimation. 
+    sorder : str, optional
+        Determine the order of common stations for magnitude estimation. 
         "amplitude" : determine event magnitude from the station with largest amplitude;
         "station_dist" : determine event magnitude from the closest avaliable station;
-        The default is 'amplitude'.
+        The default is 'station_dist'.
     staavenum : int or str, optional
         specify the total number of stations to average for calculating magnitude.
         if staavenum is "all", then use all avaliable stations to averge;
@@ -117,11 +113,9 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
     if mgcalpara is None:
         mgcalpara = {}
         mgcalpara['freq'] = [2, 50]  # in Hz
-        mgcalpara['phase'] = 'S'  # which phase to use for extracting amplitude ratio, can be 'P', 'S' or 'PS'
-        mgcalpara['P_start'] = -0.5  # negtive value means time duration before a datetime
-        mgcalpara['P_end'] = 0.6
-        mgcalpara['S_start'] = -0.5  # negtive value means time duration before a datetime
-        mgcalpara['S_end'] = 0.9
+        mgcalpara['P_start'] = -1.0  # negtive value means time duration before a datetime
+        mgcalpara['S_end'] = 3.0
+        mgcalpara['PStime'] = 4.0
     
     Nev_in = len(catalog['time'])  # total number of events in the input catalog   
       
@@ -220,107 +214,60 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
             # load seismic data segment
             stream = obspy.read(os.path.join(ev_seisdir,'*'))
             if ('freq' in mgcalpara) and (mgcalpara['freq'] is not None):
+                stream.detrend('demean')
+                stream.detrend('simple')
                 stream.filter('bandpass', freqmin=mgcalpara['freq'][0], freqmax=mgcalpara['freq'][1], zerophase=True)
-            stream.interpolate(sampling_rate=1000)  # up-sampling to avoide getting data of different size when slicing data
+            stream.merge()
+            stream.interpolate(sampling_rate=1000)  # up-sampling to avoid getting data of different size when slicing data
             
             # get the amplitude of certain phase at available stations
-            ev_stalist = []
-            ev_ssdist = []
-            ev_amplitude = []
-            ev_Pamplitude = []
-            ev_Samplitude = []
+            ev_stalist = []  # station names
+            ev_ssdist = []  # event-station distance in meter
+            ev_amplitude = []  # event amplitudes at each station
             for sta in arrvt:
-                if mgcalpara['phase'] == 'P':
-                    if 'P' in arrvt[sta]:
-                        tt1 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
-                        tt2 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
-                        stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                        if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
-                            # should have 3 component data
-                            ev_stalist.append(sta)
-                            ev_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                            stream_sta[1].data*stream_sta[1].data + 
-                                                            stream_sta[2].data*stream_sta[2].data)))
-                            
-                            staindx = (stations['station'] == sta)
-                            assert(sum(staindx)==1)
-                            hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                                 catalog['latitude'][iev], catalog['longitude'][iev])
-                            vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                            ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
-                        
-                elif mgcalpara['phase'] == 'S':
-                    if 'S' in arrvt[sta]:
-                        tt1 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
-                        tt2 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
-                        stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                        if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
-                            # should have 3 component data
-                            ev_stalist.append(sta)
-                            ev_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                            stream_sta[1].data*stream_sta[1].data + 
-                                                            stream_sta[2].data*stream_sta[2].data)))
-                            
-                            staindx = (stations['station'] == sta)
-                            assert(sum(staindx)==1)
-                            hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                                 catalog['latitude'][iev], catalog['longitude'][iev])
-                            vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                            ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
-                
-                elif mgcalpara['phase'] == 'PS':
-                    if ('P' in arrvt[sta]) and ('S' in arrvt[sta]):  # note require having both P and S phases
-                        if stream.select(station=sta).count()==3:
-                            # should have 3 component data
-                            ev_stalist.append(sta)
-                            tt1 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
-                            tt2 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
-                            stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                            ev_Pamplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                             stream_sta[1].data*stream_sta[1].data + 
-                                                             stream_sta[2].data*stream_sta[2].data)))
-                            
-                            tt1 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
-                            tt2 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
-                            stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                            ev_Samplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                             stream_sta[1].data*stream_sta[1].data + 
-                                                             stream_sta[2].data*stream_sta[2].data)))
-                            
-                            staindx = (stations['station'] == sta)
-                            assert(sum(staindx)==1)
-                            hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                                 catalog['latitude'][iev], catalog['longitude'][iev])
-                            vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                            ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
-                
+                # determine the time range for extracting amplitudes
+                if ('P' in arrvt[sta]) and ('S' in arrvt[sta]):
+                    # both P and S pick exist
+                    tt1 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
+                    tt2 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
+                elif 'P' in arrvt[sta]:
+                    # only P pick exists
+                    tt1 = arrvt[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
+                    tt2 = arrvt[sta]['P'] + datetime.timedelta(seconds=(mgcalpara['PStime'] + mgcalpara['S_end']))
+                elif 'S' in arrvt[sta]:
+                    # only S pick exists
+                    tt1 = arrvt[sta]['S'] + datetime.timedelta(seconds=(mgcalpara['P_start'] - mgcalpara['PStime']))
+                    tt2 = arrvt[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
                 else:
-                    raise ValueError('Incorrent input for mgcalpara[\'phase\']!')
+                    raise ValueError('At least P- or S-pick should exist! Current is :[{}].'.format(arrvt[sta]))
+
+                # extract amplitude
+                stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
+                if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
+                    # should have 3 component data and each component share the same length
+                    ev_stalist.append(sta)
+                    ev_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
+                                                    stream_sta[1].data*stream_sta[1].data + 
+                                                    stream_sta[2].data*stream_sta[2].data)))
+                    
+                    staindx = (stations['station'] == sta)
+                    assert(sum(staindx)==1)
+                    hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
+                                                            catalog['latitude'][iev], catalog['longitude'][iev])
+                    vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
+                    ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
             
+            # order the station amplitudes accordingly
             ev_stalist = np.array(ev_stalist)
             ev_ssdist = np.array(ev_ssdist)
-            if (mgcalpara['phase'] == 'P') or (mgcalpara['phase'] == 'S'):
-                ev_amplitude = np.array(ev_amplitude)
-                if sorder == 'amplitude':
-                    llindex = np.argsort(-1.0*ev_amplitude)  # get the station ordered according to amplitude descending order
-                elif sorder == 'station_dist':
-                    llindex = np.argsort(ev_ssdist)  # get the station ordered according to event-station distance ascending order
-                ev_amplitude = ev_amplitude[llindex]
-                ev_stalist = ev_stalist[llindex]
-                ev_ssdist = ev_ssdist[llindex]
-            elif mgcalpara['phase'] == 'PS':
-                ev_Pamplitude = np.array(ev_Pamplitude)
-                ev_Samplitude = np.array(ev_Samplitude)
-                if sorder == 'amplitude':
-                    llindex = np.argsort(-1.0*(ev_Pamplitude+ev_Samplitude))  # get the station ordered according to amplitude descending order. Note here use the sum amplitude of P and S
-                elif sorder == 'station_dist':
-                    llindex = np.argsort(ev_ssdist)  # get the station ordered according to event-station distance ascending order
-                ev_Pamplitude = ev_Pamplitude[llindex]
-                ev_Samplitude = ev_Samplitude[llindex]
-                ev_stalist = ev_stalist[llindex]
-                ev_ssdist = ev_ssdist[llindex]
-            else:
-                raise ValueError('Incorrent input for mgcalpara[\'phase\']!')
+            ev_amplitude = np.array(ev_amplitude)
+            if sorder == 'amplitude':
+                llindex = np.argsort(-1.0*ev_amplitude)  # get the station ordered according to amplitude descending order
+            elif sorder == 'station_dist':
+                llindex = np.argsort(ev_ssdist)  # get the station ordered according to event-station distance ascending order
+            ev_amplitude = ev_amplitude[llindex]
+            ev_stalist = ev_stalist[llindex]
+            ev_ssdist = ev_ssdist[llindex]
             
             del stream, stream_sta, arrvt
             
@@ -343,134 +290,82 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                 # load seismic data segment
                 stream = obspy.read(os.path.join(evref_seisdir,'*'))
                 if ('freq' in mgcalpara) and (mgcalpara['freq'] is not None):
+                    stream.detrend('demean')
+                    stream.detrend('simple')
                     stream.filter('bandpass', freqmin=mgcalpara['freq'][0], freqmax=mgcalpara['freq'][1], zerophase=True)
+                stream.merge()
                 stream.interpolate(sampling_rate=1000)  # up-sampling to avoide getting data of different size when slicing data
                 
                 # get the amplitude of certain phase at available stations
-                evref_stalist = []
-                evref_ssdist = []
-                evref_amplitude = []
-                evref_Pamplitude = []
-                evref_Samplitude = []
+                evref_stalist = []  # station names for the reference event
+                evref_ssdist = []  # event-station distance in meter for the reference event
+                evref_amplitude = []  # event amplitudes at each station for the reference event
                 for sta in arrvt_ref:
-                    if mgcalpara['phase'] == 'P':
-                        if 'P' in arrvt_ref[sta]:
-                            tt1 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
-                            tt2 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
-                            stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                            if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
-                                # should have 3 component data
-                                evref_stalist.append(sta)
-                                evref_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                                   stream_sta[1].data*stream_sta[1].data + 
-                                                                   stream_sta[2].data*stream_sta[2].data)))
-                                
-                                staindx = (stations['station'] == sta)
-                                assert(sum(staindx)==1)
-                                hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                                     event_match_latitude[ekk], event_match_longitude[ekk])
-                                vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                                evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
-                            
-                    elif mgcalpara['phase'] == 'S':
-                        if 'S' in arrvt_ref[sta]:
-                            tt1 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
-                            tt2 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
-                            stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                            if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
-                                # should have 3 component data
-                                evref_stalist.append(sta)
-                                evref_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                                   stream_sta[1].data*stream_sta[1].data + 
-                                                                   stream_sta[2].data*stream_sta[2].data)))
-                                
-                                staindx = (stations['station'] == sta)
-                                assert(sum(staindx)==1)
-                                hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                                     event_match_latitude[ekk], event_match_longitude[ekk])
-                                vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                                evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
-                    
-                    elif mgcalpara['phase'] == 'PS':
-                        if ('P' in arrvt_ref[sta]) and ('S' in arrvt_ref[sta]):
-                            if stream.select(station=sta).count()==3:
-                                # should have 3 component data
-                                evref_stalist.append(sta)
-                                tt1 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
-                                tt2 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_end'])
-                                stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                                evref_Pamplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                                    stream_sta[1].data*stream_sta[1].data + 
-                                                                    stream_sta[2].data*stream_sta[2].data)))
-                                
-                                tt1 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_start'])
-                                tt2 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
-                                stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
-                                evref_Samplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
-                                                                    stream_sta[1].data*stream_sta[1].data + 
-                                                                    stream_sta[2].data*stream_sta[2].data)))
-                                
-                                staindx = (stations['station'] == sta)
-                                assert(sum(staindx)==1)
-                                hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
-                                                                     event_match_latitude[ekk], event_match_longitude[ekk])
-                                vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                                evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
-                    
+                    # determine the time range for extracting amplitudes
+                    if ('P' in arrvt_ref[sta]) and ('S' in arrvt_ref[sta]):
+                        # both P and S pick exist
+                        tt1 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])                      
+                        tt2 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
+                    elif 'P' in arrvt_ref[sta]:
+                        # only P pick exists
+                        tt1 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=mgcalpara['P_start'])
+                        tt2 = arrvt_ref[sta]['P'] + datetime.timedelta(seconds=(mgcalpara['PStime'] + mgcalpara['S_end']))
+                    elif 'S' in arrvt_ref[sta]:
+                        # only S pick exists
+                        tt1 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=(mgcalpara['P_start'] - mgcalpara['PStime']))
+                        tt2 = arrvt_ref[sta]['S'] + datetime.timedelta(seconds=mgcalpara['S_end'])
                     else:
-                        raise ValueError('Incorrent input for mgcalpara[\'phase\']!')
+                        raise ValueError('At least P- or S-pick should exist! Current is :[{}].'.format(arrvt_ref[sta]))
+
+                    stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
+                    if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
+                        # should have 3 component data and each component share the same length
+                        evref_stalist.append(sta)
+                        evref_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
+                                                           stream_sta[1].data*stream_sta[1].data + 
+                                                           stream_sta[2].data*stream_sta[2].data)))
+                        
+                        staindx = (stations['station'] == sta)
+                        assert(sum(staindx)==1)
+                        hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
+                                                                event_match_latitude[ekk], event_match_longitude[ekk])
+                        vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
+                        evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))             
                 
                 del stream, stream_sta, arrvt_ref
                 
                 evref_stalist = np.array(evref_stalist)
                 evref_ssdist = np.array(evref_ssdist)
                 evref_amplitude = np.array(evref_amplitude)
-                evref_Pamplitude = np.array(evref_Pamplitude)
-                evref_Samplitude = np.array(evref_Samplitude)
                 ampratio = []
-                ampratio_P = []
-                ampratio_S = []
                 for iqq in range(len(ev_stalist)):
                     # loop over each station in the station list of the new event
                     if ev_stalist[iqq] in evref_stalist:
                         # the current station both exist in the station list of the new event and the reference event
                         starefindx = (evref_stalist == ev_stalist[iqq])
                         assert(sum(starefindx)==1)
-                        if (mgcalpara['phase'] == 'P') or (mgcalpara['phase'] == 'S'):
-                            ampratio.append((ev_amplitude[iqq] * ev_ssdist[iqq]) / (evref_amplitude[starefindx][0] * evref_ssdist[starefindx][0]))  # note here we correct the amplitude ratio using event-station distance to account for geometric spreading
-                        elif mgcalpara['phase'] == 'PS':
-                            ampratio_P.append((ev_Pamplitude[iqq] * ev_ssdist[iqq]) / (evref_Pamplitude[starefindx][0] * evref_ssdist[starefindx][0]))
-                            ampratio_S.append((ev_Samplitude[iqq] * ev_ssdist[iqq]) / (evref_Samplitude[starefindx][0] * evref_ssdist[starefindx][0]))
-                        else:
-                            raise ValueError('Incorrent input for mgcalpara[\'phase\']!')
+                        thisratio = (ev_amplitude[iqq] * ev_ssdist[iqq]) / (evref_amplitude[starefindx][0] * evref_ssdist[starefindx][0])
+                        if (thisratio is not None) and (np.isfinite(thisratio)) and (thisratio > 0):
+                            ampratio.append(thisratio)  # note here we correct the amplitude ratio using event-station distance to account for geometric spreading
                     else:
                         # the current station does not exist in the station list of the reference event
                         pass
                 
-                if (mgcalpara['phase'] == 'P') or (mgcalpara['phase'] == 'S'):
-                    NN_stacom = len(ampratio)
-                    if NN_stacom > 0:
-                        if (staavenum == 'all') or (staavenum > NN_stacom):
-                            # average over all avaliable stations
-                            ampratio_ave = np.array(ampratio).mean()
-                        else:
-                            # average over 'staavenum' stations
-                            ampratio_ave = np.array(ampratio[:staavenum]).mean()
-                        catalog_new['magnitude'].append(event_match_magnitude[ekk] + np.log10(ampratio_ave))
-                        magnitude_done = True
-                        break  # magnitude already determined, no need to look at the rest of the matched events
-                elif mgcalpara['phase'] == 'PS':
-                    NN_stacom = min(len(ampratio_P), len(ampratio_S))
-                    if NN_stacom > 0:
-                        if (staavenum == 'all') or (staavenum > NN_stacom):
-                            # average over all avaliable stations
-                            ampratio_ave = np.array(ampratio_P+ampratio_S).mean()
-                        else:
-                            # average over 'staavenum' stations
-                            ampratio_ave = np.array(ampratio_P[:staavenum]+ampratio_S[:staavenum]).mean()
-                        catalog_new['magnitude'].append(event_match_magnitude[ekk] + np.log10(ampratio_ave))
-                        magnitude_done = True
-                        break  # magnitude already determined, no need to look at the rest of the matched events
+                # calculate magnitude
+                NN_stacom = len(ampratio)
+                if NN_stacom > 0:
+                    # first calculate the station magnitudes
+                    if (staavenum == 'all') or (staavenum > NN_stacom):
+                        # calculate over all avaliable stations
+                        ev_stamags = event_match_magnitude[ekk] + np.log10(ampratio)
+                        assert(len(ev_stamags)==NN_stacom)
+                    else:
+                        # calculate over 'staavenum' stations
+                        ev_stamags = event_match_magnitude[ekk] + np.log10(ampratio[:staavenum])
+                        assert(len(ev_stamags)==staavenum)
+                    catalog_new['magnitude'].append(np.median(ev_stamags))  # network magnitude
+                    magnitude_done = True
+                    break  # magnitude already determined, no need to look at the rest of the matched events
             
             if not magnitude_done:
                 # no common station matched, cannot determine magnitude
