@@ -421,13 +421,18 @@ class MALMI:
             path to a pre-trained ML model for original EQTransformer, 
             or a pretrained model name from seisbench in form of 'modelname.datasetname',
             such as 'PhaseNet.stead';
+        ML['rescaling_rate'] : float, default: None
+            specify the rescaling-rate for ML phase identification and picking,
+            = used_model_sampling_rate / original_model_sampling_rate.
+            None means using model default sampling rate.
+            This option only valid for 'SeisBench' ML engine.
         ML['overlap'] : float, default: 0.5
             overlap rate of time window for generating probabilities. 
             e.g. 0.6 means 60% of time window are overlapped.
         ML['number_of_cpus'] : int, default: 2
             Number of CPUs used for the parallel preprocessing and feeding of 
             data for prediction.
-            If no GPU to use, this value shoud not be set too large, 
+            If no GPU to use, this value should not be set too large, 
             otherwise prediction tends to be very slow.
             I have tested using a number of 96 on a server with only cpus avaliable,
             this makes the prediction process 20 times slower than using just 1 cpus.
@@ -442,6 +447,9 @@ class MALMI:
         if 'engine' not in ML:
             ML['engine'] = 'EQTransformer'
         
+        if 'rescaling_rate' not in ML:
+            ML['rescaling_rate'] = None
+
         if 'overlap' not in ML:
             ML['overlap'] = 0.5
         
@@ -531,6 +539,8 @@ class MALMI:
             sbppara['S_thrd'] = self.detect['S_thrd']
             sbppara['dir_in'] = self.dir_mseed
             sbppara['dir_out'] = self.dir_prob
+            sbppara['rescaling_rate'] = ML['rescaling_rate']
+            sbppara['overlap'] = ML['overlap']
             if self.seismic['datastru'] == 'EVS':
                 sbppara['evsegments'] = True
             else:

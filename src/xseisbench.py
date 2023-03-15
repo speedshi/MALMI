@@ -17,6 +17,64 @@ from ioformatting import dict2csv
 import numpy as np
 
 
+def load_sbmodel(ML_model, pre_trained, rescaling_rate=None, overlap_ratio=None):
+    '''
+    Load and config seisbench model.
+
+    INPUT:
+        ML_model: str,
+            which SeisBench ML model to use,
+            can be 'EQT', 'PNT', 'GPD'.
+        pre_trained: str,
+            specify which pre-trained data set of the chosen ML model,
+            can be 'stead', 'scedc', 'ethz', etc.
+            for detail check SeisBench documentation.
+        rescale_rate: float
+            specify the rescaling-rate for ML phase identification and picking,
+            = used_model_sampling_rate / original_model_sampling_rate.
+            None means using model default sampling rate.
+        overlap_ratio: float [0, 1]
+            overlap_ratio when apply to continuous data or longer data segments.
+            e,g, 0.5 means half-overlapping;
+            0.6 means 60% overlapping;
+            0.8 means 80% overlapping;
+            0.0 means no overlapping.
+
+    OUTPUT:
+        sbmodel: SeisBench model.
+    '''
+
+    # specify a ML model
+    if (ML_model.upper() == 'EQT') or (ML_model.upper() == 'EQTRANSFORMER'):
+        sbmodel = sbm.EQTransformer.from_pretrained(pre_trained)  # , update=True, force=True, wait_for_file=True
+    elif (ML_model.upper() == 'PNT') or (ML_model.upper() == 'PHASENET'):
+        sbmodel = sbm.PhaseNet.from_pretrained(pre_trained)  # , update=True, force=True, wait_for_file=True
+    elif (ML_model.upper() == 'GPD'):
+        sbmodel = sbm.GPD.from_pretrained(pre_trained)  # , update=True, force=True, wait_for_file=True
+    else:
+        raise ValueError('Input SeisBench model name: {} unrecognized!'.format(ML_model))
+
+    # rescaling the model
+    if rescaling_rate is not None:
+        sbmodel.sampling_rate = sbmodel.sampling_rate * rescaling_rate  # reset model sampling rate according to the rescaling rate
+
+    # deactivate any default filtering, as the input data stream should already been filtered
+    sbmodel.filter_args = None  # disable the default filtering
+    sbmodel.filter_kwargs = None  # disable the default filtering
+
+    # set overlapping
+    if overlap_ratio is None:
+        # default using 80% overlap-ratio
+        KK = 5  # every point is covered by KK windows
+        sbmodel.default_args['overlap'] = int(sbmodel.in_samples * (1 - 1.0/KK))
+    else:
+        sbmodel.default_args['overlap'] = int(sbmodel.in_samples * overlap_ratio)
+
+    # sbmodel.default_args['blinding'] = (0, 0)  # set no missing prediction points at the earliest and last of prediction windows, only work for EQT and PNT?
+
+    return sbmodel
+
+
 def seisbench_geneprob(spara):
     """
     Use seisbench to generate continuous phase probabilites;
@@ -34,6 +92,8 @@ def seisbench_geneprob(spara):
                         such as 'PhaseNet.stead', 'EQTransformer.original', 'GPD.scedc';
         spara['P_thrd']: float, probability threshold for detecting P-phases;
         spara['S_thrd']: float, probability threshold for detecting S-phases;
+        spara['rescaling_rate']: float, rescaling rate; None for no rescaling;
+        spara['overlap']: float, overlap ratio when apply to longer or continuous data;
 
     Returns
     -------
@@ -42,15 +102,8 @@ def seisbench_geneprob(spara):
     """
     
     sbm_model, sbm_pretrained = spara['model'].split('.')
-    
-    if (sbm_model.lower() == 'eqtransformer') or (sbm_model.lower() == 'eqt'):
-        model = sbm.EQTransformer.from_pretrained(sbm_pretrained)
-    elif (sbm_model.lower() == 'phasenet') or (sbm_model.lower() == 'pnt'):
-        model = sbm.PhaseNet.from_pretrained(sbm_pretrained)
-    elif (sbm_model.lower() == 'gpd'):
-        model = sbm.GPD.from_pretrained(sbm_pretrained)
-    else:
-        raise ValueError('Unrecognized input for spara[\'model\']: {}!'.format(spara['model']))
+    model = load_sbmodel(ML_model=sbm_model, pre_trained=sbm_pretrained, 
+                         rescaling_rate=spara['rescaling_rate'], overlap_ratio=spara['overlap'])
     
     sbs2ppara = {}
     sbs2ppara['P_threshold'] = spara['P_thrd']
@@ -80,7 +133,7 @@ def seisbench_geneprob(spara):
             
                 # save prediction results
                 for tr in annotations:
-                    tr.stats.channel = 'PB'+tr.stats.channel[-1].upper()  # save mseed file, channel name maximum 3 char
+                    tr.stats.channel = 'PB'+tr.stats.channel[-1].upper()  # when save as mseed file, the channel name allow maximum 3 char
                 fname = os.path.join(idir_save, 'prediction_probabilities.mseed')
                 annotations.write(fname, format='MSEED')
                 file_pk = os.path.join(idir_save, 'X_prediction_results.csv')
@@ -91,7 +144,7 @@ def seisbench_geneprob(spara):
                         ipk_dict[ikk] = [ipk_dict[ikk]]  # to merge dict, item of each entry should be a list or numpy array
                     picks_dict = merge_dict(dict1=picks_dict, dict2=ipk_dict)
                 dict2csv(indic=picks_dict, filename=file_pk, mode='w')
-        
+            del stream
     return
 
 
@@ -117,8 +170,8 @@ def seisbench_stream2prob(stream, model, paras):
     # trim data to the same time range
     starttime = [itr.stats.starttime for itr in stream]
     endtime = [itr.stats.endtime for itr in stream]
-    starttime_min = min(starttime)
-    endtime_max = max(endtime)
+    starttime_min = min(starttime)  # earliest starttime
+    endtime_max = max(endtime)  # latest endtime
     stream.trim(starttime=starttime_min, endtime=endtime_max, pad=True, fill_value=0)
 
     annotations = model.annotate(stream)
