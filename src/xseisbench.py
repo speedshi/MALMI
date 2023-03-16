@@ -131,9 +131,14 @@ def seisbench_geneprob(spara):
                 if not os.path.exists(idir_save):
                     os.makedirs(idir_save)
             
+                instrument_code = stream[0].stats.channel[:-1]
+                for jjtr in stream:
+                    assert(instrument_code == jjtr.stats.channel[:-1])
+                assert(len(instrument_code)==2)
+
                 # save prediction results
                 for tr in annotations:
-                    tr.stats.channel = 'PB'+tr.stats.channel[-1].upper()  # when save as mseed file, the channel name allow maximum 3 char
+                    tr.stats.channel = instrument_code + tr.stats.channel[-1].upper()  # when save as mseed file, the channel name allow maximum 3 char, use the same instrument code as input seismic data, previously we use 'PB'
                 fname = os.path.join(idir_save, 'prediction_probabilities.mseed')
                 annotations.write(fname, format='MSEED')
                 file_pk = os.path.join(idir_save, 'X_prediction_results.csv')

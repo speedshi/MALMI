@@ -419,6 +419,8 @@ def phasedetectfprob(dir_probinput, P_thrd, S_thrd, datafname=None):
     -------
     event_info : dictionary
         containing the detected event information at each station;
+        Note: station_name should be the identity of a station: 'network.station.location.instrument', 
+        need to fix and work on this!
         event_info[station_name][filename]: str indicating the filename of probability 
                                             dataset for the current station;
         event_info[station_name][p][starttime]: a list of datetime indicating the 
@@ -460,7 +462,7 @@ def phasedetectfprob(dir_probinput, P_thrd, S_thrd, datafname=None):
     dirnames = sorted([fdname for fdname in os.listdir(dir_probinput) if os.path.isdir(os.path.join(dir_probinput, fdname))])  # directory names for each station
     for sfdname in dirnames:
         # loop over each station folder, read data set for each station
-        station_name = sfdname.split('_')[0]  # the current station name
+        station_name = sfdname.split('_')[0]  # the current station name, station_name should be the identity of a station: 'network.station.location.instrument', need to fix and work on this
         
         if isinstance(datafname, str):
             pbfile = os.path.join(dir_probinput, sfdname, datafname)  # the filename of picking probability for the current station
@@ -521,7 +523,7 @@ def phasedetectfprob(dir_probinput, P_thrd, S_thrd, datafname=None):
                     elif iitr.stats.channel[-1].upper() == 'S':
                         pbdata[:,2] = iitr.data  # S_prob
                     else:
-                        pbdata[:,0] = iitr.data
+                        pbdata[:,0] = iitr.data  # detetion or noise probability
                 pbtime = [dsg_starttime[ii]+jdtt for jdtt in pbdf[0].times()]
                 
             # perform detection based on P-phase probabilites: pbdata[:,1]
@@ -855,14 +857,12 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
     """
     
     from ioformatting import read_seismic_fromfd
-    from utils_dataprocess import stream_resampling
     
     timeformat = "%Y%m%dT%H%M%SZ"
     
     datainfo = {}
-    datainfo['dt'] = copy.deepcopy(dt_EQT)
     
-    stations = list(event_info.keys())  # get all station names
+    stations = list(event_info.keys())  # get all station ids
     
     # make sure output directory exist
     if not os.path.exists(dir_output):
@@ -1056,6 +1056,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
         # load probability data set for the current station
         dataformat = event_info[ista]['filename'].split('.')[-1].lower()
         if dataformat == 'hdf5':
+            datainfo['dt'] = copy.deepcopy(dt_EQT)  # data temporal sampling rate in second of the phase probability function
             pbdf = h5py.File(event_info[ista]['filename'], 'r')
             dsg_name = list(pbdf['probabilities'].keys())  # get the names of all probability data segments 
             dsg_starttime = np.array([datetime.datetime.strptime(idsgnm.split('_')[-1], dtformat_EQT) for idsgnm in dsg_name])  # get the starttimes of all probability data segments 
@@ -1064,6 +1065,7 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
             # inputs are MSEED format which can be read by obspy
             pbdf = obspy.read(event_info[ista]['filename'])
             pbdf.merge(method=1, fill_value=0, interpolation_samples=-1)
+            datainfo['dt'] = pbdf[0].stats.delta  # data temporal sampling rate in second of the phase probability function
             dsg_name = [None,]
             dsg_starttime = np.array([pbdf[0].stats.starttime,])      
             dsg_endtime = np.array([pbdf[0].stats.endtime,])
@@ -1073,9 +1075,6 @@ def arrayeventdetect(event_info, twind_srch, twlex=0.0, nsta_thrd=3, npha_thrd=4
             dir_seismic_sta = os.path.join(dir_seisdataset, ista)
             assert(os.path.exists(dir_seismic_sta))
             stream = read_seismic_fromfd(dir_seismic_sta, channels=seismic_channels)
-            
-            # check if need to resample the seismic data
-            stream = stream_resampling(stream, sampling_rate=100.0)
             # stream.merge(fill_value=0)
         
         for output_info in detections_all:
