@@ -7,10 +7,19 @@ We suggest to create and work in a new python environment for MALMI. The install
 Currently **MALMI** utilize [*EQTransformer*](https://github.com/speedshi/EQTransformer) as the ML engine and [*loki*](https://github.com/speedshi/LOKI) as the migration engine. So the two softwares should be installed as well. We will guide you step by step in this section to install all the required packages.
 
 ### Create and activate a new environment 
+If you want to use original EQTransformer as ML engine:  
 ```bash
 conda config --add channels conda-forge
 conda config --set channel_priority strict
 conda create -n malmi python=3.7 obspy spyder==5.0.3 pygmt six~=1.15.0 numpy~=1.19.2 protobuf'<3.20,>=3.9.2'
+conda activate malmi
+```
+
+If you want to use SeisBench as ML engine:  
+```bash
+conda config --add channels conda-forge
+conda config --set channel_priority strict
+conda create -n malmi python=3.9 pygmt
 conda activate malmi
 ```
 
