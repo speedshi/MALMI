@@ -263,7 +263,10 @@ def load_station(file_station, outformat='obspy'):
     stafile_suffix = file_station.split('.')[-1]
     if stafile_suffix.lower() == 'xml':
         # input are in StationXML format
-        stainfo = read_inventory(file_station, format="STATIONXML")
+        try:
+            stainfo = read_inventory(file_station, format="STATIONXML")
+        except:
+            stainfo = read_inventory(file_station, format="SC3ML")
     elif stafile_suffix.lower() == 'txt':
         # input are in FDSNWS station text file format
         stainfo = read_inventory(file_station, format="STATIONTXT")
