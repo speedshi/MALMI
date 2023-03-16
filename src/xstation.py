@@ -55,7 +55,7 @@ def get_station_ids(stainv):
             # loop over each station
             if len(station.channels) > 0:
                 # have channel information
-                for ichannel in station.chennels:
+                for ichannel in station.channels:
                     istaid = "{}.{}.{}.{}".format(network.code, station.code. ichannel.location_code, ichannel.code[:-1])  # station identification: network.station.location.instrument
                     if istaid not in staids:
                         staids.append(istaid)
