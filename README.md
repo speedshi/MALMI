@@ -4,7 +4,7 @@ MALMI is developed on a Linux OS system. Therefore, we suggest using MALMI on Li
 ## Installation 
 We suggest to create and work in a new python environment for MALMI. The installation is done via Anaconda. For more information see [conda](https://docs.conda.io/en/latest/).
 
-Currently **MALMI** can utilize [*EQTransformer*](https://github.com/speedshi/EQTransformer) and [*SeisBench*](https://github.com/seisbench/seisbench) as the ML engine and [*loki*](https://github.com/speedshi/LOKI) as the migration engine. So the these softwares should be installed as well. We will guide you step by step in this section to install all the required packages.
+Currently **MALMI** can utilize [*EQTransformer*](https://github.com/speedshi/EQTransformer) and [*SeisBench*](https://github.com/seisbench/seisbench) as the ML engine and [*loki*](https://github.com/speedshi/LOKI) as the migration engine. So the these softwares should be installed as well. We will guide you step by step in this section to install all the required packages. It seems the installation of EQTransformer and SeisBench are not compatible, so you will have to choose one as ML engine, or install two virtual environments for each.
 
 ### Create and activate a new environment 
 If you want to use original EQTransformer as ML engine:  
