@@ -669,21 +669,28 @@ class MALMI:
         return
     
         
-    def rsprocess_view(self, getMLpick=True, PLT={}):
+    def rsprocess_view(self, getMLpick={}, PLT={}):
         """
         Visualize some results.
         
         Parameters
         ----------
-        getMLpick : boolen, optional
-            whether to extract ML picks according to theretical arrivaltimes.
-            The default value is True.
+        getMLpick : dict, 
+            parameters to extract ML picks according to theretical arrivaltimes.
+            The default value is {}. None for not extracting ML picks.
+            getMLpick['maxtd_p']: time duration in second, [P_theoratical_arrt-maxtd_p, P_theoratical_arrt+maxtd_p] 
+                                  is the time range to consider possible ML picks for P-phase.
+            getMLpick['maxtd_s']: time duration in second, [S_theoratical_arrt-maxtd_s, S_theoratical_arrt+maxtd_s] 
+                                  is the time range to consider possible ML picks for S-phase.
+            getMLpick['snr_para']: dict, parameters related to SNR estimation of picks.
         PLT : dict, optional
             contains parameters to plot the seismic waveforms (overlapped with ML probabilites 
             and theoretical arrivaltimes) of each event.
             The default value is {}. If it is None, then not plotting waveforms.
             PLT['component'] : list of str, specify the seismic data components to be plotted,
                                e.g. ['Z', 'N', 'E'], ['Z', '1', '2'], ['Z', 'E'];
+            PLT['plotthrd'] : float, only plot part of characteristic function that are above 'plotthrd' value.
+                              if it is None, then plot all characteristic funtion.
         
         Returns
         -------
@@ -696,6 +703,12 @@ class MALMI:
         
         print('MALMI starts to post-process, visualize the outputted results:')
     
+        if (getMLpick is not None) and isinstance(getMLpick, dict):
+            if 'maxtd_p' not in getMLpick: getMLpick['maxtd_p'] = 1.3
+            if 'maxtd_s' not in getMLpick: getMLpick['maxtd_s'] = 1.3
+            if 'snr_para' not in getMLpick: getMLpick['snr_para'] = {}
+            if 'fband' not in getMLpick['snr_para']: getMLpick['snr_para']['fband'] = self.seismic['freqband']
+
         # obtain the data folder name of each event, each folder contain the results for a particular event
         evdir = sorted([fdname for fdname in os.listdir(self.dir_lokiout) if os.path.isdir(os.path.join(self.dir_lokiout, fdname))])
     
@@ -707,12 +720,10 @@ class MALMI:
             dir_output_ev = os.path.join(self.dir_lokiout, iefd)  # migration results folder of the current event
             
             # extract the ML picks according to theoretical arrivaltimes
-            if getMLpick:
-                snr_para = {}
-                snr_para['fband'] = self.seismic['freqband']
-                get_MLpicks_ftheart(dir_prob=dir_prob_ev, dir_io=dir_output_ev, maxtd_p=1.3, maxtd_s=1.3, 
+            if getMLpick is not None:
+                get_MLpicks_ftheart(dir_prob=dir_prob_ev, dir_io=dir_output_ev, maxtd_p=getMLpick['maxtd_p'], maxtd_s=getMLpick['maxtd_s'], 
                                     P_thrd=self.detect['P_thrd'], S_thrd=self.detect['S_thrd'], 
-                                    thephase_ftage='.phs', ofname=None, dir_seis=dir_seis_ev, snr_para=snr_para)
+                                    thephase_ftage='.phs', ofname=None, dir_seis=dir_seis_ev, snr_para=getMLpick['snr_para'])
             
             # plot waveforms overlapped with ML probabilites and theoretical arrivaltimes
             if PLT is not None:
@@ -726,10 +737,11 @@ class MALMI:
                     comp = PLT['component']
                 else:
                     comp = None
+                if 'plotthrd' not in PLT: PLT['plotthrd'] = 0.001
                 seischar_plot(dir_seis=dir_seis_ev, dir_char=dir_prob_ev, dir_output=dir_output_ev, 
                               figsize=(12, 12), comp=comp, dyy=1.8, fband=self.freqband, 
                               normv=self.MIG['probthrd'], ppower=self.MIG['ppower'], tag=None, staname=None, 
-                              arrvtt=arrvtt, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=0.001, 
+                              arrvtt=arrvtt, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=PLT['plotthrd'], 
                               linewd=1.5, problabel=False, yticks='auto', ampscale=1.0)
     
         gc.collect()
