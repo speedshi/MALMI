@@ -606,7 +606,12 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
     for sta in stations:
         if 'P' in thearrvtt[sta]:
             # P-phase theoretical arrivaltime exist
-            stream = stream_all.select(station=sta, component="P")  # get P-phase probability for the current station
+            if len(sta.split('.')==4):  # 'network.station.location.instrument'
+                stream = stream_all.select(id=sta+"P")  # get P-phase probability for the current station
+            elif len(sta.split('.')==2):  # 'network.station'
+                stream = stream_all.select(network=sta.split('.')[0], station=sta.split('.')[1], component="P")
+            else:
+                raise ValueError("Unrecoginze station identificator: {}!".format(sta))
             # fprob_P = glob.glob(os.path.join(dir_prob, sta+'*PBP*'))
             if stream.count() == 1:
                 art_start = thearrvtt[sta]['P'] - datetime.timedelta(seconds=maxtd_p)  # earliest possible P-phase arrivaltime
@@ -628,6 +633,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
                     P_snr = None
             elif stream.count() == 0:
                 # no P-phase probabilities
+                warnings.warn("No P-phase probabilities are found for station: {}!".format(sta))
                 P_picks = None
                 P_snr = None
             else:
@@ -640,7 +646,12 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
         
         if 'S' in thearrvtt[sta]:
             # S-phase theoretical arrivaltime exist
-            stream = stream_all.select(station=sta, component="S")  # get S-phase probability for the current station
+            if len(sta.split('.')==4):  # 'network.station.location.instrument'
+                stream = stream_all.select(id=sta+"S")
+            elif len(sta.split('.')==2):  # 'network.station'
+                stream = stream_all.select(network=sta.split('.')[0], station=sta.split('.')[1], component="S")  # get S-phase probability for the current station
+            else:
+                raise ValueError("Unrecoginze station identificator: {}!".format(sta))
             if stream.count() == 1:
                 art_start = thearrvtt[sta]['S'] - datetime.timedelta(seconds=maxtd_s)  # earliest possible S-phase arrivaltime
                 art_end = thearrvtt[sta]['S'] + datetime.timedelta(seconds=maxtd_s)  # latest possible S-phase arrivaltime
@@ -661,6 +672,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
                     S_snr = None
             elif stream.count() == 0:
                 # no S-phase probabilities
+                warnings.warn("No S-phase probabilities are found for station: {}!".format(sta))
                 S_picks = None
                 S_snr = None
             else:
