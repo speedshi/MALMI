@@ -565,7 +565,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
     file_thephase = glob.glob(os.path.join(dir_io, '*'+thephase_ftage+'*'))
     assert(len(file_thephase) == 1)  # should contains only one theoretical phase arrivaltime file
     thearrvtt = read_arrivaltimes(file_thephase[0])
-    stations = list(thearrvtt.keys())  # station list which have theoretical arrivaltimes
+    stations = list(thearrvtt.keys())  # station list which have theoretical arrivaltimes, should be in the format of 'network.station.location.instrument'
     
     # load probability data
     stream_all = read_seismic_fromfd(dir_prob, channels=None)
@@ -623,7 +623,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
 
                     # estimate the SNR of this pick
                     if dir_seis is not None:
-                        P_snr = estimate_snr(trace=seismic_all.select(station=sta).merge(), stime=P_picks,
+                        P_snr = estimate_snr(trace=seismic_all.select(id=sta+"*").merge(), stime=P_picks,
                                              noise_window=snr_para['noise_window_P'], signal_window=snr_para['signal_window_P'], method=snr_para['method'])
                     else:
                         P_snr = None
@@ -646,7 +646,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
         
         if 'S' in thearrvtt[sta]:
             # S-phase theoretical arrivaltime exist
-            if len(sta.split('.'))==4:  # 'network.station.location.instrument'
+            if len(sta.split('.'))==4:  
                 stream = stream_all.select(id=sta+"S")
             elif len(sta.split('.'))==2:  # 'network.station'
                 stream = stream_all.select(network=sta.split('.')[0], station=sta.split('.')[1], component="S")  # get S-phase probability for the current station
@@ -662,7 +662,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
 
                     # estimate the SNR of this pick
                     if dir_seis is not None:
-                        S_snr = estimate_snr(trace=seismic_all.select(station=sta).merge(), stime=S_picks,
+                        S_snr = estimate_snr(trace=seismic_all.select(id=sta+"*").merge(), stime=S_picks,
                                              noise_window=snr_para['noise_window_S'], signal_window=snr_para['signal_window_S'], method=snr_para['method'])
                     else:
                         S_snr = None
