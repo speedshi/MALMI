@@ -606,9 +606,9 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
     for sta in stations:
         if 'P' in thearrvtt[sta]:
             # P-phase theoretical arrivaltime exist
-            if len(sta.split('.')==4):  # 'network.station.location.instrument'
+            if len(sta.split('.'))==4:  # 'network.station.location.instrument'
                 stream = stream_all.select(id=sta+"P")  # get P-phase probability for the current station
-            elif len(sta.split('.')==2):  # 'network.station'
+            elif len(sta.split('.'))==2:  # 'network.station'
                 stream = stream_all.select(network=sta.split('.')[0], station=sta.split('.')[1], component="P")
             else:
                 raise ValueError("Unrecoginze station identificator: {}!".format(sta))
@@ -646,9 +646,9 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
         
         if 'S' in thearrvtt[sta]:
             # S-phase theoretical arrivaltime exist
-            if len(sta.split('.')==4):  # 'network.station.location.instrument'
+            if len(sta.split('.'))==4:  # 'network.station.location.instrument'
                 stream = stream_all.select(id=sta+"S")
-            elif len(sta.split('.')==2):  # 'network.station'
+            elif len(sta.split('.'))==2:  # 'network.station'
                 stream = stream_all.select(network=sta.split('.')[0], station=sta.split('.')[1], component="S")  # get S-phase probability for the current station
             else:
                 raise ValueError("Unrecoginze station identificator: {}!".format(sta))
