@@ -155,7 +155,7 @@ def seisbench_geneprob(spara):
 
 def seisbench_stream2prob(stream, model, paras):
     
-    stream.merge()
+    stream.merge(method=1, fill_value=0)  # merge data before processing, fill_value must be 0
     if stream.count()<3:
         # having only 1 or 2 component
         comps = [itr.stats.channel[-1] for itr in stream]

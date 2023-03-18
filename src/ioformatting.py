@@ -124,8 +124,8 @@ def output_seissegment(stream, dir_output, starttime, endtime, freqband=None):
                     stdata.detrend('simple')
                     stdata.filter('bandpass', freqmin=freqband[0], freqmax=freqband[1], corners=2, zerophase=True)
                     stdata.taper(max_percentage=0.001, type='cosine', max_length=1)  # to avoid anormaly at bounday
+                stdata.merge(method=1, fill_value=0)
                 stdata.trim(UTCDateTime(starttime), UTCDateTime(endtime), pad=False, fill_value=0)
-                stdata.merge(fill_value=0)
                 if stdata.count() > 0:
                     # make sure after trim there are data existing
                     assert(stdata.count()==1)  # should contain only one trace
@@ -136,7 +136,6 @@ def output_seissegment(stream, dir_output, starttime, endtime, freqband=None):
                 
                 del stdata
     
-    # del stream
     return
 
 
