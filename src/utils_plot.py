@@ -916,7 +916,7 @@ def plot_basemap(region, sta_inv=None, mkregion=None, fname="./basemap.png", plo
     if sta_inv:
         for net in sta_inv:
             for sta in net:
-                fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="blue", pen="0.35p,black")  
+                fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", fill="blue", pen="0.35p,black")  
                 if plot_stationname:
                     fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', offset='0/-0.15c')
     
@@ -988,7 +988,7 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depthrg=None, cmap="p
     # plot stations
     for net in sta_inv:
         for sta in net:
-            fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="black", pen="0.35p,black") 
+            fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", fill="black", pen="0.35p,black") 
             if plot_stationname:
                 fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', D='0/-0.15c')
     
@@ -1009,9 +1009,9 @@ def plot_evmap_depth(region, eq_longi, eq_latit, eq_depth, depthrg=None, cmap="p
     else:
         pygmt.makecpt(cmap=cmap, series=[eq_depth.min(), eq_depth.max()])
     if isinstance(eq_size, float):
-        fig.plot(x=eq_longi, y=eq_latit, color=eq_depth, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black", transparency=20)  # , no_clip="r"
+        fig.plot(x=eq_longi, y=eq_latit, fill=eq_depth, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black", transparency=20)  # , no_clip="r"
     else:
-        fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_depth, cmap=True, style="cc", pen="0.01p,black", transparency=10)  # , no_clip="r"
+        fig.plot(x=eq_longi, y=eq_latit, size=eq_size, fill=eq_depth, cmap=True, style="cc", pen="0.01p,black", transparency=10)  # , no_clip="r"
     fig.colorbar(frame='af+l"Depth (km)"')
     
     # show how many events in total
@@ -1081,7 +1081,7 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     # plot stations
     for net in sta_inv:
         for sta in net:
-            fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="black", pen="0.35p,black") 
+            fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", fill="black", pen="0.35p,black") 
             if plot_stationname:
                 fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', D='0/-0.15c')
     
@@ -1096,9 +1096,9 @@ def plot_evmap_otime(region, eq_longi, eq_latit, eq_times, time_ref=None, cmap="
     eq_tref = mdates.date2num(eq_times) - mdates.date2num(time_ref)
     pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()])
     if isinstance(eq_size, float):
-        fig.plot(x=eq_longi, y=eq_latit, color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black", transparency=20)  # , no_clip="r" 
+        fig.plot(x=eq_longi, y=eq_latit, fill=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black", transparency=20)  # , no_clip="r" 
     else:
-        fig.plot(x=eq_longi, y=eq_latit, size=eq_size, color=eq_tref, cmap=True, style="cc", transparency=10, pen="0.01p,black")  # , no_clip="r"
+        fig.plot(x=eq_longi, y=eq_latit, size=eq_size, fill=eq_tref, cmap=True, style="cc", transparency=10, pen="0.01p,black")  # , no_clip="r"
     fig.colorbar(frame='af+l"Days relative to {}"'.format(time_ref))
     
     # show how many events in total
