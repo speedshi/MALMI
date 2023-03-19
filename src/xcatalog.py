@@ -980,6 +980,7 @@ def catalog2dict(catalog):
         catalog_dict['longitude']: np.array of float, event longitude in degree of each catalog event;
         catalog_dict['depth_km']: np.array of float, event depth in km (relative to the sea-level, down->positive) of each catalog event;
         catalog_dict['magnitude']: np.array of float, event magnitude of each catalog event;
+        catalog['magnitude_type']: np.array of str, event magnitude type.
     """
     
     catalog_dict= {}
@@ -989,6 +990,7 @@ def catalog2dict(catalog):
     catalog_dict['longitude'] = []
     catalog_dict['depth_km'] = []
     catalog_dict['magnitude'] = []
+    catalog['magnitude_type'] = []
     
     for ievent in catalog:
         catalog_dict['id'].append(ievent.resource_id.id)
@@ -1009,6 +1011,7 @@ def catalog2dict(catalog):
             ievent_magnitude = ievent.magnitudes[0]
     
         catalog_dict['magnitude'].append(ievent_magnitude.mag)
+        catalog['magnitude_type'].append(ievent_magnitude.magnitude_type)
     
     # convert to numpy array
     for ikey in list(catalog_dict.keys()):
