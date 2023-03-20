@@ -256,20 +256,21 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                     raise ValueError('At least P- or S-pick should exist! Current is :[{}].'.format(arrvt[sta]))
 
                 # extract amplitude
-                stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
+                stream_sta = stream.select(id="*"+sta+"*").slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
                 if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
                     # should have 3 component data and each component share the same length
                     ev_stalist.append(sta)
                     ev_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
                                                     stream_sta[1].data*stream_sta[1].data + 
                                                     stream_sta[2].data*stream_sta[2].data)))
-                    
                     staindx = (stations['station'] == sta)
                     assert(sum(staindx)==1)
                     hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
                                                             catalog['latitude'][iev], catalog['longitude'][iev])
                     vdist_meter = catalog['depth_km'][iev]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
                     ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
+                elif stream_sta.count()>3:
+                    raise ValueError("Data {} have more than 3 component! Not valid!".format(print(stream_sta)))
             
             # order the station amplitudes accordingly
             ev_stalist = np.array(ev_stalist)
@@ -339,20 +340,21 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                     else:
                         raise ValueError('At least P- or S-pick should exist! Current is :[{}].'.format(arrvt_ref[sta]))
 
-                    stream_sta = stream.select(station=sta).slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
+                    stream_sta = stream.select(id="*"+sta+"*").slice(starttime=UTCDateTime(tt1), endtime=UTCDateTime(tt2))
                     if (stream_sta.count()==3) and (len(stream_sta[0].data)==len(stream_sta[1].data)==len(stream_sta[2].data)):
                         # should have 3 component data and each component share the same length
                         evref_stalist.append(sta)
                         evref_amplitude.append(max(np.sqrt(stream_sta[0].data*stream_sta[0].data + 
                                                            stream_sta[1].data*stream_sta[1].data + 
                                                            stream_sta[2].data*stream_sta[2].data)))
-                        
                         staindx = (stations['station'] == sta)
                         assert(sum(staindx)==1)
                         hdist_meter, _, _ = gps2dist_azimuth(stations['latitude'][staindx][0], stations['longitude'][staindx][0], 
                                                                 event_match_latitude[ekk], event_match_longitude[ekk])
                         vdist_meter = event_match_depth_km[ekk]*1000.0 - (-1.0*stations['elevation'][staindx][0])  # note the difference between elevation and depth
-                        evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))             
+                        evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))    
+                    elif stream_sta.count()>3:
+                        raise ValueError("Data {} have more than 3 component! Not valid.".format(print(stream_sta)))         
                 
                 del stream, stream_sta, arrvt_ref
                 
