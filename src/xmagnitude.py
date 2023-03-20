@@ -109,6 +109,7 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
     
     seismic_foldername = 'seis_evstream'  # the foldername of seismic data segment
     phase_ftage = 'MLpicks'  # the filename tage for picking or arrivaltime file
+    resampling_rate = 1000  # Hz
     
     if mgcalpara is None:
         mgcalpara = {}
@@ -228,8 +229,9 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                 stream.detrend('demean')
                 stream.detrend('simple')
                 stream.filter('bandpass', freqmin=mgcalpara['freq'][0], freqmax=mgcalpara['freq'][1], zerophase=True)
-            stream.merge()
-            stream.interpolate(sampling_rate=1000)  # up-sampling to avoid getting data of different size when slicing data
+            stream.merge(method=1, fill_value=0)
+            if stream[0].stats.sampling_rate < resampling_rate:
+                stream.interpolate(sampling_rate=resampling_rate)  # up-sampling to avoid getting data of different size when slicing data
             
             # get the amplitude of certain phase at available stations
             ev_stalist = []  # station names
@@ -311,8 +313,9 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                     stream.detrend('demean')
                     stream.detrend('simple')
                     stream.filter('bandpass', freqmin=mgcalpara['freq'][0], freqmax=mgcalpara['freq'][1], zerophase=True)
-                stream.merge()
-                stream.interpolate(sampling_rate=1000)  # up-sampling to avoide getting data of different size when slicing data
+                stream.merge(method=1, fill_value=0)
+                if stream[0].stats.sampling_rate < resampling_rate:
+                    stream.interpolate(sampling_rate=resampling_rate)  # up-sampling to avoide getting data of different size when slicing data
                 
                 # get the amplitude of certain phase at available stations
                 evref_stalist = []  # station names for the reference event
