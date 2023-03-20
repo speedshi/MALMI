@@ -335,12 +335,12 @@ def read_stainv_csv(file_stainv):
             if len(row['component']) != 3:
                 raise ValueError("Must input three components! Current is {}!".format(row['component']))
 
-            if 'location' in row.columns:
+            if ('location' in row) and (row['location'] is not None) and (not np.isnan(row['location'])):
                 jlocation = row['location']
             else:
                 jlocation = ""  # default location code
 
-            if 'depth' in row.columns:
+            if 'depth' in row:
                 jdepth = row['depth']
             else:
                 jdepth = 0  # default depth 

@@ -54,7 +54,8 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
     stations : dict
         contains station information.
         required keys:
-            stations['station'] : the station name;
+            stations['station'] : the station name. Note must keep consistent will station identification format in the picking file,
+                                  can be "station", "network.station.location.instrument", etc.
             stations['latitude'] : latitude in degree;
             stations['longitude'] : longitude in degree;
             stations['elevation'] : evevation in meter;
