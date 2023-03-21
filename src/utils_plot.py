@@ -73,8 +73,10 @@ def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magn
         size = dnormlz(iydata, 6, 120)
         
         itime = mdates.date2num(itime)
-        time_min = np.floor(np.amin(itime))  # the earliest time
-        time_max = np.ceil(np.amax(itime))  # the lastest time
+        # time_min = np.floor(np.amin(itime))  # the earliest time
+        # time_max = np.ceil(np.amax(itime))  # the lastest time
+        time_min = np.amin(itime)  # the earliest time
+        time_max = np.amax(itime)  # the lastest time
         
         # plot detection property vs detection time
         ax1.scatter(itime, iydata, size, c=pointsl[ic], marker='o', alpha=0.5, linewidths=0)  # c=depth, cmap='Reds_r', vmin=0, vmax=10
@@ -102,11 +104,12 @@ def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magn
         ic += 1
     
     ax1.xaxis_date()
-    ax1.tick_params(axis='both', labelsize=16)
+    ax1.tick_params(axis='y', labelsize=16)
+    ax1.tick_params(axis='x', labelsize=12)
     ax1.set_ylabel(yname, color='k', fontsize=16, fontweight ="bold")
     ax1.autoscale(enable=True, axis='x', tight=True)
-    ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
-    ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
+    # ax1.xaxis.set_major_locator(ticker.MultipleLocator(10)) # forced the horizontal major ticks to appear by steps of x units
+    # ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))  # forced the horizontal minor ticks to appear by steps of 1 units
     ax2.set_ylabel('Cumulative num.', color='b', fontsize=16, fontweight ="bold")
     ax2.tick_params(axis='y', colors='b', which='major', labelsize=16)
         
