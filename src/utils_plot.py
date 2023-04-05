@@ -581,7 +581,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
         fig.clear()
         plt.close(fig)
     
-    del stream
+    del stream, charfs
     
     return
 

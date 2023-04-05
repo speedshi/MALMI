@@ -73,7 +73,8 @@ def estimate_snr(trace, stime, noise_window, signal_window, method='maxamp'):
             snr = std_signal / std_noise
         else:
             raise ValueError("Unrecognized input for method: {method}.")
-
+        
+        del noises, signals
     return snr
 
 

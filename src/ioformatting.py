@@ -698,6 +698,9 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
             pass
 
     ofile.close()
+    del stream_all
+    if dir_seis is not None:
+        del seismic_all
     return
 
 
