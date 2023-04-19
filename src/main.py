@@ -1139,7 +1139,8 @@ class MALMI:
         else:
             raise ValueError('Wrong input for MAGNI[\'catalog\']!')
         
-        RELOC['stainv'] = self.stainv
+        if 'stainv' not in RELOC:
+            RELOC['stainv'] = self.stainv
 
         if 'channel_codes' not in RELOC:
             RELOC['channel_codes'] = ['HHE', 'HHN', 'HHZ']
