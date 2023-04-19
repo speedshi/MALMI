@@ -383,8 +383,6 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
             istainv = stainv.select(station=sta)  # get the current station inventory 
             assert(len(istainv) == 1)
             assert(istainv[0][0].code == sta)
-            lowerUncertainty = 0.2
-            upperUncertainty = 0.2
             networkCode = istainv.networks[0].code
             stationCode = istainv.networks[0].stations[0].code
             if istainv.networks[0].stations[0].channels:
@@ -395,76 +393,73 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
             else:
                 locationCode = ''
                 channel_codes = station_channel_codes
+            
+            lowerUncertainty = 0.2
+            upperUncertainty = 0.2
             evalMode = 'automatic'
             
             if 'P' in arrvtt[sta]:
-                # P arrivaltime
+                # has P arrivaltime/picktime
                 isotime = arrvtt[sta]['P'].strftime(datetime_format)
                 PHStype = 'P'
                 
+                # determine the channel code
+                channelCode = None
                 schannel = [iich for iich in channel_codes if 'Z' in iich]
                 if len(schannel)==1:
                     channelCode = schannel[0]
+                else:
+                    for iich in channel_codes:
+                        if '3' in iich:
+                            channelCode = iich 
+                            break
+                        elif '2' in iich:
+                            channelCode = iich                     
+                            break
+                        elif '1' in iich:
+                            channelCode = iich
+                            break
+                
+                if channelCode is not None:
+                    phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype, 
+                                            networkCode, stationCode, locationCode, channelCode, evalMode])
+                    phasef.flush()
+                else:
+                    raise ValueError('Cannot determine the channel code for station: {} for P-pick!'.format(sta))
+                
+            if 'S' in arrvtt[sta]:
+                # has S arrivaltime/picktime
+                isotime = arrvtt[sta]['S'].strftime(datetime_format)
+                PHStype = 'S'
+                
+                # determine the channel code
+                channelCode = None
+                for iich in channel_codes:
+                    if 'N' in iich:
+                        channelCode = iich
+                        break
+                    elif 'E' in iich:
+                        channelCode = iich
+                        break
+                    elif '1' in iich:
+                        channelCode = iich
+                        break
+                    elif '2' in iich:
+                        channelCode = iich
+                        break
+                    elif '3' in iich:
+                        channelCode = iich
+                        break
+                    elif 'T' in iich:
+                        channelCode = iich                       
+                        break
+                
+                if channelCode is not None:
                     phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
                                             networkCode, stationCode, locationCode, channelCode, evalMode])
                     phasef.flush()
                 else:
-                    for iich in channel_codes:
-                        if '3' in iich:
-                            channelCode = iich
-                            phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                    networkCode, stationCode, locationCode, channelCode, evalMode])
-                            phasef.flush()
-                            break
-                        elif '2' in iich:
-                            channelCode = iich
-                            phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                    networkCode, stationCode, locationCode, channelCode, evalMode])
-                            phasef.flush()
-                            break
-                        elif '1' in iich:
-                            channelCode = iich
-                            phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                    networkCode, stationCode, locationCode, channelCode, evalMode])
-                            phasef.flush()
-                            break
-                
-            if 'S' in arrvtt[sta]:
-                # S arrivaltime
-                isotime = arrvtt[sta]['S'].strftime(datetime_format)
-                PHStype = 'S'
-                
-                for iich in channel_codes:
-                    if 'N' in iich:
-                        channelCode = iich
-                        phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                networkCode, stationCode, locationCode, channelCode, evalMode])
-                        phasef.flush()
-                        break
-                    elif 'E' in iich:
-                        channelCode = iich
-                        phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                networkCode, stationCode, locationCode, channelCode, evalMode])
-                        phasef.flush()
-                        break
-                    elif '1' in iich:
-                        channelCode = iich
-                        phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                networkCode, stationCode, locationCode, channelCode, evalMode])
-                        phasef.flush()
-                        break
-                    elif '2' in iich:
-                        channelCode = iich
-                        phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                networkCode, stationCode, locationCode, channelCode, evalMode])
-                        phasef.flush()
-                        break
-                    elif '3' in iich:
-                        channelCode = iich
-                        phasef_writer.writerow([eventId, isotime, lowerUncertainty, upperUncertainty, PHStype,
-                                                networkCode, stationCode, locationCode, channelCode, evalMode])
-                        phasef.flush()
-                        break
+                    raise ValueError('Cannot determine the channel code for station: {} for S-pick!'.format(sta))
 
     eventf.close()
     phasef.close()

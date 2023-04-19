@@ -586,7 +586,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
     return
 
 
-def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap='RdBu_r', dir_output=None, figfmt='png', normrg=None, plotstyle='contourf'):
+def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap='RdBu_r', dir_output=None, figfmt='png', normrg=None, plotstyle='contourf', ctlevel=20, pdrange=None):
     """
     This function is to visualize the migration volume, plot profiles along 
     X-, Y- and Z-directions, and display the isosurface along contour-value of 
@@ -616,6 +616,17 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     plotstyle : str, optional. The default is 'contourf'.
         determine the plotting style of the 2D profile plot.
         Can be: 'contourf', 'contour', 'pcolormesh'.
+    ctlevel : int. The default is 20.
+        The contour level. Only valid for 'contourf' or 'contour' plot;
+    pdrange : float or list of float. The default is None.
+        To specify the plotting data range, e.g. highlight the location uncertainties.
+        E.g. pdrange=0.75 will only plot data that having stacking energy larger than 0.75*maximum_value;
+        If pdrange is float, values below pdrange will be white and transparant to high light the uncertainty range;
+        If pdrange if a list of float current can use two number, such as [0.75, 0.9], values below 0.75*maximum_value
+        will be white and transparant; values between 0.75*maximum_value and 0.9*maximum_value will be yellow; and
+        values between 0.9*maximum_value and 1*maximum_value will be red.
+        If pdrange=None, plot as usual.  
+        Only valid for 'contourf' or 'contour' plot;
     
     Returns
     -------
@@ -627,10 +638,14 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     from mayavi import mlab
     from skimage.measure import marching_cubes
     from mpl_toolkits.mplot3d import Axes3D
+    import matplotlib.colors as mcolors
     
     # set default output directory
     if dir_output is None:
-        dir_output = ''
+        if file_corrmatrix.split('/')[0] == '':
+            dir_output = '/'
+        else:
+            dir_output = ''
         for ifd in file_corrmatrix.split('/')[:-1]:
             dir_output = os.path.join(dir_output, ifd)
     
@@ -641,13 +656,29 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     else:
         # input are colormaps
         cmap = colormap
-    
+
     # load migration volume
     corrmatrix = np.load(file_corrmatrix)
     
+    if isinstance(pdrange, (float,int)):
+        # Define custom colormap with white or transparent color for values lower than a threshold
+        clevers = np.linspace(0, 1, ctlevel)
+        mycolors = cmap(clevers)
+        mycolors[clevers < pdrange] = (1, 1, 1, 0)  # set color to white (1,1,1) with alpha 0 for transparency, below the threshold value
+    elif isinstance(pdrange, list):
+        assert(len(pdrange)==2)
+        # Define custom levels and colors
+        icolors = ['white', 'yellow', 'red']
+        mycmap = mcolors.ListedColormap(icolors)
+    elif pdrange is None:
+        pass
+    else:
+        raise ValueError('Unrecognized input for pdrange [{}]!'.format(pdrange))
+
     # load migration area coordinate info
     tobj = traveltimes.Traveltimes(dir_tt, hdr_filename)
     
+
     # obtain the maximum projection along one dimension: XY
     nx, ny, nz = np.shape(corrmatrix)
     CXY = np.zeros([ny, nx])
@@ -657,7 +688,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     
     if normrg is not None:
         CXY = dnormlz(CXY, n1=normrg[0], n2=normrg[1], axis=None)
-    
+
     fig, ax = plt.subplots(dpi=600, subplot_kw={"projection": "3d"})  
     XX, YY = np.meshgrid(tobj.x, tobj.y)      
     surf = ax.plot_surface(XX, YY, CXY, rcount=200, ccount=200, cmap=cmap,
@@ -688,11 +719,18 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     fig = plt.figure(dpi=600)
     fig.suptitle('Migration profile East-North', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     ax = fig.gca()
-    if plotstyle == 'contourf':
-        cs = plt.contourf(tobj.x, tobj.y, CXY, 20, cmap=cmap)
-    elif plotstyle == 'contour':
-        cs = plt.contourf(tobj.x, tobj.y, CXY, 10, cmap=cmap)
-        plt.contour(tobj.x, tobj.y, CXY, 10, colors='black', linewidths=1.0)
+    if (plotstyle == 'contourf') or (plotstyle == 'contour'):
+        if isinstance(pdrange, (float,int)):
+            cs = plt.contourf(tobj.x, tobj.y, CXY, ctlevel, colors=mycolors)
+        elif isinstance(pdrange, list):
+            v_max = np.nanmax(CXY, axis=None)
+            mvalues = [0, pdrange[0]*v_max, pdrange[1]*v_max, 1*v_max]  # define levels
+            mynorm = mcolors.BoundaryNorm(mvalues, mycmap.N)
+            cs = plt.contourf(tobj.x, tobj.y, CXY, ctlevel, cmap=mycmap, norm=mynorm)
+        else:
+            cs = plt.contourf(tobj.x, tobj.y, CXY, ctlevel, cmap=cmap)
+        if plotstyle == 'contour':
+            plt.contour(tobj.x, tobj.y, CXY, ctlevel, colors='black', linewidths=1.0)
     elif plotstyle == 'pcolormesh':
         cs = plt.pcolormesh(tobj.x, tobj.y, CXY, cmap=cmap, shading='auto')
     ax.tick_params(axis='both', labelsize=16)
@@ -748,11 +786,18 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     fig = plt.figure(dpi=600)
     fig.suptitle('Migration profile East-Depth', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     ax = fig.gca()
-    if plotstyle == 'contourf':
-        cs = plt.contourf(tobj.x, tobj.z, CXZ, 20, cmap=cmap)
-    elif plotstyle == 'contour':
-        cs = plt.contourf(tobj.x, tobj.z, CXZ, 10, cmap=cmap)
-        plt.contour(tobj.x, tobj.z, CXZ, 10, colors='black', linewidths=1.0)
+    if (plotstyle == 'contourf') or (plotstyle == 'contour'):
+        if isinstance(pdrange, (float,int)):
+            cs = plt.contourf(tobj.x, tobj.z, CXZ, ctlevel, colors=mycolors)
+        elif isinstance(pdrange, list):
+            v_max = np.nanmax(CXZ, axis=None)
+            mvalues = [0, pdrange[0]*v_max, pdrange[1]*v_max, 1*v_max]  # define levels
+            mynorm = mcolors.BoundaryNorm(mvalues, mycmap.N)
+            cs = plt.contourf(tobj.x, tobj.z, CXZ, ctlevel, cmap=mycmap, norm=mynorm)
+        else:
+            cs = plt.contourf(tobj.x, tobj.z, CXZ, ctlevel, cmap=cmap)
+        if plotstyle == 'contour':
+            plt.contour(tobj.x, tobj.z, CXZ, ctlevel, colors='black', linewidths=1.0)
     elif plotstyle == 'pcolormesh':
         cs = plt.pcolormesh(tobj.x, tobj.z, CXZ, cmap=cmap, shading='auto')
     ax.tick_params(axis='both', labelsize=16)
@@ -807,11 +852,18 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     fig = plt.figure(dpi=600)
     fig.suptitle('Migration profile North-Depth', fontname='Helvetica', fontsize=16)  # , fontweight='bold'
     ax = fig.gca()
-    if plotstyle == 'contourf':
-        cs = plt.contourf(tobj.y, tobj.z, CYZ, 20, cmap=cmap)
-    elif plotstyle == 'contour':
-        cs = plt.contourf(tobj.y, tobj.z, CYZ, 10, cmap=cmap)
-        plt.contour(tobj.y, tobj.z, CYZ, 10, colors='black', linewidths=1.0)
+    if (plotstyle == 'contourf') or (plotstyle == 'contour'):
+        if isinstance(pdrange, (float,int)):
+            cs = plt.contourf(tobj.y, tobj.z, CYZ, ctlevel, colors=mycolors)
+        elif isinstance(pdrange, list):
+            v_max = np.nanmax(CYZ, axis=None)
+            mvalues = [0, pdrange[0]*v_max, pdrange[1]*v_max, 1*v_max]  # define levels
+            mynorm = mcolors.BoundaryNorm(mvalues, mycmap.N)
+            cs = plt.contourf(tobj.y, tobj.z, CYZ, ctlevel, cmap=mycmap, norm=mynorm)
+        else:
+            cs = plt.contourf(tobj.y, tobj.z, CYZ, ctlevel, cmap=cmap)
+        if plotstyle == 'contour':
+            plt.contour(tobj.y, tobj.z, CYZ, ctlevel, colors='black', linewidths=1.0)
     elif plotstyle == 'pcolormesh':
         cs = plt.pcolormesh(tobj.y, tobj.z, CYZ, cmap=cmap, shading='auto')
     ax.tick_params(axis='both', labelsize=16)
@@ -829,14 +881,21 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     plt.close(fig)
     
     # plot 3D isosurface of migration volume
+    if isinstance(pdrange, list):
+        assert(len(pdrange)==2)
+        ict1 = pdrange[0]
+        ict2 = pdrange[1]
+    else:
+        ict1 = 0.5
+        ict2 = 0.8
     mlab.options.offscreen = True
     cmax = np.max(corrmatrix)
     cmin = np.min(corrmatrix)
     fig = mlab.figure(size=(2000, 2000))
     src = mlab.pipeline.scalar_field(corrmatrix)
     mlab.outline()
-    mlab.pipeline.iso_surface(src, contours=[cmin + 0.5*(cmax-cmin), ], opacity=0.3, figure=fig)
-    mlab.pipeline.iso_surface(src, contours=[cmin + 0.8*(cmax-cmin), ], figure=fig)
+    mlab.pipeline.iso_surface(src, contours=[cmin + ict1*(cmax-cmin), ], opacity=0.3, figure=fig)
+    mlab.pipeline.iso_surface(src, contours=[cmin + ict2*(cmax-cmin), ], figure=fig)
     #mlab.pipeline.volume(src, vmin=0.3*cmax, vmax=0.8*cmax)
     # plane_orientation = 'z_axes'
     # cut = mlab.pipeline.scalar_cut_plane(src.children[0], plane_orientation=plane_orientation)
@@ -848,7 +907,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     mlab.savefig(fname, size=(2000,2000))
     
     # plot 3D isosurface of migration volume
-    iso_val = cmin + 0.8*(cmax-cmin)
+    iso_val = cmin + ict2*(cmax-cmin)
     verts, faces, _, _ = marching_cubes(corrmatrix, iso_val, spacing=(0.01, 0.01, 0.01))  # Use marching cubes to obtain the surface mesh
     fig = plt.figure(dpi=600, figsize=(10, 10))
     ax = fig.add_subplot(111, projection='3d')
