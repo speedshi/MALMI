@@ -402,7 +402,8 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
             else:
                 locationCode = ''
                 channel_codes = station_channel_codes
-            
+            channel_codes = list(set(channel_codes))  # no duplicate channels
+
             lowerUncertainty = 0.2
             upperUncertainty = 0.2
             evalMode = 'automatic'
