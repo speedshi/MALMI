@@ -1140,7 +1140,18 @@ class MALMI:
             raise ValueError('Wrong input for MAGNI[\'catalog\']!')
         
         if 'stainv' not in RELOC:
-            RELOC['stainv'] = self.stainv
+            # the default station inventory
+            RELOC['stainv'] = self.stainv  
+        else:
+            # user specific station inventory
+            if isinstance(RELOC['stainv'], str):
+                # input is a station inventory filename
+                # need to load it
+                RELOC['stainv'] = load_station(RELOC['stainv'], outformat='obspy')
+            elif isinstance(RELOC['stainv'], obspy.core.inventory.inventory.Inventory):
+                pass
+            else:
+                raise ValueError('Unrecognized input for inventory file: {}!'.format(RELOC['stainv']))
 
         if 'channel_codes' not in RELOC:
             RELOC['channel_codes'] = ['HHE', 'HHN', 'HHZ']
