@@ -389,6 +389,7 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
         for sta in stations_art:
             # loop over the arrivaltimes at each station and output
             istainv = stainv.select(station=sta)  # get the current station inventory 
+            print(istainv)
             assert(len(istainv)==1)  # one network
             assert(len(istainv[0])==1)  # one station
             assert(istainv[0][0].code == sta)
@@ -399,7 +400,7 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
                 channel_codes = []
                 for icha in istainv.networks[0].stations[0].channels:
                     assert(icha.location_code == locationCode)
-                    channel_codes.append(icha.code)
+                    channel_codes.append(icha.code)  # channel code
             else:
                 locationCode = ''
                 channel_codes = station_channel_codes
