@@ -434,6 +434,7 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
                                             networkCode, stationCode, locationCode, channelCode, evalMode])
                     phasef.flush()
                 else:
+                    print(istainv)
                     raise ValueError('Cannot determine the channel code for station: {} for P-pick!'.format(sta))
                 
             if 'S' in arrvtt[sta]:
@@ -468,6 +469,7 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
                                             networkCode, stationCode, locationCode, channelCode, evalMode])
                     phasef.flush()
                 else:
+                    print(istainv)
                     raise ValueError('Cannot determine the channel code for station: {} for S-pick!'.format(sta))
 
     eventf.close()
