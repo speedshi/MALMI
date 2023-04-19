@@ -373,10 +373,18 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
         eventf_writer.writerow([eventId, isotime, latitude, longitude, depth, magnitude, rms])
         eventf.flush()
         
-        # load phase information and output
-        file_phase = glob.glob(os.path.join(catalog['dir'][iev], '*'+phaseart_ftage+'*'))
-        assert(len(file_phase) == 1)
-        arrvtt = read_arrivaltimes(file_phase[0])
+        # load phase information
+        if 'pick' in catalog:
+            # have picking information in the input catalog
+            # directly use them
+            arrvtt = catalog['pick'][iev]
+        else:
+            # no picking information in the input catalog
+            # load from the dataset
+            file_phase = glob.glob(os.path.join(catalog['dir'][iev], '*'+phaseart_ftage+'*'))
+            assert(len(file_phase) == 1)
+            arrvtt = read_arrivaltimes(file_phase[0])
+        
         stations_art = list(arrvtt.keys())  # station names which have arrivaltimes
         for sta in stations_art:
             # loop over the arrivaltimes at each station and output
