@@ -46,11 +46,11 @@ def load_sbmodel(ML_model, pre_trained, rescaling_rate=None, overlap_ratio=None)
 
     # specify a ML model
     if (ML_model.upper() == 'EQT') or (ML_model.upper() == 'EQTRANSFORMER'):
-        sbmodel = sbm.EQTransformer.from_pretrained(pre_trained)  # , update=True, force=True, wait_for_file=True
+        sbmodel = sbm.EQTransformer.from_pretrained(pre_trained, version_str="latest", update=True)  # , update=True, force=True, wait_for_file=True
     elif (ML_model.upper() == 'PNT') or (ML_model.upper() == 'PHASENET'):
-        sbmodel = sbm.PhaseNet.from_pretrained(pre_trained)  # , update=True, force=True, wait_for_file=True
+        sbmodel = sbm.PhaseNet.from_pretrained(pre_trained, version_str="latest", update=True)  # , update=True, force=True, wait_for_file=True
     elif (ML_model.upper() == 'GPD'):
-        sbmodel = sbm.GPD.from_pretrained(pre_trained)  # , update=True, force=True, wait_for_file=True
+        sbmodel = sbm.GPD.from_pretrained(pre_trained, version_str="latest", update=True)  # , update=True, force=True, wait_for_file=True
     else:
         raise ValueError('Input SeisBench model name: {} unrecognized!'.format(ML_model))
 
