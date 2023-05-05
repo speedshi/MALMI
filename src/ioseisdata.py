@@ -242,7 +242,7 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code=["HH",
                         elif (location_code is None) or ((len(location_code)==1) and (location_code[0] == '*')):
                             # no specifying location code list, use the first location code it can find
                             for dir_icha in dir_chalevel:
-                                dir_datelevel = os.path.join(dir_icha, '*.{:03d}'.format(tday))
+                                dir_datelevel = os.path.join(dir_icha, '*.{:03d}*'.format(tday))
                                 sdatafile = glob.glob(dir_datelevel)
                                 if len(sdatafile) > 0:
                                     ilocation = sdatafile[0].split(os.sep)[-1].split('.')[2]
@@ -251,7 +251,7 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code=["HH",
                             # search avaliable location codes from the input location code preferece list
                             data_location_codes = []
                             for dir_icha in dir_chalevel:
-                                dir_datelevel = os.path.join(dir_icha, '*.{:03d}'.format(tday))
+                                dir_datelevel = os.path.join(dir_icha, '*.{:03d}*'.format(tday))
                                 sdatafile = glob.glob(dir_datelevel)
                                 for ifile in sdatafile:
                                     data_location_codes.append(ifile.split(os.sep)[-1].split('.')[2])
@@ -272,11 +272,11 @@ def format_SDS(seisdate, stainv, dir_seismic, dir_output, instrument_code=["HH",
                         if ilocation is not None:
                             for dir_icha in dir_chalevel:
                                 # loop over each channel folder to load data of the current station
-                                dir_datelevel = os.path.join(dir_icha, '*.{}.*.{:03d}'.format(ilocation, tday))  # date and location level, the final filename, use day of the year to identify data
+                                dir_datelevel = os.path.join(dir_icha, '*.{}.*.{:03d}*'.format(ilocation, tday))  # date and location level, the final filename, use day of the year to identify data
                                 sdatafile = glob.glob(dir_datelevel)  # final seismic data filename for the specified station, component and date
                                 
                                 if len(sdatafile)==0:
-                                    print("No data found for {}! Pass!".format(dir_datelevel))
+                                    raise ValueError("No data found for {}! This should not happen!".format(dir_datelevel))
                                 elif len(sdatafile)==1:
                                     print('Load data: {}.'.format(sdatafile[0]))
                                     stream += obspy.read(sdatafile[0])
