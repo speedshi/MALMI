@@ -429,10 +429,10 @@ class MALMI:
         ML['overlap'] : float, default: 0.5
             overlap rate of time window for generating probabilities. 
             e.g. 0.6 means 60% of time window are overlapped.
-        ML['number_of_cpus'] : int, default: 2
+        ML['parallelism'] : int or None, default: 2
             Number of CPUs used for the parallel preprocessing and feeding of 
             data for prediction.
-            If no GPU to use, this value should not be set too large, 
+            For original EQT ML engine, if no GPU to use, this value should not be set too large, 
             otherwise prediction tends to be very slow.
             I have tested using a number of 96 on a server with only cpus avaliable,
             this makes the prediction process 20 times slower than using just 1 cpus.
@@ -453,8 +453,8 @@ class MALMI:
         if 'overlap' not in ML:
             ML['overlap'] = 0.5
         
-        if 'number_of_cpus' not in ML:
-            ML['number_of_cpus'] = 2
+        if 'parallelism' not in ML:
+            ML['parallelism'] = 2
         #----------------------------------------------------------------------
         
         print('MALMI starts to generate event and phase probabilities using ML models:')
@@ -464,6 +464,8 @@ class MALMI:
             from EQTransformer.utils.hdf5_maker import preprocessor
             from EQTransformer.utils.plot import plot_data_chart
             from EQTransformer.core.predictor import predictor
+            
+            if ML['parallelism'] == None: ML['parallelism'] = 2
             
             if self.seismic['datastru'] == 'EVS':
                 # input are event segments
@@ -502,7 +504,7 @@ class MALMI:
                           output_probabilities=True, estimate_uncertainty=False,
                           detection_threshold=min(self.detect['P_thrd'], self.detect['S_thrd']), 
                           P_threshold=self.detect['P_thrd'], S_threshold=self.detect['S_thrd'], 
-                          keepPS=False, number_of_cpus=ML['number_of_cpus'],
+                          keepPS=False, number_of_cpus=ML['parallelism'],
                           number_of_plots=100, plot_mode='time_frequency')
                 gc.collect()
             
@@ -528,7 +530,7 @@ class MALMI:
                 predictor(input_dir=self.dir_hdf5, input_model=ML['model'], output_dir=self.dir_prob,
                           output_probabilities=True, estimate_uncertainty=False,
                           detection_threshold=min(self.detect['P_thrd'], self.detect['S_thrd']), P_threshold=self.detect['P_thrd'], S_threshold=self.detect['S_thrd'], 
-                          keepPS=False, number_of_cpus=ML['number_of_cpus'],
+                          keepPS=False, number_of_cpus=ML['parallelism'],
                           number_of_plots=100, plot_mode='time_frequency')
                 gc.collect()
         elif ML['engine'].lower() == 'seisbench':
@@ -541,6 +543,7 @@ class MALMI:
             sbppara['dir_out'] = self.dir_prob
             sbppara['rescaling_rate'] = ML['rescaling_rate']
             sbppara['overlap'] = ML['overlap']
+            sbppara['parallelism'] = ML['parallelism']
             if self.seismic['datastru'] == 'EVS':
                 sbppara['evsegments'] = True
             else:

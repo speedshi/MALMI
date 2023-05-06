@@ -94,6 +94,10 @@ def seisbench_geneprob(spara):
         spara['S_thrd']: float, probability threshold for detecting S-phases;
         spara['rescaling_rate']: float, rescaling rate; None for no rescaling;
         spara['overlap']: float, overlap ratio when apply to longer or continuous data;
+        spara['parallelism'] : int or None, 
+                               If None, uses the asyncio implementation. 
+                               Otherwise, defines the redundancy for each subjob.
+                               see https://seisbench.readthedocs.io/en/stable/pages/documentation/models.html#seisbench.models.base.WaveformModel.annotate
 
     Returns
     -------
@@ -108,6 +112,7 @@ def seisbench_geneprob(spara):
     sbs2ppara = {}
     sbs2ppara['P_threshold'] = spara['P_thrd']
     sbs2ppara['S_threshold'] = spara['S_thrd']
+    sbs2ppara['parallelism'] = spara['parallelism']
     
     if spara['evsegments']:
         # input data are event segments
@@ -179,7 +184,7 @@ def seisbench_stream2prob(stream, model, paras):
     endtime_max = max(endtime)  # latest endtime
     stream.trim(starttime=starttime_min, endtime=endtime_max, pad=True, fill_value=0)
 
-    annotations = model.annotate(stream)
+    annotations = model.annotate(stream, parallelism=paras['parallelism'])
     
     if model.name == 'EQTransformer':
         picks, _ = model.classify(stream, P_threshold=paras['P_threshold'], S_threshold=paras['S_threshold'])
