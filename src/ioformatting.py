@@ -602,16 +602,11 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
     ofile.flush()
     
     # loop over each station to find the ML picks and output to file
+    # Note sta identification format: 'network.station.location.instrument' or 'network.station'
     for sta in stations:
         if 'P' in thearrvtt[sta]:
             # P-phase theoretical arrivaltime exist
-            if len(sta.split('.'))==4:  # 'network.station.location.instrument'
-                stream = stream_all.select(id=sta+"P")  # get P-phase probability for the current station
-            elif len(sta.split('.'))==2:  # 'network.station'
-                stream = stream_all.select(network=sta.split('.')[0], station=sta.split('.')[1], component="P")
-            else:
-                raise ValueError("Unrecoginze station identificator: {}!".format(sta))
-            # fprob_P = glob.glob(os.path.join(dir_prob, sta+'*PBP*'))
+            stream = stream_all.select(id="*"+sta+"*P")  # get P-phase probability for the current station
             if stream.count() == 1:
                 art_start = thearrvtt[sta]['P'] - datetime.timedelta(seconds=maxtd_p)  # earliest possible P-phase arrivaltime
                 art_end = thearrvtt[sta]['P'] + datetime.timedelta(seconds=maxtd_p)  # latest possible P-phase arrivaltime
@@ -622,8 +617,12 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
 
                     # estimate the SNR of this pick
                     if dir_seis is not None:
-                        P_snr = estimate_snr(trace=seismic_all.select(id=sta+"*").merge(), stime=P_picks,
-                                             noise_window=snr_para['noise_window_P'], signal_window=snr_para['signal_window_P'], method=snr_para['method'])
+                        traces_sta = seismic_all.select(id="*"+sta+"*").merge()
+                        P_snr = estimate_snr(trace=traces_sta, stime=P_picks,
+                                             noise_window=snr_para['noise_window_P'], 
+                                             signal_window=snr_para['signal_window_P'], 
+                                             method=snr_para['method'])
+                        del traces_sta
                     else:
                         P_snr = None
                 else:
@@ -638,6 +637,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
             else:
                 print(stream)
                 raise ValueError('More than one P-prob trace are found for station: {}!'.format(sta))
+            del stream
         else:
             # no P-phase theoretical arrivaltime
             P_picks = None
@@ -645,12 +645,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
         
         if 'S' in thearrvtt[sta]:
             # S-phase theoretical arrivaltime exist
-            if len(sta.split('.'))==4:  
-                stream = stream_all.select(id=sta+"S")
-            elif len(sta.split('.'))==2:  # 'network.station'
-                stream = stream_all.select(network=sta.split('.')[0], station=sta.split('.')[1], component="S")  # get S-phase probability for the current station
-            else:
-                raise ValueError("Unrecoginze station identificator: {}!".format(sta))
+            stream = stream_all.select(id="*"+sta+"*S")  # get S-phase probability for the current station
             if stream.count() == 1:
                 art_start = thearrvtt[sta]['S'] - datetime.timedelta(seconds=maxtd_s)  # earliest possible S-phase arrivaltime
                 art_end = thearrvtt[sta]['S'] + datetime.timedelta(seconds=maxtd_s)  # latest possible S-phase arrivaltime
@@ -661,8 +656,12 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
 
                     # estimate the SNR of this pick
                     if dir_seis is not None:
-                        S_snr = estimate_snr(trace=seismic_all.select(id=sta+"*").merge(), stime=S_picks,
-                                             noise_window=snr_para['noise_window_S'], signal_window=snr_para['signal_window_S'], method=snr_para['method'])
+                        traces_sta = seismic_all.select(id="*"+sta+"*").merge()
+                        S_snr = estimate_snr(trace=traces_sta, stime=S_picks,
+                                             noise_window=snr_para['noise_window_S'], 
+                                             signal_window=snr_para['signal_window_S'], 
+                                             method=snr_para['method'])
+                        del traces_sta
                     else:
                         S_snr = None
                 else:
@@ -677,6 +676,7 @@ def get_MLpicks_ftheart(dir_prob, dir_io, maxtd_p=3.0, maxtd_s=3.0, P_thrd=0.1, 
             else:
                 print(stream)
                 raise ValueError('More than one S-prob trace are found for station: {}!'.format(sta))
+            del stream
         else:
             # no S-phase theoretical arrivaltime
             S_picks = None

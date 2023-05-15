@@ -547,13 +547,14 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
             
             # plot phase arrivaltimes
             if arrvtt is not None:
-                if staname[ii] in arrvtt:
-                    if 'P' in arrvtt[staname[ii]]:
+                staids = [istaid for istaid in list(arrvtt.keys()) if staname[ii] in istaid]
+                if len(staids)==1:
+                    if 'P' in arrvtt[staids[0]]:
                         # plot P arrivaltimes
-                        ax.vlines(np.datetime64(arrvtt[staname[ii]]['P']), ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
-                    if 'S' in arrvtt[staname[ii]]:
+                        ax.vlines(np.datetime64(arrvtt[staids[0]]['P']), ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
+                    if 'S' in arrvtt[staids[0]]:
                         # plot S arrivaltimes
-                        ax.vlines(np.datetime64(arrvtt[staname[ii]]['S']), ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
+                        ax.vlines(np.datetime64(arrvtt[staids[0]]['S']), ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
         
         if timerg is not None:
             ax.set_xlim(timerg)
