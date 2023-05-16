@@ -19,6 +19,7 @@ import datetime
 from obspy import UTCDateTime
 import warnings
 from xcatalog import catalog_matchref
+from ioformatting import read_arrivaltimes
 
 
 def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, mode='closest', distmode='3D', sorder='station_dist', staavenum='all'):
@@ -105,8 +106,6 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
         input catalog with magnitude of all included events determined.
 
     """
-    
-    from ioformatting import read_arrivaltimes
     
     seismic_foldername = 'seis_evstream'  # the foldername of seismic data segment
     phase_ftage = 'MLpicks'  # the filename tage for picking or arrivaltime file
@@ -232,7 +231,7 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                 stream.filter('bandpass', freqmin=mgcalpara['freq'][0], freqmax=mgcalpara['freq'][1], zerophase=True)
             stream.merge(method=1, fill_value=0)
             if stream[0].stats.sampling_rate < resampling_rate:
-                stream.interpolate(sampling_rate=resampling_rate)  # up-sampling to avoid getting data of different size when slicing data
+                stream.resample(sampling_rate=resampling_rate, no_filter=True)  # up-sampling to avoid getting data of different size when slicing data
             
             # get the amplitude of certain phase at available stations
             ev_stalist = []  # station names
@@ -271,7 +270,8 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                     ev_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))
                 elif stream_sta.count()>3:
                     raise ValueError("Data {} have more than 3 component! Not valid!".format(print(stream_sta)))
-            
+                del stream_sta
+
             # order the station amplitudes accordingly
             ev_stalist = np.array(ev_stalist)
             ev_ssdist = np.array(ev_ssdist)
@@ -284,7 +284,7 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
             ev_stalist = ev_stalist[llindex]
             ev_ssdist = ev_ssdist[llindex]
             
-            del stream, stream_sta, arrvt
+            del stream, arrvt
             
             for ekk in eidxref_sorted:
                 # loop over each matched event in certain order untill we can determine the magnitude successfully
@@ -317,7 +317,7 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                     stream.filter('bandpass', freqmin=mgcalpara['freq'][0], freqmax=mgcalpara['freq'][1], zerophase=True)
                 stream.merge(method=1, fill_value=0)
                 if stream[0].stats.sampling_rate < resampling_rate:
-                    stream.interpolate(sampling_rate=resampling_rate)  # up-sampling to avoide getting data of different size when slicing data
+                    stream.resample(sampling_rate=resampling_rate, no_filter=True)  # up-sampling to avoide getting data of different size when slicing data
                 
                 # get the amplitude of certain phase at available stations
                 evref_stalist = []  # station names for the reference event
@@ -355,8 +355,8 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                         evref_ssdist.append(np.sqrt(hdist_meter*hdist_meter + vdist_meter*vdist_meter))    
                     elif stream_sta.count()>3:
                         raise ValueError("Data {} have more than 3 component! Not valid.".format(print(stream_sta)))         
-                
-                del stream, stream_sta, arrvt_ref
+                    del stream_sta
+                del stream, arrvt_ref
                 
                 evref_stalist = np.array(evref_stalist)
                 evref_ssdist = np.array(evref_ssdist)
@@ -387,7 +387,7 @@ def relative_amp(catalog, catalog_ref, catalog_match, stations, mgcalpara=None, 
                         # calculate over 'staavenum' stations
                         ev_stamags = event_match_magnitude[ekk] + np.log10(ampratio[:staavenum])
                         assert(len(ev_stamags)==staavenum)
-                    catalog_new['magnitude'].append(np.median(ev_stamags))  # network magnitude
+                    catalog_new['magnitude'].append(np.nanmedian(ev_stamags))  # network magnitude
                     magnitude_done = True
                     break  # magnitude already determined, no need to look at the rest of the matched events
             
