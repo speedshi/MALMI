@@ -542,11 +542,15 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                         for ipp in range(1, len(vdata)):
                             if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
                                 ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'b', linewidth=linewd)
-                    if problabel:
-                        if timerg is not None:
-                            ax.text(timerg[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=13, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica' ,
+                    if problabel or (isinstance(problabel,(int,float))):
+                        if isinstance(problabel,(int,float)):
+                            fontsize_pbl = problabel
                         else:
-                            ax.text(tt[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=13, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica', 
+                            fontsize_pbl = 13
+                        if timerg is not None:
+                            ax.text(timerg[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=fontsize_pbl, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica' ,
+                        else:
+                            ax.text(tt[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=fontsize_pbl, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica', 
                     del vdata, tt
                 del tr
             
