@@ -508,11 +508,11 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                         for ipp in range(1, len(vdata)):
                             if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
                                 ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'r', linewidth=linewd)
-                    if (problabel) or (isinstance(problabel,(int,float))):
-                        if isinstance(problabel,(int,float)):
-                            fontsize_pbl = problabel
-                        else:
+                    if problabel:
+                        if problabel is True:
                             fontsize_pbl = 13
+                        else:
+                            fontsize_pbl = problabel
                         if timerg is not None:
                             ax.text(timerg[-1], ydev[ii]+0.35*dyy, 'P_prob_max: {:.3f}'.format(dampmax), color='r', fontsize=fontsize_pbl, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica', 
                         else:
@@ -542,11 +542,11 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                         for ipp in range(1, len(vdata)):
                             if (vdata[ipp-1] >= plotthrd) or (vdata[ipp] >= plotthrd):
                                 ax.plot(tt[ipp-1:ipp+1], vdata[ipp-1:ipp+1]+ydev[ii], 'b', linewidth=linewd)
-                    if problabel or (isinstance(problabel,(int,float))):
-                        if isinstance(problabel,(int,float)):
-                            fontsize_pbl = problabel
-                        else:
+                    if problabel:
+                        if problabel is True:
                             fontsize_pbl = 13
+                        else:
+                            fontsize_pbl = problabel
                         if timerg is not None:
                             ax.text(timerg[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=fontsize_pbl, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica' ,
                         else:

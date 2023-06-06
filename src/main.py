@@ -961,7 +961,7 @@ class MALMI:
             CAT['fname'] : str
                 the output catalog filename.
                 The default is 'MALMI_catalog_original'.
-            CAT['fformat'] : str
+            CAT['fformat'] : str or list of str
                 the format of the output catalog file, can be 'pickle' and 'csv'.
                 The default is 'pickle'.
             CAT['rmrpev'] : dict, 

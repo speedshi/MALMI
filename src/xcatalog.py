@@ -838,7 +838,7 @@ def retrive_catalog_from_MALMI_database(CAT):
             CAT['fname'] : str
                 the output catalog filename.
                 The default is 'MALMI_catalog_original'.
-            CAT['fformat'] : str
+            CAT['fformat'] : str or list of str
                 the format of the output catalog file, can be 'pickle' and 'csv'.
                 Or other obspy compatible format, such as "QUAKEML", "NLLOC_OBS", "SC3ML". 
                 The default is 'pickle'.
@@ -940,22 +940,25 @@ def retrive_catalog_from_MALMI_database(CAT):
     
     # save catalog
     if (CAT['fname'] is not None) and (CAT['fformat'] is not None):
-        cfname = os.path.join(CAT['dir_output'], CAT['fname']+'.'+CAT['fformat'])
-        
-        if CAT['fformat'].lower() == 'pickle':
-            # save the extracted original catalog in pickle format
-            with open(cfname, 'wb') as handle:
-                pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
-        elif CAT['fformat'].lower() == 'csv':
-            # save the extracted original catalog in csv format
-            dict2csv(catalog, cfname, mode='w')
-        else:
-            try:
-                # obspy output catalog
-                catalog_obspy = dict2catalog(catalog)
-                catalog_obspy.write(cfname, format=CAT['fformat'])
-            except:
-                raise ValueError("Wrong input for CAT[\'fformat\']: {}!".format(CAT['fformat']))
+        if isinstance(CAT['fformat'], str):
+            CAT['fformat'] = [CAT['fformat']]
+
+        for ifformat in CAT['fformat']:
+            cfname = os.path.join(CAT['dir_output'], CAT['fname']+'.'+ifformat)
+            if ifformat.lower() == 'pickle':
+                # save the extracted original catalog in pickle format
+                with open(cfname, 'wb') as handle:
+                    pickle.dump(catalog, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            elif ifformat.lower() == 'csv':
+                # save the extracted original catalog in csv format
+                dict2csv(catalog, cfname, mode='w')
+            else:
+                try:
+                    # obspy output catalog
+                    catalog_obspy = dict2catalog(catalog)
+                    catalog_obspy.write(cfname, format=ifformat)
+                except:
+                    raise ValueError("Wrong input for CAT[\'fformat\']: {}!".format(ifformat))
 
     return catalog
 
