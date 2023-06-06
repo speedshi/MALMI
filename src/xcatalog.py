@@ -373,7 +373,7 @@ def catalog_rmrpev(catalog, thrd_time=0.3, thrd_hdis=None, thrd_depth=None, evkp
                     # have matched events, and the current event is the best one to keep
                     for ikey in catakeys:
                         catalog_new[ikey].append(catalog[ikey][iev])
-                    evidlist.append(*eindx)
+                    evidlist.extend(eindx)
                     print('Duplicate events found at time around: ', catalog['time'][iev])
                 else:
                     # have matched events, the best event to keep is in 'eindx', to be checked in the later loop
