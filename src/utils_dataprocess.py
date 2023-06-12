@@ -284,7 +284,10 @@ def merge_dict(dict1, dict2):
         # get the keys for the dictionary
         key1 = list(dict1.keys())
         key2 = list(dict2.keys())
-        keys = list(set(key1 + key2))
+        if key1 == key2:
+            keys = key1
+        else:
+            keys = list(set(key1 + key2))
         
         Nev1 = len(dict1[key1[0]])
         Nev2 = len(dict2[key2[0]])
