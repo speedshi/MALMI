@@ -783,24 +783,8 @@ def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth
                 catalog_match['magnitude_ref'].append(catalog_ref['magnitude'][ieref])
 
     # convert to numpy array
-    catalog_match['status'] = np.array(catalog_match['status'])
-    catalog_match['time'] = np.array(catalog_match['time'])
-    catalog_match['time_ref'] = np.array(catalog_match['time_ref'])
-    catalog_match['id'] = np.array(catalog_match['id'])
-    catalog_match['id_ref'] = np.array(catalog_match['id_ref'])
-    if ('latitude' in catalog_match) and ('longitude' in catalog_match):
-        catalog_match['latitude'] = np.array(catalog_match['latitude'])
-        catalog_match['latitude_ref'] = np.array(catalog_match['latitude_ref'])
-        catalog_match['longitude'] = np.array(catalog_match['longitude'])
-        catalog_match['longitude_ref'] = np.array(catalog_match['longitude_ref'])
-        catalog_match['hdist_km'] = np.array(catalog_match['hdist_km'])
-    if ('depth_km' in catalog_match):
-        catalog_match['depth_km'] = np.array(catalog_match['depth_km'])
-        catalog_match['depth_km_ref'] = np.array(catalog_match['depth_km_ref'])
-        catalog_match['vdist_km'] = np.array(catalog_match['vdist_km'])
-    if ('magnitude' in catalog_match):
-        catalog_match['magnitude'] = np.array(catalog_match['magnitude'])
-        catalog_match['magnitude_ref'] = np.array(catalog_match['magnitude_ref'])
+    for jjkey in catalog_match.keys():
+        catalog_match[jjkey] = np.array(catalog_match[jjkey])
 
     return catalog_match
 
