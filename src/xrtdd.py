@@ -388,10 +388,12 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
         stations_art = list(arrvtt.keys())  # station names which have arrivaltimes
         for sta in stations_art:
             # loop over the arrivaltimes at each station and output
-            istainv = stainv.select(station=sta)  # get the current station inventory 
+            net_code = sta.split('.')[0]
+            sta_code = sta.split('.')[1]
+            istainv = stainv.select(network=net_code, station=sta_code)  # get the current station inventory 
             assert(len(istainv)==1)  # one network
             assert(len(istainv[0])==1)  # one station
-            assert(istainv[0][0].code == sta)
+            assert(istainv[0][0].code == sta_code)
             networkCode = istainv.networks[0].code
             stationCode = istainv.networks[0].stations[0].code
             if istainv.networks[0].stations[0].channels:
