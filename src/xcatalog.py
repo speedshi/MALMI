@@ -1025,56 +1025,79 @@ def dict2catalog(cat_dict):
     
     keys_catdict = list(cat_dict.keys())  # keys of the input catalog dict
     nev = len(cat_dict[keys_catdict[0]])  # total number of events
-    for ikeycat in keys_catdict:
+    for ikeycat in keys_catdict:  # check
         if isinstance(cat_dict[ikeycat], (list, np.ndarray, pd.core.series.Series)):
             assert(len(cat_dict[ikeycat]) == nev)
     
     catalog = obspy_Catalog()
-    for iev in range(nev):
+    for iev in range(nev):  # loop over each event in the input catalog
+
+        # create an origin object for the event----------------------------------------------
         iorigin = obspy_Origin()
+
+        # assign id to the origin object
         try:
-            iorigin.resource_id = '{}_origin'.format(cat_dict['id'][iev])
+            iorigin.resource_id = f"{cat_dict['id'][iev]}_origin"
         except:
             pass
+
+        # assign origin time of the event to the origin object
         try:
-            iorigin.time = cat_dict['time'][iev] 
+            iorigin.time = UTCDateTime(cat_dict['time'][iev])
         except:
             pass
+
+        # assign latitude to the origin object
         try:
             iorigin.latitude = cat_dict['latitude'][iev]
         except:
             pass
+
+        # assigin longitude to the origin object
         try:
             iorigin.longitude = cat_dict['longitude'][iev]
         except:
             pass
+
+        # assigin depth to the origin object (in meter relative the sea-level, downward -> positive)
         try:
             iorigin.depth = cat_dict['depth_km'][iev] * 1000.0  # unit in meters
+            # iorigin.depth_type = 'from location'
         except:
             pass
-        # iorigin.depth_type = 'from location'
         
+        # create and assign event origin quality object----------------------------------
         ioriginqlt = obspy_OriginQuality()
+
+        # assign number of associated phases
         try:
             ioriginqlt.associated_phase_count = cat_dict['asso_phase_all'][iev]
         except:
             pass
+
+        # assign number of stations at which the event was observed (picked)
         try:
             ioriginqlt.associated_station_count = cat_dict['asso_station_all'][iev]
         except:
             pass
+        
+        # assign RMS of the travel time residuals of the arrivals, in second
         try:
             ioriginqlt.standard_error = cat_dict['rms_pickarvt'][iev]
         except:
             pass
+
         # ioriginqlt.azimuthal_gap = 
+        #-------------------------------------------------------------------------------------
+
         iorigin.quality = ioriginqlt
 
+        # create and assign magnitude object for the event-----------------------------------------
+        imag = obspy_Magnitude()
         if 'magnitude' in cat_dict:
-            imag = obspy_Magnitude()
-            imag.resource_id = '{}_magnitude'.format(cat_dict['id'][iev])
+            imag.resource_id = f"{cat_dict['id'][iev]}_magnitude"
             imag.mag = cat_dict['magnitude'][iev]
-            imag.origin_id = iorigin.resource_id
+            imag.origin_id = iorigin.resource_id  # link magnitude to an origin
             if 'magnitude_type' in cat_dict:
                 if isinstance(cat_dict['magnitude_type'], str):
                     imag.magnitude_type = cat_dict['magnitude_type']
@@ -1082,62 +1105,79 @@ def dict2catalog(cat_dict):
                     imag.magnitude_type = cat_dict['magnitude_type'][iev]
             else:     
                 imag.magnitude_type = 'M'
-        else:
-            imag = None
+        #-----------------------------------------------------------------------------------------
         
+        # create and assign pick and arrival objects for the event--------------------------------------------
         arrivals_list = []  # obspy arrival list
-        arrivals_ids = []  # resource identifier of Arrivals
+        arrivals_ids = []  # resource identifier list of arrivals
+        picks_list = []  # obspy pick list
         if 'pick' in cat_dict:
-            picks_list = []  # obspy pick list
+
             stationids_pick = list(cat_dict['pick'][iev].keys())  # station_id list that have picks for the current event
-            # station_id should be composed of 'network.station.location.channel', e.g. 'BW.FUR..EHZ'
+            # station_id should be composed of 'network.station.location.instrument_code', e.g. 'BW.FUR..EH'
+
             for ipsta in stationids_pick:
                 # loop over each picked station of the current event
-                for iphase in list(cat_dict['pick'][iev][ipsta].keys()):  
+
+                iphase_list = [jjphs for jjphs in cat_dict['pick'][iev][ipsta].keys() if 'snr' not in jjphs]  # phase names
+                for iphase in iphase_list:  
                     # loop over each picked phase of the current station
                     ipick = obspy_Pick()
-                    ipick.resource_id = "{}_pick_{}_{}".format(cat_dict['id'][iev],ipsta,iphase)
-                    ipick.time = cat_dict['pick'][iev][ipsta][iphase]
-                    ipick.waveform_id = WaveformStreamID(seed_string=ipsta)  # use 'seed_string' or station_code=ipsta
+                    ipick.resource_id = f"{cat_dict['id'][iev]}_pick_{ipsta}_{iphase}"
+                    ipick.time = UTCDateTime(cat_dict['pick'][iev][ipsta][iphase])
+                    if len(ipsta.split('.')[-1]) == 1:
+                        ipstac = f"{ipsta}??"
+                    elif len(ipsta.split('.')[-1]) == 2:
+                        ipstac = f"{ipsta}?"
+                    elif len(ipsta.split('.')[-1]) == 3:
+                        ipstac = ipsta
+                    else:
+                        raise ValueError(f"Channel code error, current is {ipsta.split('.')[-1]}.")
+                    ipick.waveform_id = WaveformStreamID(seed_string=ipstac)  # use 'seed_string' or station_code=ipsta
                     ipick.phase_hint = iphase
                     # ipick.evaluation_mode = "automatic"
                     picks_list.append(ipick)
 
                     # associate this pick to an arrival in origin
-                    iarrival = obspy_Arrival()
-                    iarrival_id = "{}_arrival_{}_{}".format(cat_dict['id'][iev],ipsta,iphase)
-                    iarrival.resource_id = iarrival_id
-                    iarrival.pick_id = ipick.resource_id  # Refers to the resource_id of a Pick
-                    iarrival.phase = iphase
-                    try:
-                        iarrival.comments = [Comment(text="{}".format(cat_dict['arrivaltime'][iev][ipsta][iphase]))]
+                    if 'arrivaltime' in cat_dict:
+                        iarrival = obspy_Arrival()
+                        iarrival_id = f"{cat_dict['id'][iev]}_arrival_{ipsta}_{iphase}"
+                        iarrival.resource_id = iarrival_id
+                        iarrival.pick_id = ipick.resource_id  # Refers to the resource_id of a Pick, link the two
+                        iarrival.phase = iphase
+                        iarrival.comments = [Comment(text=f"{cat_dict['arrivaltime'][iev][ipsta][iphase]}")]
                         iarrival.time_residual = cat_dict['pick'][iev][ipsta][iphase] - cat_dict['arrivaltime'][iev][ipsta][iphase]  # Residual between observed and expected arrival time. Unit: second
-                    except:
-                        pass
-                    arrivals_list.append(iarrival)
-                    arrivals_ids.append(iarrival_id)
-        else:
-            picks_list = None
+                        arrivals_list.append(iarrival)
+                        arrivals_ids.append(iarrival_id)
         
         if 'arrivaltime' in cat_dict:
             stationids_arrival = list(cat_dict['arrivaltime'][iev].keys())  # station_id list having theoretical arrivaltimes for the current event
-            # station_id should be composed of 'network.station.location.channel', e.g. 'BW.FUR..EHZ'
+            # station_id should be composed of 'network.station.location.channel', e.g. 'BW.FUR..EH'
+
             for iasta in stationids_arrival:  # loop over each station of the current event
-                for iarr in list(cat_dict['arrivaltime'][iev][iasta].keys()):  # loop over each phase of the current station
-                    iarr_id = "{}_arrival_{}_{}".format(cat_dict['id'][iev],iasta,iarr)
+
+                iaphase_list = [jjphs for jjphs in cat_dict['arrivaltime'][iev][iasta].keys() if 'snr' not in jjphs]  # phase names
+                for iarr in iaphase_list:  # loop over each phase of the current station
+                    iarr_id = f"{cat_dict['id'][iev]}_arrival_{iasta}_{iarr}"
                     if iarr_id not in arrivals_ids:
-                        # no arrival yet
+                        # no arrival yet for this station and phase
                         iarrival = obspy_Arrival()
                         iarrival.resource_id = iarr_id
                         iarrival.phase = iarr
-                        iarrival.comments = [Comment(text="{}".format(cat_dict['arrivaltime'][iev][iasta][iarr]))]  # absolute theoretical arrival times
+                        iarrival.comments = [Comment(text=f"{cat_dict['arrivaltime'][iev][iasta][iarr]}")]  # absolute theoretical arrival times
                         arrivals_list.append(iarrival)
-        
+                        arrivals_ids.append(iarr_id)
+        #------------------------------------------------------------------------------------------------------------------------
+
         iorigin.arrivals = arrivals_list
+
+        # creat an event object and assign values
         ievent = obspy_Event(origins=[iorigin], magnitudes=[imag], picks=picks_list)
         ievent.resource_id = cat_dict['id'][iev]
         ievent.preferred_origin_id = iorigin.resource_id
         ievent.preferred_magnitude_id = imag.resource_id
+
+        # append the event object to the catalog object
         catalog.append(ievent)
     
     return catalog
