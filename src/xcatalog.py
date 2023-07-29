@@ -1072,12 +1072,14 @@ def dict2catalog(cat_dict):
         # assign number of associated phases
         try:
             ioriginqlt.associated_phase_count = cat_dict['asso_phase_all'][iev]
+            ioriginqlt.used_phase_count = cat_dict['asso_phase_all'][iev]
         except:
             pass
 
         # assign number of stations at which the event was observed (picked)
         try:
             ioriginqlt.associated_station_count = cat_dict['asso_station_all'][iev]
+            ioriginqlt.used_station_count = cat_dict['asso_station_all'][iev]
         except:
             pass
         
@@ -1088,6 +1090,10 @@ def dict2catalog(cat_dict):
             pass
 
         # ioriginqlt.azimuthal_gap = 
+        # ioriginqlt.secondary_azimuthal_gap = 
+        # ioriginqlt.minimum_distance = 
+        # ioriginqlt.maximum_distance = 
+        # ioriginqlt.median_distance = 
         #-------------------------------------------------------------------------------------
 
         iorigin.quality = ioriginqlt
@@ -1135,7 +1141,7 @@ def dict2catalog(cat_dict):
                         raise ValueError(f"Channel code error, current is {ipsta.split('.')[-1]}.")
                     ipick.waveform_id = WaveformStreamID(seed_string=ipstac)  # use 'seed_string' or station_code=ipsta
                     ipick.phase_hint = iphase
-                    # ipick.evaluation_mode = "automatic"
+                    ipick.evaluation_mode = "automatic"
                     picks_list.append(ipick)
 
                     # associate this pick to an arrival in origin
@@ -1147,6 +1153,7 @@ def dict2catalog(cat_dict):
                         iarrival.phase = iphase
                         iarrival.comments = [Comment(text=f"{cat_dict['arrivaltime'][iev][ipsta][iphase]}")]
                         iarrival.time_residual = cat_dict['pick'][iev][ipsta][iphase] - cat_dict['arrivaltime'][iev][ipsta][iphase]  # Residual between observed and expected arrival time. Unit: second
+                        iarrival.time_weight = 1.0
                         arrivals_list.append(iarrival)
                         arrivals_ids.append(iarrival_id)
         
@@ -1170,6 +1177,7 @@ def dict2catalog(cat_dict):
         #------------------------------------------------------------------------------------------------------------------------
 
         iorigin.arrivals = arrivals_list
+        iorigin.evaluation_mode = "automatic"
 
         # creat an event object and assign values
         ievent = obspy_Event(origins=[iorigin], magnitudes=[imag], picks=picks_list)
