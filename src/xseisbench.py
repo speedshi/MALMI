@@ -17,7 +17,7 @@ from ioformatting import dict2csv
 import numpy as np
 
 
-def load_sbmodel(ML_model, pre_trained, rescaling_rate=None, overlap_ratio=None):
+def load_sbmodel(ML_model, pre_trained, rescaling_rate=None, overlap_ratio=None, blinding=None):
     '''
     Load and config seisbench model.
 
@@ -39,6 +39,10 @@ def load_sbmodel(ML_model, pre_trained, rescaling_rate=None, overlap_ratio=None)
             0.6 means 60% overlapping;
             0.8 means 80% overlapping;
             0.0 means no overlapping.
+        blinding: list or None,
+            set no missing prediction points at the earliest and last of prediction windows, only work for EQT and PNT?
+            e.g. blinding = (0, 0) means no missing predictions points;
+            if blinding = None, use default settings.
 
     OUTPUT:
         sbmodel: SeisBench model.
@@ -46,11 +50,11 @@ def load_sbmodel(ML_model, pre_trained, rescaling_rate=None, overlap_ratio=None)
 
     # specify a ML model
     if (ML_model.upper() == 'EQT') or (ML_model.upper() == 'EQTRANSFORMER'):
-        sbmodel = sbm.EQTransformer.from_pretrained(pre_trained, version_str="latest")  # , update=True, force=True, wait_for_file=True
+        sbmodel = sbm.EQTransformer.from_pretrained(pre_trained.lower(), version_str="latest")  # , update=True, force=True, wait_for_file=True
     elif (ML_model.upper() == 'PNT') or (ML_model.upper() == 'PHASENET'):
-        sbmodel = sbm.PhaseNet.from_pretrained(pre_trained, version_str="latest")  # , update=True, force=True, wait_for_file=True
+        sbmodel = sbm.PhaseNet.from_pretrained(pre_trained.lower(), version_str="latest")  # , update=True, force=True, wait_for_file=True
     elif (ML_model.upper() == 'GPD'):
-        sbmodel = sbm.GPD.from_pretrained(pre_trained, version_str="latest")  # , update=True, force=True, wait_for_file=True
+        sbmodel = sbm.GPD.from_pretrained(pre_trained.lower(), version_str="latest")  # , update=True, force=True, wait_for_file=True
     else:
         raise ValueError('Input SeisBench model name: {} unrecognized!'.format(ML_model))
 
@@ -70,7 +74,8 @@ def load_sbmodel(ML_model, pre_trained, rescaling_rate=None, overlap_ratio=None)
     else:
         sbmodel.default_args['overlap'] = int(sbmodel.in_samples * overlap_ratio)
 
-    # sbmodel.default_args['blinding'] = (0, 0)  # set no missing prediction points at the earliest and last of prediction windows, only work for EQT and PNT?
+    if blinding is not None:
+        sbmodel.default_args['blinding'] = blinding  # set no missing prediction points at the earliest and last of prediction windows, only work for EQT and PNT?
 
     return sbmodel
 
