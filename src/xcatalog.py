@@ -15,7 +15,7 @@ catalog['magnitude']: np.array of float, magnitude of each event;
 catalog['magnitude_type']: np.array of str or str, magnitude type, e.g. 'M', 'ML', 'Mw';
 catalog['pick']: np.array or list of dict, len(list or np.array) = number of events, each dict is the picking results, e.g. dict['network.station.location.channel_code']['P'] for P-phase pick time, dict['network.station.location.channel_code']['S'] for S-phase pick time;
 catalog['arrivaltime']: np.array or list of dict, similar to 'pick', but is the theoretical calculated arrivaltimes of P- and S-phases;
-
+catalog['source_receriver_distance']: np.array of dict, 3D event-station distance in meter, in format of catalog['source_receriver_distance'][iev]['network.station.location.channel_code'] = 8010;
 @author: shipe
 """
 
@@ -43,6 +43,11 @@ from obspy.core.event import Arrival as obspy_Arrival
 from obspy.core.event import OriginQuality as obspy_OriginQuality
 from obspy.core.event.base import Comment
 from xpick import picks_select
+
+
+
+KM_OF_DEGREE  = 111.195079734632
+
 
 
 def retrive_catalog(dir_dateset, cata_ftag='catalogue', dete_ftag='event_station_phase_info.txt', cata_fold='*', dete_fold='*', search_fold=None, evidtag='malmi', picktag='.MLpicks', arrvttag='.phs'):
@@ -1154,6 +1159,8 @@ def dict2catalog(cat_dict):
                         iarrival.comments = [Comment(text=f"{cat_dict['arrivaltime'][iev][ipsta][iphase]}")]
                         iarrival.time_residual = cat_dict['pick'][iev][ipsta][iphase] - cat_dict['arrivaltime'][iev][ipsta][iphase]  # Residual between observed and expected arrival time. Unit: second
                         iarrival.time_weight = 1.0
+                        if 'source_receriver_distance' in cat_dict:
+                            iarrival.distance = cat_dict['source_receriver_distance'][iev][ipsta] / 1000.0 / KM_OF_DEGREE  # in degree
                         arrivals_list.append(iarrival)
                         arrivals_ids.append(iarrival_id)
         
@@ -1172,6 +1179,8 @@ def dict2catalog(cat_dict):
                         iarrival.resource_id = iarr_id
                         iarrival.phase = iarr
                         iarrival.comments = [Comment(text=f"{cat_dict['arrivaltime'][iev][iasta][iarr]}")]  # absolute theoretical arrival times
+                        if 'source_receriver_distance' in cat_dict:
+                            iarrival.distance = cat_dict['source_receriver_distance'][iev][iasta] / 1000.0 / KM_OF_DEGREE  # in degree
                         arrivals_list.append(iarrival)
                         arrivals_ids.append(iarr_id)
         #------------------------------------------------------------------------------------------------------------------------
