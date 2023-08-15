@@ -1164,25 +1164,27 @@ def dict2catalog(cat_dict):
                         arrivals_list.append(iarrival)
                         arrivals_ids.append(iarrival_id)
         
-        if 'arrivaltime' in cat_dict:
-            stationids_arrival = list(cat_dict['arrivaltime'][iev].keys())  # station_id list having theoretical arrivaltimes for the current event
-            # station_id should be composed of 'network.station.location.channel', e.g. 'BW.FUR..EH'
+        # # Note each arrival should correspond with a pick (with a pick_id associated)
+        # # So the following should be common out
+        # if 'arrivaltime' in cat_dict:
+        #     stationids_arrival = list(cat_dict['arrivaltime'][iev].keys())  # station_id list having theoretical arrivaltimes for the current event
+        #     # station_id should be composed of 'network.station.location.channel', e.g. 'BW.FUR..EH'
 
-            for iasta in stationids_arrival:  # loop over each station of the current event
+        #     for iasta in stationids_arrival:  # loop over each station of the current event
 
-                iaphase_list = [jjphs for jjphs in cat_dict['arrivaltime'][iev][iasta].keys() if 'snr' not in jjphs]  # phase names
-                for iarr in iaphase_list:  # loop over each phase of the current station
-                    iarr_id = f"{cat_dict['id'][iev]}_arrival_{iasta}_{iarr}"
-                    if iarr_id not in arrivals_ids:
-                        # no arrival yet for this station and phase
-                        iarrival = obspy_Arrival()
-                        iarrival.resource_id = iarr_id
-                        iarrival.phase = iarr
-                        iarrival.comments = [Comment(text=f"{cat_dict['arrivaltime'][iev][iasta][iarr]}")]  # absolute theoretical arrival times
-                        if 'source_receriver_distance' in cat_dict:
-                            iarrival.distance = cat_dict['source_receriver_distance'][iev][iasta] / 1000.0 / KM_OF_DEGREE  # in degree
-                        arrivals_list.append(iarrival)
-                        arrivals_ids.append(iarr_id)
+        #         iaphase_list = [jjphs for jjphs in cat_dict['arrivaltime'][iev][iasta].keys() if 'snr' not in jjphs]  # phase names
+        #         for iarr in iaphase_list:  # loop over each phase of the current station
+        #             iarr_id = f"{cat_dict['id'][iev]}_arrival_{iasta}_{iarr}"
+        #             if iarr_id not in arrivals_ids:
+        #                 # no arrival yet for this station and phase
+        #                 iarrival = obspy_Arrival()
+        #                 iarrival.resource_id = iarr_id
+        #                 iarrival.phase = iarr
+        #                 iarrival.comments = [Comment(text=f"{cat_dict['arrivaltime'][iev][iasta][iarr]}")]  # absolute theoretical arrival times
+        #                 if 'source_receriver_distance' in cat_dict:
+        #                     iarrival.distance = cat_dict['source_receriver_distance'][iev][iasta] / 1000.0 / KM_OF_DEGREE  # in degree
+        #                 arrivals_list.append(iarrival)
+        #                 arrivals_ids.append(iarr_id)
         #------------------------------------------------------------------------------------------------------------------------
 
         iorigin.arrivals = arrivals_list
