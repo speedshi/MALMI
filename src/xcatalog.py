@@ -971,8 +971,7 @@ def catalog2dict(catalog):
         catalog_dict['latitude']: np.array of float, event latitude in degree of each catalog event;
         catalog_dict['longitude']: np.array of float, event longitude in degree of each catalog event;
         catalog_dict['depth_km']: np.array of float, event depth in km (relative to the sea-level, down->positive) of each catalog event;
-        catalog_dict['magnitude']: np.array of float, event magnitude of each catalog event;
-        catalog['magnitude_type']: np.array of str, event magnitude type.
+        catalog_dict['magnitude_magnitude-type']: np.array of float, event magnitude of each catalog event;
     """
     
     catalog_dict= {}
@@ -981,33 +980,47 @@ def catalog2dict(catalog):
     catalog_dict['latitude'] = []
     catalog_dict['longitude'] = []
     catalog_dict['depth_km'] = []
-    catalog_dict['magnitude'] = []
-    catalog_dict['magnitude_type'] = []
+    mag_type = catalog[0].magnitudes[0].magnitude_type
+    magnitude_key = f"magnitude_{mag_type}"
+    catalog_dict[magnitude_key] = []
+    catalog_dict['pick'] = []
     
     for ievent in catalog:
+        # loop over each event
         catalog_dict['id'].append(ievent.resource_id.id)
         
+        # add origin info
         try:
             ievent_origin = ievent.preferred_origin()
         except:
             ievent_origin = ievent.origins[0]
-    
         catalog_dict['time'].append(ievent_origin.time)    
         catalog_dict['latitude'].append(ievent_origin.latitude)
         catalog_dict['longitude'].append(ievent_origin.longitude)
-        catalog_dict['depth_km'].append(ievent_origin.depth/1000.0)
+        catalog_dict['depth_km'].append(ievent_origin.depth/1000.0)  # note the unit of depth
         
+        # add magnitude info
         try:
             ievent_magnitude = ievent.preferred_magnitude()
         except:
             ievent_magnitude = ievent.magnitudes[0]
+        assert(ievent_magnitude.magnitude_type == mag_type)
+        catalog_dict[magnitude_key].append(ievent_magnitude.mag)
     
-        catalog_dict['magnitude'].append(ievent_magnitude.mag)
-        catalog_dict['magnitude_type'].append(ievent_magnitude.magnitude_type)
-    
-    # convert to numpy array
+        # add picks info
+        if ievent.picks:
+            evpick = {}
+            for ipick in ievent.picks:
+                if ipick.waveform_id.code not in evpick: evpick[ipick.waveform_id.code] = {}
+                evpick[ipick.waveform_id.code][ipick.phase_hint] = ipick.time
+            catalog_dict['pick'].append(evpick)
+        else:
+            catalog_dict['pick'].append(None)
+
+    # convert to numpy array and check
     for ikey in list(catalog_dict.keys()):
         catalog_dict[ikey] = np.array(catalog_dict[ikey])
+        assert(len(catalog_dict[ikey]) == len(catalog_dict['time']))
         
     return catalog_dict
 
@@ -1104,8 +1117,8 @@ def dict2catalog(cat_dict):
         iorigin.quality = ioriginqlt
 
         # create and assign magnitude object for the event-----------------------------------------
-        imag = obspy_Magnitude()
         if 'magnitude' in cat_dict:
+            imag = obspy_Magnitude()
             imag.resource_id = f"{cat_dict['id'][iev]}_magnitude"
             imag.mag = cat_dict['magnitude'][iev]
             imag.origin_id = iorigin.resource_id  # link magnitude to an origin
@@ -1116,6 +1129,9 @@ def dict2catalog(cat_dict):
                     imag.magnitude_type = cat_dict['magnitude_type'][iev]
             else:     
                 imag.magnitude_type = 'M'
+            mags = [imag]
+        else:
+            mags = []
         #-----------------------------------------------------------------------------------------
         
         # create and assign pick and arrival objects for the event--------------------------------------------
@@ -1189,12 +1205,13 @@ def dict2catalog(cat_dict):
 
         iorigin.arrivals = arrivals_list
         iorigin.evaluation_mode = "automatic"
+        origins = [iorigin]
 
         # creat an event object and assign values
-        ievent = obspy_Event(origins=[iorigin], magnitudes=[imag], picks=picks_list)
+        ievent = obspy_Event(origins=origins, magnitudes=mags, picks=picks_list)
         ievent.resource_id = cat_dict['id'][iev]
-        ievent.preferred_origin_id = iorigin.resource_id
-        ievent.preferred_magnitude_id = imag.resource_id
+        if origins: ievent.preferred_origin_id = origins[0].resource_id
+        if mags: ievent.preferred_magnitude_id = mags[0].resource_id
 
         # append the event object to the catalog object
         catalog.append(ievent)
