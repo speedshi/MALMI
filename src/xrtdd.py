@@ -369,7 +369,10 @@ def output_rtddeventphase(catalog, stainv, dir_output='./', filename_event='even
         else:
             # no magnitude info
             magnitude = 1.0
-        rms = 0.2
+        if 'rms_pickarvt' in catalog:
+            rms = catalog['rms_pickarvt'][iev]
+        else:
+            rms = 0.2
         eventf_writer.writerow([eventId, isotime, latitude, longitude, depth, magnitude, rms])
         eventf.flush()
         
