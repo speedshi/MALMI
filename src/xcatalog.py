@@ -983,7 +983,6 @@ def catalog2dict(catalog):
     mag_type = catalog[0].magnitudes[0].magnitude_type
     magnitude_key = f"magnitude_{mag_type}"
     catalog_dict[magnitude_key] = []
-    catalog_dict['pick'] = []
     
     for ievent in catalog:
         # loop over each event
@@ -1009,13 +1008,19 @@ def catalog2dict(catalog):
     
         # add picks info
         if ievent.picks:
+            if 'pick' not in catalog_dict:
+                catalog_dict['pick'] = []
             evpick = {}
             for ipick in ievent.picks:
                 if ipick.waveform_id.code not in evpick: evpick[ipick.waveform_id.code] = {}
                 evpick[ipick.waveform_id.code][ipick.phase_hint] = ipick.time
             catalog_dict['pick'].append(evpick)
-        else:
-            catalog_dict['pick'].append(None)
+
+        # add event type info
+        if ievent.event_type:
+            if 'event_type' not in catalog_dict:
+                catalog_dict['event_type'] = []
+            catalog_dict['event_type'].append(ievent.event_type)
 
     # convert to numpy array and check
     for ikey in list(catalog_dict.keys()):
@@ -1152,15 +1157,24 @@ def dict2catalog(cat_dict):
                     ipick = obspy_Pick()
                     ipick.resource_id = f"{cat_dict['id'][iev]}_pick_{ipsta}_{iphase}"
                     ipick.time = UTCDateTime(cat_dict['pick'][iev][ipsta][iphase])
-                    if len(ipsta.split('.')[-1]) == 1:
-                        ipstac = f"{ipsta}??"
-                    elif len(ipsta.split('.')[-1]) == 2:
-                        ipstac = f"{ipsta}?"
-                    elif len(ipsta.split('.')[-1]) == 3:
-                        ipstac = ipsta
+                    if len(ipsta.split('.')) == 4:
+                        # make sure channel code is correct
+                        if len(ipsta.split('.')[-1]) == 1:
+                            ipstac = f"{ipsta}??"
+                        elif len(ipsta.split('.')[-1]) == 2:
+                            ipstac = f"{ipsta}?"
+                        elif len(ipsta.split('.')[-1]) == 3:
+                            ipstac = ipsta
+                        else:
+                            raise ValueError(f"Channel code error, current is {ipsta.split('.')[-1]}.")
+                        ipick.waveform_id = WaveformStreamID(seed_string=ipstac)  # use 'seed_string' or station_code=ipsta
+                    elif len(ipsta.split('.')) == 1:
+                        ipick.waveform_id = WaveformStreamID(station_code=ipsta)  # use 'seed_string' or station_code=ipsta
+                    elif len(ipsta.split('.')) == 2:
+                        ipick.waveform_id = WaveformStreamID(network_code=ipsta.split('.')[0], 
+                                                             station_code=ipsta.split('.')[1])
                     else:
-                        raise ValueError(f"Channel code error, current is {ipsta.split('.')[-1]}.")
-                    ipick.waveform_id = WaveformStreamID(seed_string=ipstac)  # use 'seed_string' or station_code=ipsta
+                        raise ValueError(f"Unrecognize station identifier: {ipsta}!")
                     ipick.phase_hint = iphase
                     ipick.evaluation_mode = "automatic"
                     picks_list.append(ipick)
