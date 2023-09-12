@@ -684,27 +684,49 @@ def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth
                     catalog_match['magnitude_ref'].append(None)
             
             elif len(eindx) == 1:
-                # match one event in the reference catalog
-                catalog_match['status'].append('matched')
-                catalog_match['time'].append(catalog['time'][iev])
-                catalog_match['time_ref'].append(catalog_ref['time'][eindx[0]])
-                catalog_match['id'].append(catalog['id'][iev])
-                catalog_match['id_ref'].append(catalog_ref['id'][eindx[0]])
-                if ('latitude' in catalog) and ('longitude' in catalog):
-                    catalog_match['latitude'].append(catalog['latitude'][iev])
-                    catalog_match['latitude_ref'].append(catalog_ref['latitude'][eindx[0]])
-                    catalog_match['longitude'].append(catalog['longitude'][iev])
-                    catalog_match['longitude_ref'].append(catalog_ref['longitude'][eindx[0]])
-                    catalog_match['hdist_km'].append(hdist_km[0])
-                if ('depth_km' in catalog):
-                    catalog_match['depth_km'].append(catalog['depth_km'][iev]) 
-                    catalog_match['depth_km_ref'].append(catalog_ref['depth_km'][eindx[0]])
-                    catalog_match['vdist_km'].append(vdist_km[0])
-                if ('magnitude' in catalog):
-                    catalog_match['magnitude'].append(catalog['magnitude'][iev])
-                    catalog_match['magnitude_ref'].append(catalog_ref['magnitude'][eindx[0]])
-                
-                dcevref_id.append(eindx[0])  # add the event_ref index in the detection list
+                if eindx[0] in dcevref_id:
+                    # the relevent referenced event has been matched before
+                    # this event been count as a new event
+                    catalog_match['status'].append('new')
+                    catalog_match['time'].append(catalog['time'][iev])
+                    catalog_match['time_ref'].append(None)
+                    catalog_match['id'].append(catalog['id'][iev])
+                    catalog_match['id_ref'].append(None)
+                    if ('latitude' in catalog) and ('longitude' in catalog):
+                        catalog_match['latitude'].append(catalog['latitude'][iev])
+                        catalog_match['latitude_ref'].append(None)
+                        catalog_match['longitude'].append(catalog['longitude'][iev])
+                        catalog_match['longitude_ref'].append(None)
+                        catalog_match['hdist_km'].append(None)
+                    if ('depth_km' in catalog):
+                        catalog_match['depth_km'].append(catalog['depth_km'][iev]) 
+                        catalog_match['depth_km_ref'].append(None)
+                        catalog_match['vdist_km'].append(None)
+                    if ('magnitude' in catalog):
+                        catalog_match['magnitude'].append(catalog['magnitude'][iev])
+                        catalog_match['magnitude_ref'].append(None)
+                else:
+                    # match one event in the reference catalog
+                    catalog_match['status'].append('matched')
+                    catalog_match['time'].append(catalog['time'][iev])
+                    catalog_match['time_ref'].append(catalog_ref['time'][eindx[0]])
+                    catalog_match['id'].append(catalog['id'][iev])
+                    catalog_match['id_ref'].append(catalog_ref['id'][eindx[0]])
+                    if ('latitude' in catalog) and ('longitude' in catalog):
+                        catalog_match['latitude'].append(catalog['latitude'][iev])
+                        catalog_match['latitude_ref'].append(catalog_ref['latitude'][eindx[0]])
+                        catalog_match['longitude'].append(catalog['longitude'][iev])
+                        catalog_match['longitude_ref'].append(catalog_ref['longitude'][eindx[0]])
+                        catalog_match['hdist_km'].append(hdist_km[0])
+                    if ('depth_km' in catalog):
+                        catalog_match['depth_km'].append(catalog['depth_km'][iev]) 
+                        catalog_match['depth_km_ref'].append(catalog_ref['depth_km'][eindx[0]])
+                        catalog_match['vdist_km'].append(vdist_km[0])
+                    if ('magnitude' in catalog):
+                        catalog_match['magnitude'].append(catalog['magnitude'][iev])
+                        catalog_match['magnitude_ref'].append(catalog_ref['magnitude'][eindx[0]])
+                    
+                    dcevref_id.append(eindx[0])  # add the event_ref index in the detection list
                 
             elif len(eindx) > 1:
                 # more then one event matched
@@ -721,26 +743,48 @@ def catalog_matchref(catalog, catalog_ref, thrd_time, thrd_hdis=None, thrd_depth
                 else:
                     raise ValueError('Input of matchmode is unrecognized!')
                 
-                catalog_match['status'].append('matched')
-                catalog_match['time'].append(catalog['time'][iev])
-                catalog_match['time_ref'].append(catalog_ref['time'][eindx[ssid]])
-                catalog_match['id'].append(catalog['id'][iev])
-                catalog_match['id_ref'].append(catalog_ref['id'][eindx[ssid]])
-                if ('latitude' in catalog) and ('longitude' in catalog):
-                    catalog_match['latitude'].append(catalog['latitude'][iev])
-                    catalog_match['latitude_ref'].append(catalog_ref['latitude'][eindx[ssid]])
-                    catalog_match['longitude'].append(catalog['longitude'][iev])
-                    catalog_match['longitude_ref'].append(catalog_ref['longitude'][eindx[ssid]])
-                    catalog_match['hdist_km'].append(hdist_km[ssid])
-                if ('depth_km' in catalog):
-                    catalog_match['depth_km'].append(catalog['depth_km'][iev]) 
-                    catalog_match['depth_km_ref'].append(catalog_ref['depth_km'][eindx[ssid]])
-                    catalog_match['vdist_km'].append(vdist_km[ssid])
-                if ('magnitude' in catalog):
-                    catalog_match['magnitude'].append(catalog['magnitude'][iev])
-                    catalog_match['magnitude_ref'].append(catalog_ref['magnitude'][eindx[ssid]])
-                
-                dcevref_id.append(eindx[ssid])  # add the event_ref index in the detection list
+                if eindx[ssid] in dcevref_id:
+                    # the relevent referenced event has been matched before
+                    # this event been count as a new event
+                    catalog_match['status'].append('new')
+                    catalog_match['time'].append(catalog['time'][iev])
+                    catalog_match['time_ref'].append(None)
+                    catalog_match['id'].append(catalog['id'][iev])
+                    catalog_match['id_ref'].append(None)
+                    if ('latitude' in catalog) and ('longitude' in catalog):
+                        catalog_match['latitude'].append(catalog['latitude'][iev])
+                        catalog_match['latitude_ref'].append(None)
+                        catalog_match['longitude'].append(catalog['longitude'][iev])
+                        catalog_match['longitude_ref'].append(None)
+                        catalog_match['hdist_km'].append(None)
+                    if ('depth_km' in catalog):
+                        catalog_match['depth_km'].append(catalog['depth_km'][iev]) 
+                        catalog_match['depth_km_ref'].append(None)
+                        catalog_match['vdist_km'].append(None)
+                    if ('magnitude' in catalog):
+                        catalog_match['magnitude'].append(catalog['magnitude'][iev])
+                        catalog_match['magnitude_ref'].append(None)
+                else:
+                    catalog_match['status'].append('matched')
+                    catalog_match['time'].append(catalog['time'][iev])
+                    catalog_match['time_ref'].append(catalog_ref['time'][eindx[ssid]])
+                    catalog_match['id'].append(catalog['id'][iev])
+                    catalog_match['id_ref'].append(catalog_ref['id'][eindx[ssid]])
+                    if ('latitude' in catalog) and ('longitude' in catalog):
+                        catalog_match['latitude'].append(catalog['latitude'][iev])
+                        catalog_match['latitude_ref'].append(catalog_ref['latitude'][eindx[ssid]])
+                        catalog_match['longitude'].append(catalog['longitude'][iev])
+                        catalog_match['longitude_ref'].append(catalog_ref['longitude'][eindx[ssid]])
+                        catalog_match['hdist_km'].append(hdist_km[ssid])
+                    if ('depth_km' in catalog):
+                        catalog_match['depth_km'].append(catalog['depth_km'][iev]) 
+                        catalog_match['depth_km_ref'].append(catalog_ref['depth_km'][eindx[ssid]])
+                        catalog_match['vdist_km'].append(vdist_km[ssid])
+                    if ('magnitude' in catalog):
+                        catalog_match['magnitude'].append(catalog['magnitude'][iev])
+                        catalog_match['magnitude_ref'].append(catalog_ref['magnitude'][eindx[ssid]])
+                    
+                    dcevref_id.append(eindx[ssid])  # add the event_ref index in the detection list
             
         else:
             # the current event does not match any event in the reference catalog
