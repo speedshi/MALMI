@@ -153,7 +153,11 @@ def seisbench_geneprob(spara):
                 annotations.write(fname, format='MSEED')
                 file_pk = os.path.join(idir_save, 'X_prediction_results.csv')
                 picks_dict = {}
-                for ipick in picks:
+                if hasattr(picks, 'picks'):
+                    picks_all = picks.picks
+                else:
+                    picks_all = picks
+                for ipick in picks_all:
                     ipk_dict = ipick.__dict__
                     for ikk in ipk_dict:
                         ipk_dict[ikk] = [ipk_dict[ikk]]  # to merge dict, item of each entry should be a list or numpy array
