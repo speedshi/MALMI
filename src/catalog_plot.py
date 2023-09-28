@@ -13,7 +13,7 @@ import pygmt
 from xcatalog import catalog_select
 
 
-def catalog_plot_depth(region, catalog, depthrg=None, cmap="hot", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None):
+def catalog_plot_depth(region, catalog, depthrg=None, cmap="hot", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None, cmap_revserse=None, topo=None):
     """
     To plot the basemap with seismic events color-coded using event depth.
     
@@ -77,22 +77,37 @@ def catalog_plot_depth(region, catalog, depthrg=None, cmap="hot", sta_inv=None, 
     fig = pygmt.Figure()
     
     with pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="fancy", FONT_ANNOT_PRIMARY='16p,Helvetica-Bold,black', FONT_LABEL='16p,Helvetica-Bold,black'):
-        fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
-                  projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
-                  water="skyblue",  # Set the color of the land t
-                  borders="1/0.5p",  # Display the national borders and set the pen thickness
-                  shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
-                  frame=["xa0.2", "ya0.1"],  # Set the frame to display annotations and gridlines
-                  land="gray",  # Set the color of the land
-                  #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
-                  )
         
+        if topo is not None:
+            # dgrid = pygmt.grdgradient(grid=topo, radiance=[90, 0], normalize="e0.4")
+            fig.grdimage(region=region, projection="M15c", grid=topo, cmap='grayC', shading="l+d", dpi=600)  # plot topography  cmap="grayC"
+            fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
+                    projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
+                    water="skyblue",  # Set the color of the land t
+                    borders="1/0.5p",  # Display the national borders and set the pen thickness
+                    shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
+                    frame=["xa0.2", "ya0.1"],  # Set the frame to display annotations and gridlines
+                    # land="gray",  # Set the color of the land
+                    #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
+                    )
+        else:
+            fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
+                    projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
+                    water="skyblue",  # Set the color of the land t
+                    borders="1/0.5p",  # Display the national borders and set the pen thickness
+                    shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
+                    frame=["xa0.2", "ya0.1"],  # Set the frame to display annotations and gridlines
+                    land="gray",  # Set the color of the land
+                    #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
+                    )
+
         # plot stations
-        for net in sta_inv:
-            for sta in net:
-                fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="black", pen="0.35p,black") 
-                if plot_stationname:
-                    fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', D='0/-0.15c')
+        if sta_inv is not None:
+            for net in sta_inv:
+                for sta in net:
+                    fig.plot(x=sta.longitude, y=sta.latitude, style="t0.35c", color="black", pen="0.35p,black") 
+                    if plot_stationname:
+                        fig.text(text=sta.code, x=sta.longitude, y=sta.latitude, font='6p,Helvetica-Bold,black', justify='CT', D='0/-0.15c')
         
         # highlight a rectangular area on the map
         if mkregion is not None:
@@ -107,19 +122,19 @@ def catalog_plot_depth(region, catalog, depthrg=None, cmap="hot", sta_inv=None, 
         # plot events
         if depthrg is not None:
             if isinstance(depthrg, float):
-                pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), depthrg])
+                pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), depthrg], reverse=cmap_revserse)
             elif isinstance(depthrg, list) and (len(depthrg)==1):
-                pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), depthrg[0]])
+                pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), depthrg[0]], reverse=cmap_revserse)
             elif isinstance(depthrg, list) and (len(depthrg)==2):
-                pygmt.makecpt(cmap=cmap, series=[depthrg[0], depthrg[1]])
+                pygmt.makecpt(cmap=cmap, series=[depthrg[0], depthrg[1]], reverse=cmap_revserse)
             else:
                 raise ValueError('Input depthrg not recognized!')
         else:
-            pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), catalog['depth_km'].max()])
+            pygmt.makecpt(cmap=cmap, series=[catalog['depth_km'].min(), catalog['depth_km'].max()], reverse=cmap_revserse)
         if isinstance(eq_size, float):
-            fig.plot(x=catalog['longitude'], y=catalog['latitude'], color=catalog['depth_km'], cmap=True, style="c{}c".format(eq_size), pen="0.02p,black", transparency=20)  # , no_clip="r"
+            fig.plot(x=catalog['longitude'], y=catalog['latitude'], color=catalog['depth_km'], cmap=True, style="c{}c".format(eq_size), pen="0.06p,darkgray", transparency=20)  # , no_clip="r"
         else:
-            fig.plot(x=catalog['longitude'], y=catalog['latitude'], size=eq_size, color=catalog['depth_km'], cmap=True, style="cc", pen="0.02p,black", transparency=20)  # , no_clip="r"
+            fig.plot(x=catalog['longitude'], y=catalog['latitude'], size=eq_size, color=catalog['depth_km'], cmap=True, style="cc", pen="0.06p,darkgray", transparency=20)  # , no_clip="r"
         fig.colorbar(frame='af+l"Depth (km)"')  # frame='a2f+l"Depth (km)"', position="JMR"
         
         # plot the markers
@@ -155,7 +170,7 @@ def catalog_plot_depth(region, catalog, depthrg=None, cmap="hot", sta_inv=None, 
     return
 
 
-def catalog_plot_otime(region, catalog, time_ref=None, cmap="hot", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None):
+def catalog_plot_otime(region, catalog, time_ref=None, cmap="hot", sta_inv=None, mkregion=None, fname="./basemap.png", plot_stationname=False, eq_size=0.17, markers=None, cmap_revserse=None, topo=None):
     """
     To plot the basemap with seismic events color-coded using event origin time.
     
@@ -218,15 +233,29 @@ def catalog_plot_otime(region, catalog, time_ref=None, cmap="hot", sta_inv=None,
     fig = pygmt.Figure()
     
     with pygmt.config(FORMAT_GEO_MAP="ddd.x", MAP_FRAME_TYPE="fancy", FONT_ANNOT_PRIMARY='16p,Helvetica-Bold,black', FONT_LABEL='16p,Helvetica-Bold,black'):
-        fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
-                  projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
-                  water="skyblue",  # Set the color of the land t
-                  borders="1/0.5p",  # Display the national borders and set the pen thickness
-                  shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
-                  frame=["xa0.2", "ya0.1"],  # Set the frame to display annotations and gridlines
-                  land="gray",  # Set the color of the land
-                  #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
-                  )
+        
+        if topo is not None:
+            # dgrid = pygmt.grdgradient(grid=topo, radiance=[90, 0], normalize="e0.4")
+            fig.grdimage(region=region, projection="M15c", grid=topo, cmap='grayC', shading="l+d", dpi=600)  # plot topography  cmap="grayC"
+            fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
+                    projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
+                    water="skyblue",  # Set the color of the land t
+                    borders="1/0.5p",  # Display the national borders and set the pen thickness
+                    shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
+                    frame=["xa0.2", "ya0.1"],  # Set the frame to display annotations and gridlines
+                    # land="gray",  # Set the color of the land
+                    #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
+                    )
+        else:
+            fig.coast(region = region,  # Set the x-range and the y-range of the map  -23/-18/63.4/65
+                    projection="M15c",  # Set projection to Mercator, and the figure size to 15 cm
+                    water="skyblue",  # Set the color of the land t
+                    borders="1/0.5p",  # Display the national borders and set the pen thickness
+                    shorelines="1/0.5p",  # Display the shorelines and set the pen thickness
+                    frame=["xa0.2", "ya0.1"],  # Set the frame to display annotations and gridlines
+                    land="gray",  # Set the color of the land
+                    #map_scale='g-22.6/63.14+c-22/64+w100k+f+u',  # map scale for local one
+                    )
         
         # plot stations
         for net in sta_inv:
@@ -250,11 +279,11 @@ def catalog_plot_otime(region, catalog, time_ref=None, cmap="hot", sta_inv=None,
             # set the default reference time to be the 
             time_ref = max(catalog['time'])
         eq_tref = mdates.date2num(catalog['time']) - mdates.date2num(time_ref)
-        pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()])
+        pygmt.makecpt(cmap=cmap, series=[eq_tref.min(), eq_tref.max()], reverse=cmap_revserse)
         if isinstance(eq_size, float):
-            fig.plot(x=catalog['longitude'], y=catalog['latitude'], color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.01p,black")  # , no_clip="r", transparency=30, 
+            fig.plot(x=catalog['longitude'], y=catalog['latitude'], color=eq_tref, cmap=True, style="c{}c".format(eq_size), pen="0.06p,darkgray")  # , no_clip="r", transparency=30, 
         else:
-            fig.plot(x=catalog['longitude'], y=catalog['latitude'], size=eq_size, color=eq_tref, cmap=True, style="cc", transparency=10, pen="0.01p,black")  # , no_clip="r"
+            fig.plot(x=catalog['longitude'], y=catalog['latitude'], size=eq_size, color=eq_tref, cmap=True, style="cc", transparency=10, pen="0.06p,darkgray")  # , no_clip="r"
         fig.colorbar(frame='af+l"Days relative to {}"'.format(time_ref))
         
         # plot the markers
@@ -348,8 +377,8 @@ def catalog_plot_profile(catalog, pfregion, pfazimuth, depthrg, figsize=(18,6), 
     
     xxlens = np.array(xxmax) - np.array(xxmin)
     
-    fig = pygmt.Figure()
-    with pygmt.config(MAP_TICK_LENGTH='-0.1c'):  # let axis tick inside the map
+    fig = pygmt.Figure() 
+    with pygmt.config(MAP_TICK_LENGTH='-0.1c', FONT_ANNOT_PRIMARY='12p,Helvetica-Bold,black', FONT_LABEL='12p,Helvetica-Bold,black'):  # let axis tick inside the map
         for ii in range(NN):
             if ii==0:
                 fig.plot(x=xx[ii], y=yy[ii], 
