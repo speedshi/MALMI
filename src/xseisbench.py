@@ -194,11 +194,10 @@ def seisbench_stream2prob(stream, model, paras):
     stream.trim(starttime=starttime_min, endtime=endtime_max, pad=True, fill_value=0)
 
     annotations = model.annotate(stream, parallelism=paras['parallelism'])
-    
-    if model.name == 'EQTransformer':
-        picks, _ = model.classify(stream, P_threshold=paras['P_threshold'], S_threshold=paras['S_threshold'])
-    else:
+    try:
         picks = model.classify(stream, P_threshold=paras['P_threshold'], S_threshold=paras['S_threshold'])
+    except:
+        picks, _ = model.classify(stream, P_threshold=paras['P_threshold'], S_threshold=paras['S_threshold'])
     
     return annotations, picks
 
