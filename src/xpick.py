@@ -33,7 +33,7 @@ def prob2pick(trace_prob, pick_thrd):
     return picks
 
 
-def picks_select(picks, arriv_para=None, snr_para=None):
+def picks_select(picks, arriv_para=None, snr_para=None, remove_inf=False):
     '''
     INPUT:
         picks: dict, picking information at each station;
@@ -54,6 +54,8 @@ def picks_select(picks, arriv_para=None, snr_para=None):
         snr_para: dict, signal-to-noise ratio information;
             snr_para['P']: P-phase picking snr threshold;
             snr_para['S']: S-phase picking snr threshold;
+        remove_inf: boolen, whether or not to remove picks with snr of inf.
+                    Default is false, will keep picks with inf snr.
 
     OUTPUT:
         picks_s: dict, selected picking that fillfull the input requirements.
@@ -74,7 +76,7 @@ def picks_select(picks, arriv_para=None, snr_para=None):
                         select = False
 
                 if snr_para is not None:
-                    if (iphs+'_snr' not in picks[ista]) or (picks[ista][iphs+'_snr'] < snr_para[iphs]) or (picks[ista][iphs+'_snr'] == np.inf):
+                    if (iphs+'_snr' not in picks[ista]) or (picks[ista][iphs+'_snr'] < snr_para[iphs]) or (remove_inf and picks[ista][iphs+'_snr'] == np.inf):
                         # do not pass snr requirement: no picking_snr or low picking snr or picking_snr = inf
                         select = False
 
