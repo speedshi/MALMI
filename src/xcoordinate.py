@@ -11,6 +11,7 @@ Functions related to coordinates, such as coordinate extraction and conversion.
 
 import numpy as np
 from loki import LatLongUTMconversion
+import pyproj
 
 
 def grid2mgregion(grid):
@@ -198,4 +199,31 @@ def get_regioncoord(grid, stainv, extr=0.05, consider_mgregion=True):
               lat_min-extr*(lat_max-lat_min), lat_max+extr*(lat_max-lat_min)]
     
     return region, mgregion
+
+
+
+def get_utm_zone(longitude, latitude):
+    '''
+    Automatically calculate the UTM zone from the longitude and latitude.
+    '''
+
+    # use the mean value if the input is a list or numpy array
+    if isinstance(longitude, (list, np.ndarray)):
+        longitude = np.nanmean(longitude)
+    if isinstance(latitude, (list, np.ndarray)):
+        latitude = np.nanmean(latitude)
+
+    zone_number = int((longitude + 180) / 6) + 1
+    if latitude >= 0:
+        zone_letter = 'N'
+    else:
+        zone_letter = 'S'
+    return zone_number, zone_letter
+
+
+def lonlat2xy(longitude, latitude):
+    zone_number, zone_letter = get_utm_zone(longitude, latitude)
+    LonLat_To_XY = pyproj.Proj(proj='utm', zone=zone_number, ellps='WGS84', datum='WGS84', preserve_units=True)
+    x, y = LonLat_To_XY(longitude, latitude)  # convert lon/lat to x/y in meter
+    return x, y
 
