@@ -22,6 +22,18 @@ from utils_dataprocess import dnormlz
 from pathlib import Path
 
 
+
+class MyFormatter(mdates.DateFormatter):
+    def __init__(self, fmt):
+        mdates.DateFormatter.__init__(self, fmt)
+
+    def __call__(self, x, pos=0):
+        result = mdates.DateFormatter.__call__(self, x, pos)
+        parts = result.split(".")
+        return parts[0] + "." + parts[1][:1]
+    
+
+
 malmi_path = Path( __file__ ).parent.absolute()
 
 def events_magcum(time, ydata, bins_dt=1, yname='Magnitude', fname='./event_magnitude_cumulative_number.png', ydata_thrd=4.5, figsize=(12,4)):
@@ -347,10 +359,10 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
     ----------
     dir_seis : str
         path to the input seismic data set, input data should be stored in a 
-        format that obspy can read.
+        format that obspy can read; or Obspy stream and trace object.
     dir_char : str
         path to the input characteristic functions, input data should be stored 
-        in a format that obspy can read.
+        in a format that obspy can read; or Obspy stream and trace object.
         If None, not plotting characteristic functions.
     dir_output : str
         prth to the output figure.
@@ -375,9 +387,9 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
         specify the stations to show;
     arrvtt : dic, default : None
         the arrivaltimes of P- and S-waves at different stations.
-        arrvtt['station']['P'] : P-wave arrivaltime;
-        arrvtt['station']['S'] : S-wave arrivaltime.
-    timerg : list of datetime, default : None
+        arrvtt['station']['P'] : list of P-wave arrivaltime;
+        arrvtt['station']['S'] : list of S-wave arrivaltime.
+    timerg : list of datetime or UTCDateTime, default : None
         used to specify the plotting time rage.
     dpi : int, default : 300
         dpi of the output figure.
@@ -411,23 +423,62 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
 
     """
     
-    # load seismic data set
-    file_seismicin = sorted([fname for fname in os.listdir(dir_seis) if os.path.isfile(os.path.join(dir_seis, fname))])
-    stream = obspy.Stream()
-    for indx, dfile in enumerate(file_seismicin):
-        stream += obspy.read(os.path.join(dir_seis, dfile))
-    
-    # load characteristic function data set
-    if dir_char is not None:
-        file_charfin = sorted([fname for fname in os.listdir(dir_char) if os.path.isfile(os.path.join(dir_char, fname))])
-        charfs = obspy.Stream()
-        for indx, dfile in enumerate(file_charfin):
-            charfs += obspy.read(os.path.join(dir_char, dfile))
+    if isinstance(dir_seis, (str)):
+        # load seismic data set
+        file_seismicin = sorted((fname for fname in os.listdir(dir_seis) if os.path.isfile(os.path.join(dir_seis, fname))))
+        stream = obspy.Stream()
+        for dfile in file_seismicin:
+            stream += obspy.read(os.path.join(dir_seis, dfile))
+    elif isinstance(dir_seis, (obspy.Stream)):
+        # input is obspy stream object
+        stream = dir_seis
+    elif isinstance(dir_seis, (obspy.Trace)):
+        # input is obspy trace object
+        stream = obspy.Stream()
+        stream += dir_seis
+    elif dir_seis is None:
+        # no input seismic data set
+        stream = None
     else:
-        charfs = None
+        raise ValueError('Input seismic data set format not supported!')
     
+    if isinstance(dir_char, (str)):
+        # load characteristic function data set
+        file_charfin = sorted((fname for fname in os.listdir(dir_char) if os.path.isfile(os.path.join(dir_char, fname))))
+        charfs = obspy.Stream()
+        for dfile in file_charfin:
+            charfs += obspy.read(os.path.join(dir_char, dfile))
+    elif isinstance(dir_char, (obspy.Stream)):
+        # input is obspy stream object
+        charfs = dir_char
+    elif isinstance(dir_char, (obspy.Trace)):
+        # input is obspy trace object
+        charfs = obspy.Stream()
+        charfs += dir_char
+    elif dir_char is None:
+        # no input characteristic function data set
+        charfs = None
+    else:
+        raise ValueError('Input characteristic function data set format not supported!')   
+    
+    if (fband is not None) and (stream is not None):
+        stream.detrend('demean')
+        stream.detrend('simple')
+        stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1], corners=2, zerophase=True)
+        stream.taper(max_percentage=0.001, type='cosine', max_length=1)  # to avoid anormaly at bounday
+
+    # slice data in the input time range
+    if timerg is not None:
+        if stream is not None:
+            stream = stream.slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1]))
+        if charfs is not None:
+            charfs = charfs.slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1]))
+
     # get the date info of data set
-    this_date = stream[0].stats.starttime.date
+    if stream is not None:
+        this_date = stream[0].stats.starttime.date
+    elif charfs is not None:
+        this_date = charfs[0].stats.starttime.date
     
     if not comp:
         # no input component, i.e. comp = None or []
@@ -455,12 +506,6 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
     if not os.path.exists(dir_output):
         os.makedirs(dir_output)
     
-    if fband:
-        stream.detrend('demean')
-        stream.detrend('simple')
-        stream.filter('bandpass', freqmin=fband[0], freqmax=fband[1], corners=2, zerophase=True)
-        stream.taper(max_percentage=0.001, type='cosine', max_length=1)  # to avoid anormaly at bounday
-    
     for icomp in comp:
         # plot data of all stations for each component
         fig = plt.figure(figsize=figsize, dpi=dpi)
@@ -473,10 +518,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
             if tr.count() > 0:
                 tr.merge(fill_value=0)
                 tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                if timerg is not None:
-                    dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
-                else:
-                    dampmax = max(abs(tr[0].data))
+                dampmax = max(abs(tr[0].data))
                 if dampmax > 0:
                     vdata = tr[0].data / dampmax
                 else:
@@ -490,10 +532,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                 tr = charfs.select(station=staname[ii], component="P")
                 if tr.count() > 0:
                     tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                    if timerg is not None:
-                        dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
-                    else:
-                        dampmax = max(abs(tr[0].data))
+                    dampmax = max(abs(tr[0].data))
                     if (normv is not None) and (dampmax >= normv):
                         vdata = tr[0].data / dampmax
                     else:
@@ -513,10 +552,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                             fontsize_pbl = 13
                         else:
                             fontsize_pbl = problabel
-                        if timerg is not None:
-                            ax.text(timerg[-1], ydev[ii]+0.35*dyy, 'P_prob_max: {:.3f}'.format(dampmax), color='r', fontsize=fontsize_pbl, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica', 
-                        else:
-                            ax.text(tt[-1], ydev[ii]+0.35*dyy, 'P_prob_max: {:.3f}'.format(dampmax), color='r', fontsize=fontsize_pbl, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica', 
+                        ax.text(tt[-1], ydev[ii]+0.35*dyy, 'P_prob_max: {:.2f}'.format(dampmax), color='r', fontsize=fontsize_pbl, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica', 
                     del vdata, tt
                 del tr
                 
@@ -524,10 +560,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                 tr = charfs.select(station=staname[ii], component="S")
                 if tr.count() > 0:
                     tt = pd.date_range(tr[0].stats.starttime.datetime, tr[0].stats.endtime.datetime, tr[0].stats.npts)
-                    if timerg is not None:
-                        dampmax = max(abs(tr[0].slice(starttime=UTCDateTime(timerg[0]), endtime=UTCDateTime(timerg[1])).data))
-                    else:
-                        dampmax = max(abs(tr[0].data))
+                    dampmax = max(abs(tr[0].data))
                     if (normv is not None) and (dampmax >= normv):
                         vdata = tr[0].data / dampmax
                     else:
@@ -547,10 +580,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                             fontsize_pbl = 13
                         else:
                             fontsize_pbl = problabel
-                        if timerg is not None:
-                            ax.text(timerg[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=fontsize_pbl, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica' ,
-                        else:
-                            ax.text(tt[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.3f}'.format(dampmax), color='b', fontsize=fontsize_pbl, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica', 
+                        ax.text(tt[-1], ydev[ii]+0.19*dyy, 'S_prob_max: {:.2f}'.format(dampmax), color='b', fontsize=fontsize_pbl, fontweight='bold', va='bottom', ha='right')  # fontname='Helvetica', 
                     del vdata, tt
                 del tr
             
@@ -560,15 +590,23 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
                 if len(staids)==1:
                     if 'P' in arrvtt[staids[0]]:
                         # plot P arrivaltimes
-                        ax.vlines(np.datetime64(arrvtt[staids[0]]['P']), ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
+                        if isinstance(arrvtt[staids[0]]['P'], (list, np.ndarray)):
+                            # multiple P-wave arrival times
+                            for itt in arrvtt[staids[0]]['P']:
+                                ax.vlines(np.datetime64(itt), ydev[ii]-0.5, ydev[ii]+0.5, colors='lime', linestyles='-', linewidth=0.5, alpha=0.95, zorder=3)
+                        else:
+                            ax.vlines(np.datetime64(arrvtt[staids[0]]['P']), ydev[ii]-0.5, ydev[ii]+0.5, colors='lime', linestyles='-', linewidth=0.5, alpha=0.95, zorder=3)
                     if 'S' in arrvtt[staids[0]]:
                         # plot S arrivaltimes
-                        ax.vlines(np.datetime64(arrvtt[staids[0]]['S']), ydev[ii], ydev[ii]+0.95, colors='lime', linewidth=0.9, alpha=0.95, zorder=3)
+                        if isinstance(arrvtt[staids[0]]['S'], (list, np.ndarray)):
+                            # multiple S-wave arrival times
+                            for itt in arrvtt[staids[0]]['S']:
+                                ax.vlines(np.datetime64(itt), ydev[ii]-0.5, ydev[ii]+0.5, colors='lime', linestyles='-', linewidth=0.5, alpha=0.95, zorder=3)
+                        else:
+                            ax.vlines(np.datetime64(arrvtt[staids[0]]['S']), ydev[ii]-0.5, ydev[ii]+0.5, colors='lime', linestyles='-', linewidth=0.5, alpha=0.95, zorder=3)
         
-        if timerg is not None:
-            ax.set_xlim(timerg)
-            ax.set_ylim([ydev[0]-1.1*ampscale, ydev[-1]+1.1*ampscale])
-        myFmt = mdates.DateFormatter("%H:%M:%S")
+        ax.set_ylim([ydev[0]-1.1*ampscale, ydev[-1]+1.1*ampscale])
+        myFmt = MyFormatter("%H:%M:%S.%f")  # mdates.DateFormatter("%H:%M:%S")
         ax.xaxis.set_major_formatter(myFmt)
         plt.xticks(fontsize=16)  # fontname='Helvetica', fontweight ="bold", 
         if yticks == 'station':
@@ -581,6 +619,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
             ax.set_yticklabels(ytck_lb, fontsize=16)  # fontname='Helvetica', fontweight ="bold", 
             ax.set_ylabel('Station number', fontsize=16)  # fontname='Helvetica', fontweight ="bold",
         ax.tick_params(axis='x', labelsize=16)
+        ax.autoscale(enable=True, axis='x', tight=True)  # set x-axis range tight
         ax.set_title('Data [{}]'.format(this_date), fontsize=16, fontweight ="bold")  # fontname='Helvetica',
         if tag:
             fname = os.path.join(dir_output, 'input_data_with_cf_{}_{}.{}'.format(icomp, tag, figfmt))
