@@ -44,7 +44,23 @@ def load_check_input(file_para):
             else:
                 # input is a valid string
                 paras['dir']['results'] = os.path.join(paras['dir']['project_root'], paras['dir']['results_tag'])
-            
+
+    # check 'region' setting
+    if 'region' not in paras:
+        paras['region'] = {}
+    else:
+        if not isinstance(paras['region'], (dict,)):
+            raise ValueError("'region' should be a dictionary.")
+        else:
+            valid_keys = ['latitude_min', 'latitude_max', 'longitude_min', 'longitude_max', 'depth_min', 'depth_max', 'dx', 'dy', 'dz']
+            if not all(ikey in valid_keys for ikey in paras['region'].keys()):
+                raise ValueError(f"Invalid key in 'region'. Only {valid_keys} are allowed.")
+
+    # set default values for 'region: depth_max' if it does not exist        
+    if "depth_max" not in paras['region']:
+        print(f"Warning: 'region:depth_max' not provided. Set it to 30000 meter.")
+        paras['region']['depth_max'] = 30000
+
     # check 'seismic_data' setting
     if 'seismic_data' not in paras:
         raise ValueError("Parameter file should contain 'seismic_data' setting.")
@@ -96,7 +112,7 @@ def load_check_input(file_para):
             else:
                 paras['seismic_data']['save_raw'] = False
 
-    # check station setting
+    # check 'station' setting
     if 'station' not in paras:
         raise ValueError("Parameter file should contain 'station' setting.")
     else:
@@ -132,13 +148,16 @@ def load_check_input(file_para):
     # chech 'traveltime' setting
     if 'traveltime' not in paras:
         paras['traveltime'] = {}
-        paras['traveltime']['request'] = 'function'
+        paras['traveltime']['type'] = 'function'
     else:
-        if 'request' not in paras['traveltime']:
-            paras['traveltime']['request'] = 'function'
+        if 'type' not in paras['traveltime']:
+            paras['traveltime']['type'] = 'function'
+        elif paras['traveltime']['type'].upper() == 'FUNCTION':
+            pass
+        elif paras['traveltime']['type'].upper() == 'TABLE':
+            pass
         else:
-            if paras['traveltime']['request'].upper() not in ['TABLE', 'FUNCTION']:
-                raise ValueError(f"'traveltime:request' should be either 'table' or 'function'")
+            raise ValueError(f"'traveltime:type' should be either 'table' or 'function'")
 
     # check 'phase_pick' setting
     if 'phase_pick' not in paras:
@@ -211,6 +230,15 @@ def load_check_input(file_para):
                 paras['phase_asso']['save_seis'] = True
             else:
                 paras['phase_asso']['save_seis'] = False
+
+    # check 'event_location' setting
+    if 'event_location' not in paras:
+        paras['event_location'] = None
+    else:
+        if 'file' not in paras['event_location']:
+            raise ValueError("Parameter file should contain 'event_location:file' setting.")
+        elif not isinstance(paras['event_location']['file'], (str,)):
+            raise ValueError(f"'event_location:file' should be a string!")
 
     return paras
 

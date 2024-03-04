@@ -10,8 +10,11 @@ Functions related to coordinates, such as coordinate extraction and conversion.
 
 
 import numpy as np
-from loki import LatLongUTMconversion
 import pyproj
+from pyproj import Proj, Transformer
+from pyproj import CRS
+from pyproj.aoi import AreaOfInterest
+from pyproj.database import query_utm_crs_info
 
 
 def grid2mgregion(grid):
@@ -42,6 +45,8 @@ def grid2mgregion(grid):
 
     """
     
+    from loki import LatLongUTMconversion
+
     # determine the lon/lat of the migration area
     refell=23
     (UTMZone, eorig, norig) = LatLongUTMconversion.LLtoUTM(refell, grid['LatOrig'], grid['LongOrig'])  # the Cartesian coordinate of the origin point in meter
@@ -92,6 +97,7 @@ def get_lokicoord(dir_tt, hdr_filename='header.hdr', extr=0.05, consider_mgregio
     
     from loki import traveltimes
     from obspy.core.inventory import Inventory, Network, Station
+    from loki import LatLongUTMconversion
     
     # load station metadata from traveltime table data set
     tobj = traveltimes.Traveltimes(dir_tt, hdr_filename)
@@ -209,21 +215,110 @@ def get_utm_zone(longitude, latitude):
 
     # use the mean value if the input is a list or numpy array
     if isinstance(longitude, (list, np.ndarray)):
-        longitude = np.nanmean(longitude)
+        longitude_c = np.nanmean(longitude)
+    else:
+        longitude_c = longitude
     if isinstance(latitude, (list, np.ndarray)):
-        latitude = np.nanmean(latitude)
+        latitude_c = np.nanmean(latitude)
+    else:
+        latitude_c = latitude
 
-    zone_number = int((longitude + 180) / 6) + 1
-    if latitude >= 0:
+    zone_number = (int((longitude_c + 180) / 6) % 60) + 1
+    if latitude_c >= 0:
         zone_letter = 'N'
     else:
         zone_letter = 'S'
     return zone_number, zone_letter
 
 
-def lonlat2xy(longitude, latitude):
-    zone_number, zone_letter = get_utm_zone(longitude, latitude)
+def lonlat2xy(longitude, latitude, utm_zone=None):
+    if utm_zone is None:
+        zone_number, zone_letter = get_utm_zone(longitude, latitude)
+    else:
+        zone_number = utm_zone
     LonLat_To_XY = pyproj.Proj(proj='utm', zone=zone_number, ellps='WGS84', datum='WGS84', preserve_units=True)
     x, y = LonLat_To_XY(longitude, latitude)  # convert lon/lat to x/y in meter
     return x, y
 
+
+def xy2lonlat(x, y, utm_zone):
+    XY_To_LonLat = pyproj.Proj(proj='utm', zone=utm_zone, ellps='WGS84', datum='WGS84', preserve_units=True, inverse=True)
+    longitude, latitude = XY_To_LonLat(x, y, inverse=True)  # convert x/y to lon/lat in degree
+    return longitude, latitude
+
+
+class coordsystem:
+    """
+    Coordinate system class.
+
+    Transformer.from_crs("epsg:4326", self.utm_crs, always_xy=True) 
+    creates a Transformer object that can convert from the WGS84 
+    geographic coordinate system (EPSG:4326) to the UTM coordinate system. 
+    The transform method of this object is then used to convert the 
+    latitude and longitude to UTM coordinates.
+
+    Please note that the always_xy=True argument is used to specify that 
+    the input and output coordinates should be in (longitude, latitude) or (easting, northing) order, 
+    which is the standard in GIS applications. 
+    If you don't include this argument, 
+    pyproj will expect the coordinates in (latitude, longitude) order, 
+    which can be confusing.
+
+    From lat/lon to UTM: utm_easting, utm_northing = transformer.transform(longitude, latitude)
+    From UTM to lat/lon: longitude, latitude = transformer.transform(utm_easting, utm_northing, direction='INVERSE')
+
+    The default "ele_to_depth_scale" is -1.0, which means the elevation is converted to depth by multiplying -1.0.
+    i.e. depth is negative of elevation, downward is positive.
+
+    """
+
+    def __init__(self, utm_crs=None, elevation_to_depth_scale=-1.0):
+        self.utm_crs = utm_crs
+        self.elevation_to_depth_scale = elevation_to_depth_scale
+
+    def compute_crs(self, longitude, latitude):
+        # determine the CRS (Coordinate Reference System) for the UTM zone
+        longitude_min = np.nanmin(longitude)
+        longitude_max = np.nanmax(longitude)
+        latitude_min = np.nanmin(latitude)
+        latitude_max = np.nanmax(latitude)
+        utm_crs_list = query_utm_crs_info(datum_name="WGS84",
+                                          area_of_interest=AreaOfInterest(
+                                          west_lon_degree=longitude_min,
+                                          south_lat_degree=latitude_min,
+                                          east_lon_degree=longitude_max,
+                                          north_lat_degree=latitude_max))
+        self.utm_crs = CRS.from_epsg(utm_crs_list[0].code)
+        return 
+
+    def lonlat2xy(self, longitude, latitude):
+        # convert latitude and longitude in degree to UTM in meter
+        assert(self.utm_crs is not None), "Please compute the UTM CRS first."
+        transformer = Transformer.from_crs("epsg:4326", self.utm_crs, always_xy=True)  
+        x, y = transformer.transform(longitude, latitude)
+        return x, y
+    
+    def lonlatele2xyz(self, longitude, latitude, elevation):
+        # convert latitude and longitude in degree to UTM in meter
+        # convert elevation in meter to depth in meter
+        assert(self.utm_crs is not None), "Please compute the UTM CRS first."
+        transformer = Transformer.from_crs("epsg:4326", self.utm_crs, always_xy=True)  
+        x, y = transformer.transform(longitude, latitude)
+        z = elevation * self.elevation_to_depth_scale
+        return x, y, z
+
+    def xy2lonlat(self, utm_easting, utm_northing):
+        # convert UTM in meter to latitude and longitude in degree
+        assert(self.utm_crs is not None), "Please compute the UTM CRS first."
+        transformer = Transformer.from_crs("epsg:4326", self.utm_crs, always_xy=True)  
+        longitude, latitude = transformer.transform(utm_easting, utm_northing, direction='INVERSE')
+        return longitude, latitude
+    
+    def xyz2lonlatele(self, utm_easting, utm_northing, utm_depth):
+        # convert UTM in meter to latitude and longitude in degree
+        # convert depth in meter to elevation in meter
+        assert(self.utm_crs is not None), "Please compute the UTM CRS first."
+        transformer = Transformer.from_crs("epsg:4326", self.utm_crs, always_xy=True)  
+        longitude, latitude = transformer.transform(utm_easting, utm_northing, direction='INVERSE')
+        elevation = utm_depth / self.elevation_to_depth_scale
+        return longitude, latitude, elevation

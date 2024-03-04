@@ -4,21 +4,29 @@ import os
 from xinputs import load_check_input
 from xproject_init import malmi_project_init
 from obspy.clients.fdsn import Client
-from xstation import load_station
+from xstation import station as stacls
 from quakephase import quakephase
 from phassoc import asso
-from read_velocity import load_model as load_velocity_model
+from xvelocity import velocity
 import sys
+from xtraveltime import traveltime
+from xregion import region
+import numpy as np
+from xloc import location_agg
+import time
 
 
 fmt_datetime = "%Y%m%dT%H%M%SS%f"
 
 
-def _oneflow(stream, paras: dict, station):
+def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor):
 
     # pick and characterize seismic phases
+    time_now = time.time()
     print(f"Apply phase picking and characterization to seismic data:")
     output_phasepp = quakephase.apply(data=stream, file_para=paras['phase_pick']['parameter_file'])
+    time_pre, time_now = time_now, time.time()
+    print(f"Phase picking and characterization finished, use time: {time_now - time_pre} s.")
 
     # need to revise the channel code for the phase probability
     # should have 3 characters, the first two are the instrument code, the last one is the phase code
@@ -44,19 +52,25 @@ def _oneflow(stream, paras: dict, station):
         output_phasepp['prob'].write(file_prob, format='MSEED')
 
     # associate phase picks to events
+    time_now = time.time()
     print(f"Event detection and association:")
     output_asso = asso(pick=output_phasepp['pick'], file_para=paras['phase_asso']['file'])
+    time_pre, time_now = time_now, time.time()
+    print(f"Event detection and association finished, use time: {time_now - time_pre} s.")
     
     # locate events for each detection time range
     for jtimerrg, jpick in zip(output_asso['time_range'], output_asso['pick']):
-        jdir_event = os.path.join(paras['dir']['results'], f"{jtimerrg[0].strftime(fmt_datetime)}_{jtimerrg[1].strftime(fmt_datetime)}")
+        jfld_event = f"{jtimerrg[0].strftime(fmt_datetime)}_{jtimerrg[1].strftime(fmt_datetime)}"
+        jdir_event = os.path.join(paras['dir']['results'], jfld_event)
         
-        # if paras['phase_asso']['time_buffer'] == 'auto':
-        #     paras['phase_asso']['time_buffer'] = 
-        jtt1 = jtimerrg[0] - paras['phase_asso']['time_buffer']
-        jtt2 = jtimerrg[1] + paras['phase_asso']['time_buffer']
+        if paras['phase_asso']['time_buffer'] == 'auto':
+            # automatically determine the time buffer
+            jtimediff = jtimerrg[1] - jtimerrg[0]
+            paras['phase_asso']['time_buffer'] = np.max([(traveltime_seis.tt_max - traveltime_seis.tt_min) - jtimediff, 0])
+        jtt1 = jtimerrg[0] - paras['phase_asso']['time_buffer']  # starttime of the detection range, with buffer
+        jtt2 = jtimerrg[1] + paras['phase_asso']['time_buffer']  # endtime of the detection range, with buffer
         jprob = output_phasepp['prob'].slice(starttime=jtt1, endtime=jtt2).copy()
-        jstream = stream.slice(starttime=jtt1, endtime=jtt2).copy()
+        jstream = stream.slice(starttime=jtt1, endtime=jtt2).copy()  # make a physical copy of the stream
 
         if not os.path.exists(jdir_event):
             os.makedirs(jdir_event)
@@ -76,6 +90,11 @@ def _oneflow(stream, paras: dict, station):
             jstream.write(jfile_seis, format='MSEED')
 
         # locate the event
+        time_now = time.time()
+        print(f"Locate events for the detection range: {jtimerrg[0]} to {jtimerrg[1]}")
+        jsource_x, jsource_y, jsource_z = location_agg(data=jprob.copy(), file_parameter=paras['event_location']['file'], traveltime=traveltime_seis, region=region_monitor)
+        time_pre, time_now = time_now, time.time()
+        print(f"Event location finished, use time: {time_now - time_pre} s.")
 
         # estimate event magnitude
 
@@ -96,27 +115,72 @@ def malmi_workflow(file_parameter: str):
         yaml file that contains the parameters for configuring the workflow.
     """
 
+    time_pre = time.time()
+
     # Save the current sys.stdout
     original_stdout = sys.stdout
 
     # load and check input parameters
     print(f"Load and check input parameters from {file_parameter}.")
     paras_in = load_check_input(file_para=file_parameter)
+    time_now = time.time()
+    print(f"Load and check input paramter finished, use time: {time_now - time_pre} s.")
 
     # setup the project directory
     print(f"Check and setup project directory.")
     paras_in['dir'] = malmi_project_init(para=paras_in['dir'])
     paras_in['id'] = {}
+    time_pre, time_now = time_now, time.time()
+    print(f"Project directory setup finished, use time: {time_now - time_pre} s.")
 
     # load station inventory
-    print(f"Load station inventory.")
-    station = load_station(file_station=paras_in['station']['file'], outformat='dict')
+    print(f"Load station inventory.")  
+    stations = stacls(file_station=paras_in['station']['file'])  # station class
+    time_pre, time_now = time_now, time.time()
+    print(f"Load station inventory finished, use time: {time_now - time_pre} s.")
+
+    # determine the region of interest and projection system: the UTM_zone, etc
+    print(f"Load monitoring region information and determine projection system.")
+    if 'latitude_min' not in paras_in['region']:
+        print(f"Minimum latitude of monitoring region not set, use the minimum latitude from the station inventory.")
+        paras_in['region']['latitude_min'] = stations.latitude_min
+    if 'latitude_max' not in paras_in['region']:
+        print(f"Maximum latitude of monitoring region not set, use the maximum latitude from the station inventory.")
+        paras_in['region']['latitude_max'] = stations.latitude_max
+    if 'longitude_min' not in paras_in['region']:
+        print(f"Minimum longitude of monitoring region not set, use the minimum longitude from the station inventory.")
+        paras_in['region']['longitude_min'] = stations.longitude_min
+    if 'longitude_max' not in paras_in['region']:
+        print(f"Maximum longitude of monitoring region not set, use the maximum longitude from the station inventory.")
+        paras_in['region']['longitude_max'] = stations.longitude_max
+    if 'depth_min' not in paras_in['region']:
+        paras_in['region']['depth_min'] = stations.elevation_max * -1.0
+        print(f"Minimum depth of monitoring region not set, use the maximum elevation from the station inventory *-1.0: {paras_in['region']['depth_min']}.")
+    region_monitor = region(**paras_in['region'])  # monitoring region class
+    print(F"Monitoring region information: {region_monitor}.")
+    time_pre, time_now = time_now, time.time()
+    print(f"Load monitoring region information and determine projection system finished, use time: {time_now - time_pre} s.")
+
+    # get UTM coordinates of stations, add to the station class
+    print(f"Add UTM coordinates to the station inventory.")
+    sta_x, sta_y, sta_z = region_monitor.coordsystem.lonlatele2xyz(longitude=stations.longitude, latitude=stations.latitude, elevation=stations.elevation)
+    stations.append_xyz(x=sta_x, y=sta_y, z=sta_z)  # z is depth, downward positive
+    time_pre, time_now = time_now, time.time()
+    print(f"Add UTM coordinates to the station inventory finished, use time: {time_now - time_pre} s.")
 
     # load velocity model
     print(f"Load velocity model.")
-    velocity_model = load_velocity_model(file_model=paras_in['velocity']['file'], format=paras_in['velocity']['format'])
+    velocity_model = velocity(file=paras_in['velocity']['file'], file_format=paras_in['velocity']['format'], velocity_type=paras_in['velocity']['type'])
+    time_pre, time_now = time_now, time.time()
+    print(f"Load velocity model finished, use time: {time_now - time_pre} s.")
 
     # generate traveltime tables/functions
+    print(f"Generate traveltime tables/functions.")
+    travelts = traveltime(station=stations, velocity=velocity_model, region=region_monitor,
+                          seismic_phase=['P', 'S'], **paras_in['traveltime'])
+    time_pre, time_now = time_now, time.time()
+    print(f"Generate traveltime tables/functions finished, use time: {time_now - time_pre} s.")
+    # return travelts, stations, region_monitor, velocity_model  # for testing
 
     # get seismic data
     if paras_in['seismic_data']['get_data'].upper() == "FDSN":
@@ -127,12 +191,11 @@ def malmi_workflow(file_parameter: str):
         
         tt1 = paras_in['seismic_data']['starttime']
         tt2 = paras_in['seismic_data']['starttime'] + paras_in['seismic_data']['processing_time']
-        paras_in['id']['results'] = f"{tt1.strftime(fmt_datetime)}_{tt2.strftime(fmt_datetime)}"
-
-        file_log = os.path.join(paras_in['dir']['log'], f"{paras_in['id']['results']}.log")
-        sys.stdout = open(file_log, "w")
+        paras_in['id']['results'] = f"{tt1.strftime(fmt_datetime)}_{tt2.strftime(fmt_datetime)}" 
 
         while (paras_in['seismic_data']['endtime'] is None) or (tt1<paras_in['seismic_data']['endtime']):
+            file_log = os.path.join(paras_in['dir']['log'], f"{paras_in['id']['results']}.log")
+            sys.stdout = open(file_log, "w", buffering=1)
             print("Working on time period: ", tt1, " to ", tt2)
 
             # add buffer time to the start and end time
@@ -141,20 +204,22 @@ def malmi_workflow(file_parameter: str):
             
             # compile the bulk request
             bulk = []
-            for inet, ista in zip(station['network'], station['station']):
+            for inet, ista in zip(stations.network, stations.station):
                 bulk.append((inet, ista, "*", "*", tt1_ac, tt2_ac))
             print("Requesting seismic data from stations: ", bulk)
 
             # request seismic data
+            time_now = time.time()
             stream = client.get_waveforms_bulk(bulk)
 
             if stream:
+                time_pre, time_now = time_now, time.time()
+                print(f"Requesting seismic data finised, use time: {time_now - time_pre} s.")
                 print("Data available for time period: ", tt1, " to ", tt2)
                 print("Start processing...")
 
                 stream.trim(starttime=tt1_ac, endtime=tt2_ac)
                 
-
                 if paras_in['dir']['results_tag'] is None:
                     # results are saved separately for each time period
                     paras_in['dir']['results'] = os.path.join(paras_in['dir']['project_root'], "results", paras_in['id']['results'])
@@ -163,14 +228,14 @@ def malmi_workflow(file_parameter: str):
                         print(f"Results directory {paras_in['dir']['results']} created.")
 
                 # process the current seismic data 
-                _oneflow(stream=stream, paras=paras_in, station=station)
+                _oneflow(stream=stream, paras=paras_in, station_seis=stations, traveltime_seis=travelts, region_monitor=region_monitor)
 
                 # save raw seismic data if required
                 if paras_in['seismic_data']['save_raw']:
                     file_raw = os.path.join(paras_in['dir']['seismic_raw'], f"{paras_in['id']['results']}_seismic_raw.mseed")
                     stream.write(file_raw, format='MSEED')
 
-                print(f"Processing finished---------------------------------------------")
+                print(f"Processing finished---------------------------------------------------")
                 print("")
 
             else:

@@ -25,7 +25,7 @@ def read_NLLvel(vfile):
     Format of the velocity model file:
         depth Vp_top Vp_grad Vs_top Vs_grad rho_top rho_grad
     
-    depth: (float) depth to top of layer (use negative values for layers above z=0)
+    depth: (float) depth to top of layer (use negative values for layers above z=0), in km.
     Vp_top Vs_top rho_top: (float) P velocity, and S velocity in km/s and density in kg/m**3 at the top of the layer.
     Vp_grad Vs_grad rho_grad: (float) Linear P velocity and S velocity gradients in km/s/km and density gradient in kg/m**3/km increasing directly downwards from the top of the layer.
     Notes:
@@ -39,6 +39,7 @@ def read_NLLvel(vfile):
     """
     
     vmodel = np.loadtxt(vfile)
+    vmodel = np.atleast_2d(vmodel)
     model = {}    
     model['depth_top'] = vmodel[:,0]
     model['Vp_top'] = vmodel[:,1]
