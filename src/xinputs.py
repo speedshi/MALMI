@@ -69,8 +69,8 @@ def load_check_input(file_para):
         if "get_data" not in paras['seismic_data']:
             raise ValueError("Parameter file should contain 'seismic_data:get_data' setting.")
         else:
-            if not paras['seismic_data']['get_data'].upper() in ['FDSN', 'LOCAL']:
-                raise ValueError("'seismic_data:get_data' should be either 'FDSN' or 'LOCAL'.")
+            if not paras['seismic_data']['get_data'].upper() in ['FDSN', 'AIO']:
+                raise ValueError("'seismic_data:get_data' should be either 'FDSN' or 'AIO'.")
         
         if "data_source" not in paras['seismic_data']:
             raise ValueError("Parameter file should contain 'seismic_data:data_source' setting.")
@@ -85,6 +85,20 @@ def load_check_input(file_para):
             assert("starttime" in paras['seismic_data'])
             assert("processing_time" in paras['seismic_data'])
             assert("buffer_time" in paras['seismic_data'])
+        elif paras['seismic_data']['get_data'].upper() == 'AIO':
+            if 'file_exclude' not in paras['seismic_data']:
+                paras['seismic_data']['file_exclude'] = "./seismic_data_load.txt"
+            if not os.path.exists(paras['seismic_data']['file_exclude']):
+                os.makedirs(os.path.dirname(paras['seismic_data']['file_exclude']), exist_ok=True)
+                with open(paras['seismic_data']['file_exclude'], "w") as file: pass
+            
+            if 'load_number' not in paras['seismic_data']:
+                paras['seismic_data']['load_number'] = None
+            else:
+                if not isinstance(paras['seismic_data']['load_number'], (int,)):
+                    raise ValueError("'seismic_data:load_number' should be an integer.")
+            if 'file_order' not in paras['seismic_data']:
+                paras['seismic_data']['file_order'] = 'name'
 
         if "starttime" not in paras['seismic_data']:
             paras['seismic_data']['starttime'] = None

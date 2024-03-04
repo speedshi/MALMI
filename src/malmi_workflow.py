@@ -8,12 +8,14 @@ from xstation import station as stacls
 from quakephase import quakephase
 from phassoc import asso
 from xvelocity import velocity
+from xseismic_loader import xseismic_loader
 import sys
 from xtraveltime import traveltime
 from xregion import region
 import numpy as np
 from xloc import location_agg
 import time
+from obspy import Stream
 
 
 fmt_datetime = "%Y%m%dT%H%M%SS%f"
@@ -182,76 +184,106 @@ def malmi_workflow(file_parameter: str):
     print(f"Generate traveltime tables/functions finished, use time: {time_now - time_pre} s.")
     # return travelts, stations, region_monitor, velocity_model  # for testing
 
-    # get seismic data
+    # set seismic data loader
     if paras_in['seismic_data']['get_data'].upper() == "FDSN":
         # get data from FDSN server
         client = Client(base_url=paras_in['seismic_data']['data_source'], 
                         user=paras_in['seismic_data']['user'], 
                         password=paras_in['seismic_data']['password'])
+        setattr(client, 'get_waveforms', client.get_waveforms_bulk)
+    elif paras_in['seismic_data']['get_data'].upper() == "AIO":
+        # get data from local storage in one folder
+        # "AIO" means "All In One folder"
+        client = xseismic_loader(load_type=paras_in['seismic_data']['get_data'], 
+                                 data_source=paras_in['seismic_data']['data_source'], 
+                                 file_exclude=paras_in['seismic_data']['file_exclude'], 
+                                 write_loaded_to_exclude=True)
+        stream_keep = Stream()
         
-        tt1 = paras_in['seismic_data']['starttime']
-        tt2 = paras_in['seismic_data']['starttime'] + paras_in['seismic_data']['processing_time']
-        paras_in['id']['results'] = f"{tt1.strftime(fmt_datetime)}_{tt2.strftime(fmt_datetime)}" 
+    # request seismic data and process
+    tt1 = paras_in['seismic_data']['starttime']  # starttime of the first time period
+    if tt1 is not None:
+        tt2 = paras_in['seismic_data']['starttime'] + paras_in['seismic_data']['processing_time']  # endtime of the first time period
+    else:
+        tt2 = None
 
-        while (paras_in['seismic_data']['endtime'] is None) or (tt1<paras_in['seismic_data']['endtime']):
-            file_log = os.path.join(paras_in['dir']['log'], f"{paras_in['id']['results']}.log")
-            sys.stdout = open(file_log, "w", buffering=1)
-            print("Working on time period: ", tt1, " to ", tt2)
+    while (paras_in['seismic_data']['endtime'] is None) or (tt1<paras_in['seismic_data']['endtime']):
+        # this is a loop for processing seismic data in different time periods
 
-            # add buffer time to the start and end time
-            tt1_ac = tt1 - paras_in['seismic_data']['buffer_time']  # actual start time
-            tt2_ac = tt2 + paras_in['seismic_data']['buffer_time']  # actual end time
-            
-            # compile the bulk request
-            bulk = []
+        # set the name id for the current time period, will update for each loop
+        paras_in['id']['results'] = f"{tt1.strftime(fmt_datetime)}_{tt2.strftime(fmt_datetime)}"
+        
+        file_log = os.path.join(paras_in['dir']['log'], f"{paras_in['id']['results']}.log")
+        sys.stdout = open(file_log, "w", buffering=1)
+        print("Working on time period: ", tt1, " to ", tt2)
+
+        # add buffer time to the start and end time
+        if tt1 is not None:
+            tt1_bf = tt1 - paras_in['seismic_data']['buffer_time']  # buffered starttime
+        else:
+            tt1_bf = None
+        if tt2 is not None:
+            tt2_bf = tt2 + paras_in['seismic_data']['buffer_time']  # buffered endtime
+        else:
+            tt2_bf = None
+
+        # compile the data request info
+        if paras_in['seismic_data']['get_data'].upper() == "FDSN":
+            rinfo = []
             for inet, ista in zip(stations.network, stations.station):
-                bulk.append((inet, ista, "*", "*", tt1_ac, tt2_ac))
-            print("Requesting seismic data from stations: ", bulk)
-
-            # request seismic data
-            time_now = time.time()
-            stream = client.get_waveforms_bulk(bulk)
-
-            if stream:
-                time_pre, time_now = time_now, time.time()
-                print(f"Requesting seismic data finised, use time: {time_now - time_pre} s.")
-                print("Data available for time period: ", tt1, " to ", tt2)
-                print("Start processing...")
-
-                stream.trim(starttime=tt1_ac, endtime=tt2_ac)
-                
-                if paras_in['dir']['results_tag'] is None:
-                    # results are saved separately for each time period
-                    paras_in['dir']['results'] = os.path.join(paras_in['dir']['project_root'], "results", paras_in['id']['results'])
-                    if not os.path.exists(paras_in['dir']['results']):
-                        os.makedirs(paras_in['dir']['results'])
-                        print(f"Results directory {paras_in['dir']['results']} created.")
-
-                # process the current seismic data 
-                _oneflow(stream=stream, paras=paras_in, station_seis=stations, traveltime_seis=travelts, region_monitor=region_monitor)
-
-                # save raw seismic data if required
-                if paras_in['seismic_data']['save_raw']:
-                    file_raw = os.path.join(paras_in['dir']['seismic_raw'], f"{paras_in['id']['results']}_seismic_raw.mseed")
-                    stream.write(file_raw, format='MSEED')
-
-                print(f"Processing finished---------------------------------------------------")
-                print("")
-
-            else:
-                print("No data available for time period: ", tt1, " to ", tt2)
-                print("Skip processing..., move to next time period.")
-                print("")
-
-            # update tt1 and tt2
-            tt1 = tt2
-            tt2 = tt1 + paras_in['seismic_data']['processing_time']
-            sys.stdout.close()
-
-    elif paras_in['seismic_data']['get_data'].upper() == "LOCAL":
-        # get data from local storage
-        pass
+                rinfo.append((inet, ista, "*", "*", tt1_bf, tt2_bf))
+            print("Requesting seismic data from stations: ", rinfo)
+        else:
+            rinfo = {}
+            rinfo['load_number'] = paras_in['seismic_data']['load_number']
+            rinfo['file_order'] = paras_in['seismic_data']['file_order']
     
+        # request seismic data
+        time_now = time.time()
+        stream = client.get_waveforms(rinfo)
+        time_pre, time_now = time_now, time.time()
+        print(f"Requesting seismic data finised, use time: {time_now - time_pre} s.")
+
+        if paras_in['seismic_data']['get_data'].upper() == "FDSN":
+            stream.trim(starttime=tt1_bf, endtime=tt2_bf)
+        else:
+            if tt2 is not None:
+                stream += stream_keep.copy()
+                stream_keep = stream.copy().trim(starttime=tt2-paras_in['seismic_data']['buffer_time'])
+            stream.trim(starttime=tt1_bf, endtime=tt2_bf)
+
+        if stream:  
+            print("Data available for time period: ", tt1, " to ", tt2)
+            print("Start processing...")
+            if paras_in['dir']['results_tag'] is None:
+                # results are saved separately for each time period
+                paras_in['dir']['results'] = os.path.join(paras_in['dir']['project_root'], "results", paras_in['id']['results'])
+                if not os.path.exists(paras_in['dir']['results']):
+                    os.makedirs(paras_in['dir']['results'])
+                    print(f"Results directory {paras_in['dir']['results']} created.")
+
+            # save raw seismic data if required
+            if paras_in['seismic_data']['save_raw']:
+                file_raw = os.path.join(paras_in['dir']['seismic_raw'], f"{paras_in['id']['results']}_seismic_raw.mseed")
+                stream.write(file_raw, format='MSEED')
+
+            # process the current seismic data 
+            _oneflow(stream=stream, paras=paras_in, station_seis=stations, traveltime_seis=travelts, region_monitor=region_monitor)
+
+            print(f"Processing finished---------------------------------------------------")
+            print("")
+
+        else:
+            print("No data available for time period: ", tt1, " to ", tt2)
+            print("Skip processing..., move to next time period.")
+            print("")
+
+        # update tt1 and tt2
+        tt1 = tt2
+        if tt1 is not None: tt2 = tt1 + paras_in['seismic_data']['processing_time']
+        sys.stdout.close()
+
+
 
             
 
