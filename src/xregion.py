@@ -39,15 +39,23 @@ class region:
         self.z_min = self.depth_min
         self.z_max = self.depth_max
 
-        # get 3D meshgrid of the region in UTM coordinate system
-        self.x, self.y, self.z = np.meshgrid(np.arange(self.x_min, self.x_max+1e-6, self.dx),
-                                             np.arange(self.y_min, self.y_max+1e-6, self.dy),
-                                             np.arange(self.z_min, self.z_max+1e-6, self.dz), indexing='ij')
+        if (self.dx is not None) and (self.dy is not None) and (self.dz is not None):
+            # get 3D meshgrid of the region in UTM coordinate system
+            self.x, self.y, self.z = np.meshgrid(np.arange(self.x_min, self.x_max+1e-6, self.dx),
+                                                 np.arange(self.y_min, self.y_max+1e-6, self.dy),
+                                                 np.arange(self.z_min, self.z_max+1e-6, self.dz), 
+                                                 indexing='ij')
+            self.nx = self.x.shape[0]  # number of grid points in x direction
+            self.ny = self.y.shape[1]  # number of grid points in y direction
+            self.nz = self.z.shape[2]  # number of grid points in z direction
+            self.nxyz = self.nx * self.ny * self.nz  # total number of grid points
         
     def __str__(self):
         cstr = ""
+        no_show = ['x', 'y', 'z']
         for key, value in self.__dict__.items():
-            cstr += f"{key}: {value}, "
+            if key not in no_show:
+                cstr += f"{key}: {value}, "
         return cstr.rstrip(", ")
 
     def get_corner_points(self):

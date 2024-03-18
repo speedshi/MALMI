@@ -66,17 +66,21 @@ class traveltime:
         return caltt
 
     def vel2tab_homo(self, station, velocity, region):
+        # calculate traveltime tables from homogeneous (0D) model.
 
         # Pre-calculate the flattened arrays
         xxx_flat = region.x.flatten()
         yyy_flat = region.y.flatten()
         zzz_flat = region.z.flatten()
 
-        for ii, istaid in enumerate(station.id):
+        for ii, istaid in enumerate(station.id):  # loop over each station
             self.tt_model[istaid] = {}
-            for iphase in self.seismic_phase:
+            for iphase in self.seismic_phase:  # loop over each phase
                 self.tt_model[istaid][iphase] = np.sqrt((xxx_flat - station.x[ii])**2 + (yyy_flat - station.y[ii])**2 + (zzz_flat - station.z[ii])**2) / velocity.model[iphase][0]
                 self.tt_model[istaid][iphase] = self.tt_model[istaid][iphase].reshape(region.x.shape)
+                if self.tt_model[istaid][iphase].size != region.nxyz:
+                    raise ValueError("Size of traveltime table and region size should correspond!")
+
         return
 
     def get_minmaxtt_func(self, region, station, nx=100, ny=100, nz=100):

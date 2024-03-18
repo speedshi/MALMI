@@ -62,6 +62,10 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor)
     
     # locate events for each detection time range
     for jtimerrg, jpick in zip(output_asso['time_range'], output_asso['pick']):
+        # loop over each detection time range
+        # there might be multiple events in one detection time range: short inter-event times
+        # and ovelapping events that can not be easily separated.
+
         jfld_event = f"{jtimerrg[0].strftime(fmt_datetime)}_{jtimerrg[1].strftime(fmt_datetime)}"
         jdir_event = os.path.join(paras['dir']['results'], jfld_event)
         
@@ -94,7 +98,7 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor)
         # locate the event
         time_now = time.time()
         print(f"Locate events for the detection range: {jtimerrg[0]} to {jtimerrg[1]}")
-        jsource_x, jsource_y, jsource_z = location_agg(data=jprob.copy(), file_parameter=paras['event_location']['file'], traveltime=traveltime_seis, region=region_monitor)
+        jsource_x, jsource_y, jsource_z, jsource_t0 = location_agg(data=jprob.copy(), file_parameter=paras['event_location']['file'], traveltime=traveltime_seis, region=region_monitor, dir_output=jdir_event)
         time_pre, time_now = time_now, time.time()
         print(f"Event location finished, use time: {time_now - time_pre} s.")
 
