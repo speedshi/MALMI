@@ -277,6 +277,7 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         nwdps = len(wdps)
         print(f"wdps: {wdps}")
 
+
         for ii, it0 in enumerate(t0_s):
             # loop over each searching origin time
 
@@ -284,7 +285,7 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
             y_bound = [region.y_min, region.y_max]
             z_bound = [region.z_min, region.z_max]
 
-            for jnx, jny, jnz, jw in zip(paras['loc_grid']['dnx'], paras['loc_grid']['dny'], paras['loc_grid']['dnz'], wdps):
+            for jnx, jny, jnz, jw in zip(paras['loc_grid']['dnx'], paras['loc_grid']['dny'], paras['loc_grid']['dnz'], range(nwdps)):
                 
                 grid_indices, x_index, y_index, z_index = region.mesh3D_xyz_subgrid_index(x_bound=x_bound, y_bound=y_bound, z_bound=z_bound, dnx=jnx, dny=jny, dnz=jnz)
 
@@ -300,20 +301,22 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
                     for jjph in paras['phase']:
                         # loop over each phase
                         atidx_3d = ((it0-cf_starttime_s[jjsta][jjph]) + traveltime.tt_model[jjsta][jjph][grid_indices])*data_sampling_rate + 1
-                        for wwg in range(-jw, jw+1):
+                        for wwg in range(-wdps[jw], wdps[jw]+1):
                             va += cf[jjsta][jjph](atidx_3d+wwg)
 
-                # find maxima and update bounds
+                # find maxima
                 va_max = np.max(va)
-                va_sigma = paras['loc_grid']['sigma'] * np.std(va)
 
-                above_threshold = (va >= (va_max - va_sigma))
-                xb1, xb2 = np.where(np.any(above_threshold, axis=(1,2)))[0][[0, -1]]
-                yb1, yb2 = np.where(np.any(above_threshold, axis=(0,2)))[0][[0, -1]]
-                zb1, zb2 = np.where(np.any(above_threshold, axis=(0,1)))[0][[0, -1]]
-                x_bound = [x_sub[xb1], x_sub[xb2]]
-                y_bound = [y_sub[yb1], y_sub[yb2]]
-                z_bound = [z_sub[zb1], z_sub[zb2]]
+                if jw < nwdps-1:
+                    # update bounds
+                    va_thd = va_max - paras['loc_grid']['sigma'] * np.std(va)
+                    above_threshold = (va >= va_thd)
+                    xb1, xb2 = np.where(np.any(above_threshold, axis=(1,2)))[0][[0, -1]]
+                    yb1, yb2 = np.where(np.any(above_threshold, axis=(0,2)))[0][[0, -1]]
+                    zb1, zb2 = np.where(np.any(above_threshold, axis=(0,1)))[0][[0, -1]]
+                    x_bound = [x_sub[xb1], x_sub[xb2]]
+                    y_bound = [y_sub[yb1], y_sub[yb2]]
+                    z_bound = [z_sub[zb1], z_sub[zb2]]
 
             # find the maximum value along XYZ and its index
             max_indices = np.unravel_index(np.argmax(va, axis=None), shape=va.shape)  # index of the maximum value: (ix, iy, iz)
@@ -321,7 +324,6 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
 
             if paras['save_result']['data_dim'] == 1:
                 # save the maximum value along XYZ, i.e., output_v[T]
-                assert(abs(va[max_indices]-va_max) < 1e-8)
                 output_v[ii] = va[max_indices]
             elif paras['save_result']['data_dim'] == 2:
                 # save the maximum value along XY, YZ, XZ profiles, i.e., output_v[T, ny*nz, nx*nz, nx*ny]
