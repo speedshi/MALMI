@@ -1,6 +1,7 @@
 
 
 from traveltime import read_NLLvel
+import numpy as np
 
 
 class velocity:
@@ -13,6 +14,7 @@ class velocity:
         self.file_format = file_format
         self.velocity_type = velocity_type
         self.load_model(file=self.file, file_format=self.file_format, velocity_type=self.velocity_type)
+        self.get_vmaxmin()
 
     def load_model(self, file: str, file_format: str, velocity_type: str):
 
@@ -25,16 +27,28 @@ class velocity:
                 assert(len(self.model['P'])==1), "Input velocity model must be homogeneous model. Please check!"
                 assert(len(self.model['S'])==1), "Input velocity model must be homogeneous model. Please check!"
             else:
-                raise NotImplementedError("Real other types of velocity model not implement yet!")
+                raise NotImplementedError("Read other types of velocity model not implement yet!")
         else:
             raise ValueError("Unknown velocity format: ", file_format)
+
+        return
+    
+    def get_vmaxmin(self):
+
+        self.vmin = np.inf
+        self.vmax = -np.inf
+        for ikey in self.model:
+            self.vmin = min(np.min(self.model[ikey]), self.vmin)
+            self.vmax = max(np.max(self.model[ikey]), self.vmax)
 
         return
 
     def __str__(self):
         cstr = ""
+        no_show = ['model']
         for key, value in self.__dict__.items():
-            cstr += f"{key}: {value}, "
+            if key not in no_show:
+                cstr += f"{key}: {value}, "
         return cstr.rstrip(", ")
 
 

@@ -21,7 +21,7 @@ from obspy import Stream
 fmt_datetime = "%Y%m%dT%H%M%SS%f"
 
 
-def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor):
+def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor, velocity_model):
 
     # pick and characterize seismic phases
     time_now = time.time()
@@ -98,7 +98,7 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor)
         # locate the event
         time_now = time.time()
         print(f"Locate events for the detection range: {jtimerrg[0]} to {jtimerrg[1]}")
-        jsource_x, jsource_y, jsource_z, jsource_t0 = location_agg(data=jprob.copy(), file_parameter=paras['event_location']['file'], traveltime=traveltime_seis, region=region_monitor, dir_output=jdir_event)
+        jsource_x, jsource_y, jsource_z, jsource_t0 = location_agg(data=jprob.copy(), file_parameter=paras['event_location']['file'], traveltime=traveltime_seis, region=region_monitor, dir_output=jdir_event, velocity_model=velocity_model)
         time_pre, time_now = time_now, time.time()
         print(f"Event location finished, use time: {time_now - time_pre} s.")
 
@@ -272,7 +272,7 @@ def malmi_workflow(file_parameter: str):
                 stream.write(file_raw, format='MSEED')
 
             # process the current seismic data 
-            _oneflow(stream=stream, paras=paras_in, station_seis=stations, traveltime_seis=travelts, region_monitor=region_monitor)
+            _oneflow(stream=stream, paras=paras_in, station_seis=stations, traveltime_seis=travelts, region_monitor=region_monitor, velocity_model=velocity_model)
 
             print(f"Processing finished---------------------------------------------------")
             print("")

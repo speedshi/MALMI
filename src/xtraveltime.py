@@ -45,7 +45,7 @@ class traveltime:
         if region is not None:
             # get the maximum and minimum traveltime
             if self.tt_type == 'function':
-                self.get_minmaxtt_func(region=region, station=station, nx=100, ny=100, nz=100)
+                self.get_minmaxtt_fun(region=region, station=station, nx=100, ny=100, nz=100)
             elif self.tt_type == 'table':
                 self.get_minmaxtt_tab()
             else:
@@ -69,21 +69,21 @@ class traveltime:
         # calculate traveltime tables from homogeneous (0D) model.
 
         # Pre-calculate the flattened arrays
-        xxx_flat = region.x.flatten()
-        yyy_flat = region.y.flatten()
-        zzz_flat = region.z.flatten()
+        xxx_flat = region.xxx.flatten()
+        yyy_flat = region.yyy.flatten()
+        zzz_flat = region.zzz.flatten()
 
         for ii, istaid in enumerate(station.id):  # loop over each station
             self.tt_model[istaid] = {}
             for iphase in self.seismic_phase:  # loop over each phase
                 self.tt_model[istaid][iphase] = np.sqrt((xxx_flat - station.x[ii])**2 + (yyy_flat - station.y[ii])**2 + (zzz_flat - station.z[ii])**2) / velocity.model[iphase][0]
-                self.tt_model[istaid][iphase] = self.tt_model[istaid][iphase].reshape(region.x.shape)
+                self.tt_model[istaid][iphase] = self.tt_model[istaid][iphase].reshape(region.xxx.shape)
                 if self.tt_model[istaid][iphase].size != region.nxyz:
                     raise ValueError("Size of traveltime table and region size should correspond!")
 
         return
 
-    def get_minmaxtt_func(self, region, station, nx=100, ny=100, nz=100):
+    def get_minmaxtt_fun(self, region, station, nx=100, ny=100, nz=100):
         """
         Get the minimal and the maximal traveltimes for the given monitoring region.
         Traveltime are expressed in function.
@@ -135,7 +135,9 @@ class traveltime:
 
     def __str__(self) -> str:
         cstr = ""
+        no_show = ['tab', 'tt_model']
         for key, value in self.__dict__.items():
-            cstr += f"{key}: {value}, "
+            if key not in no_show:
+                cstr += f"{key}: {value}, "
         return cstr.rstrip(", ")
 

@@ -40,19 +40,42 @@ class region:
         self.z_max = self.depth_max
 
         if (self.dx is not None) and (self.dy is not None) and (self.dz is not None):
-            # get 3D meshgrid of the region in UTM coordinate system
-            self.x, self.y, self.z = np.meshgrid(np.arange(self.x_min, self.x_max+1e-6, self.dx),
-                                                 np.arange(self.y_min, self.y_max+1e-6, self.dy),
-                                                 np.arange(self.z_min, self.z_max+1e-6, self.dz), 
-                                                 indexing='ij')
-            self.nx = self.x.shape[0]  # number of grid points in x direction
-            self.ny = self.y.shape[1]  # number of grid points in y direction
-            self.nz = self.z.shape[2]  # number of grid points in z direction
+            self.mesh3D_xyz(x_min=self.x_min, x_max=self.x_max,
+                            y_min=self.y_min, y_max=self.y_max,
+                            z_min=self.z_min, z_max=self.z_max,
+                            dx=self.dx, dy=self.dy, dz=self.dz)
+            self.nx = self.xxx.shape[0]  # number of grid points in x direction
+            self.ny = self.yyy.shape[1]  # number of grid points in y direction
+            self.nz = self.zzz.shape[2]  # number of grid points in z direction
             self.nxyz = self.nx * self.ny * self.nz  # total number of grid points
-        
+
+    def mesh3D_xyz(self, x_min, x_max, y_min, y_max, z_min, z_max, dx, dy, dz):
+
+        # get 3D meshgrid of the region in UTM coordinate system
+        # +1e-6 to ensure the last point can be included
+        self.x = np.arange(x_min, x_max+1e-6, dx)  # 1d array of x coordinates 
+        self.y = np.arange(y_min, y_max+1e-6, dy)  # 1d array of y coordinates
+        self.z = np.arange(z_min, z_max+1e-6, dz)  # 1d array of z coordinates
+        self.xxx, self.yyy, self.zzz = np.meshgrid(self.x, self.y, self.z, indexing='ij')  # 3D meshgrid of the region
+        return
+    
+    def mesh3D_xyz_subgrid_index(self, x_bound, y_bound, z_bound, dnx: int, dny: int, dnz: int):
+        # get a sub-grid from the 3D meshgrid of the region 
+
+        x_index = np.where((self.x >= x_bound[0]) & (self.x <= x_bound[1]))[0]
+        x_index = x_index[::dnx]
+
+        y_index = np.where((self.y >= y_bound[0]) & (self.y <= y_bound[1]))[0]
+        y_index = y_index[::dny]
+
+        z_index = np.where((self.z >= z_bound[0]) & (self.z <= z_bound[1]))[0]
+        z_index = z_index[::dnz]
+
+        return np.ix_(x_index, y_index, z_index), x_index, y_index, z_index
+
     def __str__(self):
         cstr = ""
-        no_show = ['x', 'y', 'z']
+        no_show = ['xxx', 'yyy', 'zzz']
         for key, value in self.__dict__.items():
             if key not in no_show:
                 cstr += f"{key}: {value}, "
