@@ -9,6 +9,7 @@ from scipy import optimize
 import os
 from numba import jit
 import multiprocessing as mp
+from multiprocessing.pool import Pool
 
 
 # define the objective function
@@ -22,6 +23,72 @@ def objfun(xyz, it0, cf_station, cf, cf_starttime_s, data_sampling_rate, travelt
     return -va
 
 
+
+# define that calculation of migration at each origin time (it0)
+def migration_ti(ii, t0_s, region, paras, traveltime, cf, cf_station, cf_starttime_s, data_sampling_rate, wdps, nwdps):
+
+    # This function will be executed by each process
+    it0= t0_s[ii]  # the ii-th origin time
+
+    x_bound = [region.x_min, region.x_max]
+    y_bound = [region.y_min, region.y_max]
+    z_bound = [region.z_min, region.z_max]
+
+    for jnx, jny, jnz, jw in zip(paras['loc_grid']['dnx'], paras['loc_grid']['dny'], paras['loc_grid']['dnz'], range(nwdps)):
+        
+        grid_indices, x_index, y_index, z_index = region.mesh3D_xyz_subgrid_index(x_bound=x_bound, y_bound=y_bound, z_bound=z_bound, dnx=jnx, dny=jny, dnz=jnz)
+
+        x_sub = region.x[x_index]  # 1D array of x coordinates
+        y_sub = region.y[y_index]  # 1D array of y coordinates
+        z_sub = region.z[z_index]  # 1D array of z coordinates
+
+        va = np.zeros((len(x_sub),len(y_sub),len(z_sub)))  # 3D array of (X, Y, Z)
+
+        # calculate the migration value for each grid point  
+        for jjsta in cf_station:
+            # loop over each station
+            for jjph in paras['phase']:
+                # loop over each phase
+                atidx_3d = ((it0-cf_starttime_s[jjsta][jjph]) + traveltime.tt_model[jjsta][jjph][grid_indices])*data_sampling_rate + 1
+                for wwg in range(-wdps[jw], wdps[jw]+1):
+                    va += cf[jjsta][jjph](atidx_3d+wwg)
+
+        if jw < nwdps-1:  # no need to update bounds for the last iteration
+            # find maxima
+            va_max = np.max(va)
+
+            # update bounds
+            va_thd = paras['loc_grid']['sigma'] * va_max
+            above_threshold = (va >= va_thd)
+            xb1, xb2 = np.where(np.any(above_threshold, axis=(1,2)))[0][[0, -1]]
+            if xb1 == xb2:  # single point scenario, extend outward of 1 point
+                xb1 = max(0, xb1-1)
+                xb2 = min(len(x_sub)-1, xb2+1)
+            yb1, yb2 = np.where(np.any(above_threshold, axis=(0,2)))[0][[0, -1]]
+            if yb1 == yb2:
+                yb1 = max(0, yb1-1)
+                yb2 = min(len(y_sub)-1, yb2+1)
+            zb1, zb2 = np.where(np.any(above_threshold, axis=(0,1)))[0][[0, -1]]
+            if zb1 == zb2:
+                zb1 = max(0, zb1-1)
+                zb2 = min(len(z_sub)-1, zb2+1)
+            x_bound = [x_sub[xb1], x_sub[xb2]]
+            y_bound = [y_sub[yb1], y_sub[yb2]]
+            z_bound = [z_sub[zb1], z_sub[zb2]]
+
+    # find the maximum value along XYZ and its index
+    max_indices = np.unravel_index(np.argmax(va, axis=None), shape=va.shape)  # index of the maximum value: (ix, iy, iz)
+    
+    # compile return results
+    if paras['save_result']['data_dim'] == 1:
+        mig_v = va[max_indices]
+    else:
+        mig_v = va
+    mig_x = x_sub[max_indices[0]]
+    mig_y = y_sub[max_indices[1]]
+    mig_z = z_sub[max_indices[2]]
+
+    return ii, mig_v, mig_x, mig_y, mig_z
 
 
 
@@ -70,7 +137,23 @@ def xloc_input(file_para):
     else:
         if paras['time_step'] < 1:
             raise ValueError("time_step should be a positive integer.")
-        
+
+    if 'multiprocessing' not in paras:
+        paras['multiprocessing'] = {}
+        paras['multiprocessing']['processes'] = 1
+        paras['multiprocessing']['chunksize'] = 0
+    else:
+        if 'processes' not in paras['multiprocessing']:
+            paras['multiprocessing']['processes'] = 1
+        else:
+            if not isinstance(paras['multiprocessing']['processes'], int):
+                raise ValueError("multiprocessing:processes should be an integer.")
+            if paras['multiprocessing']['processes'] < 1:
+                # Use the number of available CPU cores
+                paras['multiprocessing']['processes'] = mp.cpu_count()
+            if not isinstance(paras['multiprocessing']['chunksize'], int):
+                raise ValueError("multiprocessing:chunksize should be an integer.")
+
     if 'save_result' not in paras:
         paras['save_result'] = {}
     else:
@@ -82,15 +165,8 @@ def xloc_input(file_para):
         else:
             if paras['save_result']['data_dim'] not in [1, 2, 3, 4]:
                 raise ValueError("Invalid input for 'save_result:data_dim'.")
-            
-    if 'mp_cores' not in paras:
-        paras['mp_cores'] = 1
-    else:
-        if not isinstance(paras['mp_cores'], int):
-            raise ValueError("mp_cores should be an integer.")
-        if paras['mp_cores'] < 1:
-            paras['mp_cores'] = mp.cpu_count()  # Use the number of available CPU cores
-            print(f"mp_cores: {paras['mp_cores']}.")
+            if (paras['save_result']['data_dim'] not in [1, 4]) and (paras['mp_cores'] != 1):
+                raise ValueError("When save_result:data_dim is not 1 or 4, mp_cores must be 1!")
             
     if 'loc_grid' not in paras:
         paras['loc_grid'] = None
@@ -277,66 +353,31 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         nwdps = len(wdps)
         print(f"wdps: {wdps}")
 
+        # Create a pool of processes
+        if paras['multiprocessing']['chunksize'] < 1:
+            chunksize = int(nt0/paras['multiprocessing']['processes'])+1
+        else:
+            chunksize = paras['multiprocessing']['chunksize']
 
-        for ii, it0 in enumerate(t0_s):
-            # loop over each searching origin time
-
-            x_bound = [region.x_min, region.x_max]
-            y_bound = [region.y_min, region.y_max]
-            z_bound = [region.z_min, region.z_max]
-
-            for jnx, jny, jnz, jw in zip(paras['loc_grid']['dnx'], paras['loc_grid']['dny'], paras['loc_grid']['dnz'], range(nwdps)):
-                
-                grid_indices, x_index, y_index, z_index = region.mesh3D_xyz_subgrid_index(x_bound=x_bound, y_bound=y_bound, z_bound=z_bound, dnx=jnx, dny=jny, dnz=jnz)
-
-                x_sub = region.x[x_index]  # 1D array of x coordinates
-                y_sub = region.y[y_index]  # 1D array of y coordinates
-                z_sub = region.z[z_index]  # 1D array of z coordinates
-
-                va = np.zeros((len(x_sub),len(y_sub),len(z_sub)))  # 3D array of (X, Y, Z)
-
-                # calculate the migration value for each grid point  
-                for jjsta in cf_station:
-                    # loop over each station
-                    for jjph in paras['phase']:
-                        # loop over each phase
-                        atidx_3d = ((it0-cf_starttime_s[jjsta][jjph]) + traveltime.tt_model[jjsta][jjph][grid_indices])*data_sampling_rate + 1
-                        for wwg in range(-wdps[jw], wdps[jw]+1):
-                            va += cf[jjsta][jjph](atidx_3d+wwg)
-
-                # find maxima
-                va_max = np.max(va)
-
-                if jw < nwdps-1:
-                    # update bounds
-                    va_thd = va_max - paras['loc_grid']['sigma'] * np.std(va)
-                    above_threshold = (va >= va_thd)
-                    xb1, xb2 = np.where(np.any(above_threshold, axis=(1,2)))[0][[0, -1]]
-                    yb1, yb2 = np.where(np.any(above_threshold, axis=(0,2)))[0][[0, -1]]
-                    zb1, zb2 = np.where(np.any(above_threshold, axis=(0,1)))[0][[0, -1]]
-                    x_bound = [x_sub[xb1], x_sub[xb2]]
-                    y_bound = [y_sub[yb1], y_sub[yb2]]
-                    z_bound = [z_sub[zb1], z_sub[zb2]]
-
-            # find the maximum value along XYZ and its index
-            max_indices = np.unravel_index(np.argmax(va, axis=None), shape=va.shape)  # index of the maximum value: (ix, iy, iz)
-            output_x[ii], output_y[ii], output_z[ii] = x_sub[max_indices[0]], y_sub[max_indices[1]], z_sub[max_indices[2]]
-
-            if paras['save_result']['data_dim'] == 1:
-                # save the maximum value along XYZ, i.e., output_v[T]
-                output_v[ii] = va[max_indices]
-            elif paras['save_result']['data_dim'] == 2:
-                # save the maximum value along XY, YZ, XZ profiles, i.e., output_v[T, ny*nz, nx*nz, nx*ny]
-                # maximum value profiles at the source location along X-, Y-, Z-axis
-                raise ValueError("Not implemented yet!")
-            elif paras['save_result']['data_dim'] == 3:
-                # save the maximum value along time axis, i.e., output_v[X,Y,Z]
-                np.maximum(output_v, va, out=output_v)
-            elif paras['save_result']['data_dim'] == 4:
-                # save full migration values over time and space, i.e., output_v[T, X, Y, Z]
-                output_v[ii] = va
-            else:
-                raise ValueError("Invalid input for 'save_result:data_dim'.")
+        with Pool(processes=paras['multiprocessing']['processes']) as pool:
+            # Compute migration in parallel
+            for iresults in pool.starmap(migration_ti, [(ii, t0_s, region, paras, traveltime, cf, cf_station, cf_starttime_s, data_sampling_rate, wdps, nwdps) for ii in range(nt0)], chunksize=chunksize):
+                output_x[iresults[0]], output_y[iresults[0]], output_z[iresults[0]] = iresults[2], iresults[3], iresults[4]
+                if paras['save_result']['data_dim'] == 1:
+                    # save the maximum value along XYZ, i.e., output_v[T]
+                    output_v[iresults[0]] = iresults[1]
+                elif paras['save_result']['data_dim'] == 2:
+                    # save the maximum value along XY, YZ, XZ profiles, i.e., output_v[T, ny*nz, nx*nz, nx*ny]
+                    # maximum value profiles at the source location along X-, Y-, Z-axis
+                    raise ValueError("Not implemented yet!")
+                elif paras['save_result']['data_dim'] == 3:
+                    # save the maximum value along time axis, i.e., output_v[X,Y,Z]
+                    np.maximum(output_v, iresults[1], out=output_v)
+                elif paras['save_result']['data_dim'] == 4:
+                    # save full migration values over time and space, i.e., output_v[T, X, Y, Z]
+                    output_v[iresults[0]] = iresults[1]
+                else:
+                    raise ValueError("Invalid input for 'save_result:data_dim'.")
 
     else:
         raise ValueError(f"Invalid traveltime type: {traveltime.tt_type}!")
