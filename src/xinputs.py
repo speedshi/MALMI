@@ -166,9 +166,7 @@ def load_check_input(file_para):
     else:
         if 'type' not in paras['traveltime']:
             paras['traveltime']['type'] = 'function'
-        elif paras['traveltime']['type'].upper() == 'FUNCTION':
-            pass
-        elif paras['traveltime']['type'].upper() == 'TABLE':
+        elif paras['traveltime']['type'].upper() in ['FUNCTION', 'TABLE', 'BOTH']:
             pass
         else:
             raise ValueError(f"'traveltime:type' should be either 'table' or 'function'")
