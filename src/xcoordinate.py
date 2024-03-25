@@ -267,6 +267,10 @@ class coordsystem:
     From lat/lon to UTM: utm_easting, utm_northing = transformer.transform(longitude, latitude)
     From UTM to lat/lon: longitude, latitude = transformer.transform(utm_easting, utm_northing, direction='INVERSE')
 
+    utm_easting -> X
+    utm_northing -> Y
+    depth -> Z : ele_to_depth_scale=-1.0 for increase downward, 1.0 for increase upward.
+
     The default "ele_to_depth_scale" is -1.0, which means the elevation is converted to depth by multiplying -1.0.
     i.e. depth is negative of elevation, downward is positive.
 
@@ -322,3 +326,48 @@ class coordsystem:
         longitude, latitude = transformer.transform(utm_easting, utm_northing, direction='INVERSE')
         elevation = utm_depth / self.elevation_to_depth_scale
         return longitude, latitude, elevation
+
+    def rxyz2lonlatele(self, lon_r, lat_r, ele_r, easting, northing, depth, unit='meter'):
+        """
+        Convert relative Cartesian coordinates to latitude, longitude, and elevation.
+        lat_r: float, the latitude in degree of the reference point.
+        lon_r: float, the longitude in degree of the reference point.
+        ele_r: float, the elevation in meter of the reference point.
+        easting: float or list of float, the easting coordinates (X) for points relative the reference point.
+        northing: float or list of float, the northing coordinates (Y) for points relative the reference point.
+        depth: float or list of float, the depth coordinates (Z) for points relative the reference point.
+        unit: string, the unit of input easting, northing and depth coordinates, 
+              can be 'meter' or 'km' or 'feet'.
+        """
+
+        # convert the unit of easting, northing and depth to meter
+        if unit.lower() == 'km':
+            easting = easting * 1000.0
+            northing = northing * 1000.0
+            depth = depth * 1000.0
+        elif unit.lower() == 'feet':
+            easting = easting * 0.3048
+            northing = northing * 0.3048
+            depth = depth * 0.3048
+        elif unit.lower() == 'meter':
+            pass
+        else:
+            raise ValueError("The unit should be 'meter' or 'km' or 'feet'.")
+
+        # determine the CRS (Coordinate Reference System) for the UTM zone
+        if self.utm_crs is None:
+            self.compute_crs(longitude=lon_r, latitude=lat_r)
+
+        # convert lat, lon, ele of the reference point to UTM
+        x_r, y_r, z_r = self.lonlatele2xyz(longitude=lon_r, latitude=lat_r, elevation=ele_r)
+
+        # convert relative Cartesian coordinates to absolute Cartesian coordinates
+        xp = easting + x_r
+        yp = northing + y_r
+        zp = depth + z_r
+
+        # convert absolute Cartesian coordinates to lat, lon, ele
+        lon, lat, ele = self.xyz2lonlatele(utm_easting=xp, utm_northing=yp, utm_depth=zp)
+
+        return lon, lat, ele
+
