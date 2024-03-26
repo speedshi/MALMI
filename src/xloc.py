@@ -313,7 +313,8 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
     elif paras['save_result']['data_dim'] == 2:
         raise ValueError("Not implemented yet!")
     elif paras['save_result']['data_dim'] == 3:
-        d_shape = (region.nx, region.ny, region.nz)
+        raise ValueError("Not implemented yet!")
+        d_shape = (region.nx, region.ny, region.nz)  # NOTE we cannot do this, because we need to have time axis to find event t0
     elif paras['save_result']['data_dim'] == 4:
         d_shape = (nt0, region.nx, region.ny, region.nz)
     else:
@@ -404,6 +405,11 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         else:
             chunksize = paras['multiprocessing']['chunksize']
 
+        # before send to the pool, we need to take out the traveltime function which are not picklable
+        # this must be addressed in the future, how to make it picklable
+        traveltime_tt_fun = traveltime.tt_fun
+        traveltime.tt_fun = None
+
         with Pool(processes=paras['multiprocessing']['processes']) as pool:
             # Compute migration in parallel
 
@@ -443,7 +449,9 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
             #         output_v[iresults[0]] = iresults[1]
             #     else:
             #         raise ValueError("Invalid input for 'save_result:data_dim'.")
-                
+
+        # restore the traveltime function after the pool
+        traveltime.tt_fun = traveltime_tt_fun        
 
     else:
         raise ValueError(f"Invalid migration_engine: {paras['migration_engine']}!")
@@ -458,7 +466,17 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         np.savez(fname, output_t0=output_t0, output_v=output_v, 
                  output_x=output_x, output_y=output_y, output_z=output_z)
 
-    return output_x, output_y, output_z, output_t0
+    # get final event location results
+    if paras['event_pick'].lower() == 'max':
+        evt0_id = np.argmax(output_v, axis=0)  # index of the maximum migration value
+        ev_x = np.array([output_x[evt0_id]])  # x coordinate of the event location
+        ev_y = np.array([output_y[evt0_id]])  # y coordinate of the event location
+        ev_z = np.array([output_z[evt0_id]])  # z coordinate of the event location
+        ev_t0 = np.array([output_t0[evt0_id]])  # origin time of the event
+    else:
+        raise ValueError(f"Invalid event_pick: {paras['event_pick']}")
+
+    return ev_x, ev_y, ev_z, ev_t0
 
 
 def location_agg(data, file_parameter, traveltime, region, dir_output="./", velocity_model=None):
@@ -471,6 +489,12 @@ def location_agg(data, file_parameter, traveltime, region, dir_output="./", velo
         dir_output: output directory, str;
         velocity_model: velocity model class object;
 
+    Output:
+        ev_x: 1D np.array, x coordinate of the event location;
+        ev_y: 1D np.array, y coordinate of the event location;
+        ev_z: 1D np.array, z coordinate of the event location;
+        ev_t0: 1D np.array, origin time of the event;    
+
     """
 
     if isinstance(file_parameter, str):
@@ -481,10 +505,10 @@ def location_agg(data, file_parameter, traveltime, region, dir_output="./", velo
         paras = file_parameter
 
     if paras['method'] == 'xmig':
-        output_x, output_y, output_z, output_t0 = xmig(data=data, traveltime=traveltime, region=region, paras=paras, dir_output=dir_output, velocity_model=velocity_model)
+        ev_x, ev_y, ev_z, ev_t0 = xmig(data=data, traveltime=traveltime, region=region, paras=paras, dir_output=dir_output, velocity_model=velocity_model)
     else:
         raise ValueError(f"Invalid method for location_agg: {paras['method']}")
 
-    return np.max(output_x), np.max(output_y), np.max(output_z), np.max(output_t0)
+    return ev_x, ev_y, ev_z, ev_t0
 
 

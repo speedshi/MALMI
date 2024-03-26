@@ -16,9 +16,11 @@ import numpy as np
 from xloc import location_agg
 import time
 from obspy import Stream
+import pandas as pd
 
 
 fmt_datetime = "%Y%m%dT%H%M%SS%f"
+phase_id = ['P', 'S']
 
 
 def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor, velocity_model):
@@ -35,7 +37,7 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor,
     # the instrument code is kept the same as the original seismic data
     for iprob in output_phasepp['prob']:
         if len(iprob.stats.channel) > 3:
-            if iprob.stats.channel[-1] in ['P', 'S']:
+            if iprob.stats.channel[-1] in phase_id:
                 # only keep P and S probability
                 iinstru = stream.select(network=iprob.stats.network,
                                         station=iprob.stats.station,
@@ -77,6 +79,7 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor,
         jtt2 = jtimerrg[1] + paras['phase_asso']['time_buffer']  # endtime of the detection range, with buffer
         jprob = output_phasepp['prob'].slice(starttime=jtt1, endtime=jtt2).copy()
         jstream = stream.slice(starttime=jtt1, endtime=jtt2).copy()  # make a physical copy of the stream
+        sdata_sampling_rate = jstream[0].stats.sampling_rate  # sampling rate in Hz of the seismic data
 
         if not os.path.exists(jdir_event):
             os.makedirs(jdir_event)
@@ -102,6 +105,61 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor,
         time_pre, time_now = time_now, time.time()
         print(f"Event location finished, use time: {time_now - time_pre} s.")
 
+        # extract picking times and theoretical arrival times of the located event
+        for jev in range(len(jsource_t0)):
+            # loop over each located event
+            
+            arrvt_jev = {}
+            picks_jev = None
+            for jjsta in station_seis.id:  # loop over stations
+               arrvt_jev[jjsta] = {}
+               for jjph in phase_id:  # loop over phases
+                    # calculate the traveltimes of the located event
+                    arrvt_jev[jjsta][jjph] = jsource_t0[jev] + traveltime_seis.tt_fun[jjsta][jjph](jsource_x[jev], jsource_y[jev], jsource_z[jev])
+
+                    # extract picking times according to the theoretical arrivaltimes
+                    pktime_before = arrvt_jev[jjsta][jjph] - paras['event_phasetime'][jjph]['t_before'] / sdata_sampling_rate  # the time before the theoretical arrival time
+                    pktime_after = arrvt_jev[jjsta][jjph] + paras['event_phasetime'][jjph]['t_after'] / sdata_sampling_rate  # the time after the theoretical arrival time
+                    pkidx = ((jpick['trace_id'].apply(lambda x: x in jjsta)) & 
+                             (jpick['phase'] == jjph) & 
+                             (jpick['peak_value'] >= paras['event_phasetime'][jjph]['threshold']) & 
+                             (jpick['peak_time'] >= pktime_before) &
+                             (jpick['peak_time'] <= pktime_after))
+                    jpick_sl = jpick[pkidx].copy().reset_index(drop=True)
+
+                    if len(jpick_sl) > 1:
+                        # multiple picks found
+                        # select the pick according to the match mode
+                        if paras['event_phasetime'][jjph]['match_mode'].lower() == 'time':
+                            # select the pick that is closest to the theoretical arrival time
+                            jpick_sl['time_diff'] = np.abs(jpick_sl['peak_time'] - arrvt_jev[jjsta][jjph])
+                            jpick_sl = jpick_sl.iloc[jpick_sl['time_diff'].idxmin()]
+                        elif paras['event_phasetime'][jjph]['match_mode'].lower() == 'prob':
+                            # select the pick that has the highest probability
+                            jpick_sl = jpick_sl.iloc[jpick_sl['peak_value'].idxmax()]
+                        else:
+                            raise ValueError(f"Unknown match mode: {paras['event_phasetime'][jjph]['match_mode']}.")
+
+                    if len(jpick_sl) == 1:
+                        # one pick
+                        if picks_jev is None:
+                            picks_jev = jpick_sl.copy()
+                        else:
+                            picks_jev = pd.concat([picks_jev, jpick_sl], ignore_index=True)
+
+            # save theoretical arrivaltimes
+            if paras['event_phasetime']['save_arvt']:
+                jfile_arvt = os.path.join(jdir_event, f"arrivaltime_{jev}.csv")
+                df_arvt = pd.DataFrame({'trace_id': list(arrvt_jev.keys()), 
+                                        'P': [arrvt_jev[jjsta]['P'] for jjsta in arrvt_jev.keys()],
+                                        'S': [arrvt_jev[jjsta]['S'] for jjsta in arrvt_jev.keys()]})
+                df_arvt.to_csv(jfile_arvt, index=False)
+
+            # save picking times
+            if (paras['event_phasetime']['save_pick']) and (picks_jev is not None):
+                jfile_pick = os.path.join(jdir_event, f"pick_{jev}.csv")
+                picks_jev.to_csv(jfile_pick, index=False)
+                    
         # estimate event magnitude
 
         # write located event into catalog file
@@ -183,7 +241,7 @@ def malmi_workflow(file_parameter: str):
     # generate traveltime tables/functions
     print(f"Generate traveltime tables/functions.")
     travelts = traveltime(station=stations, velocity=velocity_model, region=region_monitor,
-                          seismic_phase=['P', 'S'], **paras_in['traveltime'])
+                          seismic_phase=phase_id, **paras_in['traveltime'])
     time_pre, time_now = time_now, time.time()
     print(f"Generate traveltime tables/functions finished, use time: {time_now - time_pre} s.")
     # return travelts, stations, region_monitor, velocity_model  # for testing
