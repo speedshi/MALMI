@@ -468,15 +468,16 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
 
     # get final event location results
     if paras['event_pick'].lower() == 'max':
-        evt0_id = np.argmax(output_v, axis=0)  # index of the maximum migration value
-        ev_x = np.array([output_x[evt0_id]])  # x coordinate of the event location
-        ev_y = np.array([output_y[evt0_id]])  # y coordinate of the event location
-        ev_z = np.array([output_z[evt0_id]])  # z coordinate of the event location
-        ev_t0 = np.array([output_t0[evt0_id]])  # origin time of the event
+        evt0_id = np.unravel_index(np.argmax(output_v, axis=None), shape=output_v.shape)  # index of the maximum migration value
+        ev_x = np.array([output_x[evt0_id[0]]])  # x coordinate of the event location
+        ev_y = np.array([output_y[evt0_id[0]]])  # y coordinate of the event location
+        ev_z = np.array([output_z[evt0_id[0]]])  # z coordinate of the event location
+        ev_t0 = np.array([output_t0[evt0_id[0]]])  # origin time of the event
+        ev_mig = np.array([output_v[evt0_id]])  # migration value of the event
     else:
         raise ValueError(f"Invalid event_pick: {paras['event_pick']}")
 
-    return ev_x, ev_y, ev_z, ev_t0
+    return ev_x, ev_y, ev_z, ev_t0, ev_mig
 
 
 def location_agg(data, file_parameter, traveltime, region, dir_output="./", velocity_model=None):
@@ -497,18 +498,14 @@ def location_agg(data, file_parameter, traveltime, region, dir_output="./", velo
 
     """
 
-    if isinstance(file_parameter, str):
-        # load paramters from file
-        paras = xloc_input(file_para=file_parameter)
-    elif isinstance(file_parameter, dict):
-        # input is a dictionary containing the parameters
-        paras = file_parameter
+    # load input paramters from file
+    paras = xloc_input(file_para=file_parameter)
 
     if paras['method'] == 'xmig':
-        ev_x, ev_y, ev_z, ev_t0 = xmig(data=data, traveltime=traveltime, region=region, paras=paras, dir_output=dir_output, velocity_model=velocity_model)
+        ev_x, ev_y, ev_z, ev_t0, ev_mig = xmig(data=data, traveltime=traveltime, region=region, paras=paras, dir_output=dir_output, velocity_model=velocity_model)
     else:
         raise ValueError(f"Invalid method for location_agg: {paras['method']}")
 
-    return ev_x, ev_y, ev_z, ev_t0
+    return ev_x, ev_y, ev_z, ev_t0, ev_mig
 
 

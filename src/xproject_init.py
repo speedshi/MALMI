@@ -22,12 +22,6 @@ def malmi_project_init(para: dict,):
         if not os.path.exists(para['results']):
             os.makedirs(para['results'])
             print(f"Results directory {para['results']} created.")
-
-    fld_catalog = "catalog"
-    para['catalog'] = os.path.join(para['project_root'], fld_catalog)
-    if not os.path.exists(para['catalog']):
-        os.makedirs(para['catalog'])
-        print(f"Event catalog directory {para['catalog']} created.")
     
     fld_pick = "phase_pick"
     para['phase_pick'] = os.path.join(para['project_root'], fld_pick)

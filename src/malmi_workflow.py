@@ -17,10 +17,15 @@ from xloc import location_agg
 import time
 from obspy import Stream
 import pandas as pd
+from xmag import get_magnitude
+from ioformatting import dict2csv
 
 
 fmt_datetime = "%Y%m%dT%H%M%SS%f"
 phase_id = ['P', 'S']
+catalog_key = ['id', 'time', 'latitude', 'longitude', 'elevation', 'north', 'east', 'depth',
+               'magnitude', 'magnitude_station', 'magnitude_type', 'dir', 
+               'phase_station', 'phase_P_only', 'phase_S_only', 'phase_PS', 'migration_value']
 
 
 def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor, velocity_model):
@@ -101,14 +106,25 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor,
         # locate the event
         time_now = time.time()
         print(f"Locate events for the detection range: {jtimerrg[0]} to {jtimerrg[1]}")
-        jsource_x, jsource_y, jsource_z, jsource_t0 = location_agg(data=jprob.copy(), file_parameter=paras['event_location']['file'], traveltime=traveltime_seis, region=region_monitor, dir_output=jdir_event, velocity_model=velocity_model)
+        jsource_x, jsource_y, jsource_z, jsource_t0, jsource_mig = location_agg(data=jprob.copy(), file_parameter=paras['event_location']['file'], traveltime=traveltime_seis, region=region_monitor, dir_output=jdir_event, velocity_model=velocity_model)
         time_pre, time_now = time_now, time.time()
         print(f"Event location finished, use time: {time_now - time_pre} s.")
 
         # extract picking times and theoretical arrival times of the located event
         for jev in range(len(jsource_t0)):
             # loop over each located event
+            jsource_longitude, jsource_latitude, jsource_elevation = region_monitor.coordsystem.xyz2lonlatele(utm_easting=jsource_x[jev], utm_northing=jsource_y[jev], utm_depth=jsource_z[jev])
             
+            cat_jev = {jkey: [] for jkey in catalog_key}
+            cat_jev['id'].append(f"MALMI_{jsource_t0[jev].strftime(fmt_datetime)}_{jev}")
+            cat_jev['time'].append(jsource_t0[jev])
+            cat_jev['latitude'].append(jsource_latitude)
+            cat_jev['longitude'].append(jsource_longitude)
+            cat_jev['elevation'].append(jsource_elevation)
+            cat_jev['north'].append(jsource_x[jev])
+            cat_jev['east'].append(jsource_y[jev])
+            cat_jev['depth'].append(jsource_z[jev])
+
             arrvt_jev = {}
             picks_jev = None
             for jjsta in station_seis.id:  # loop over stations
@@ -160,11 +176,40 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor,
                 jfile_pick = os.path.join(jdir_event, f"pick_{jev}.csv")
                 picks_jev.to_csv(jfile_pick, index=False)
                     
-        # estimate event magnitude
+            # estimate event magnitude
+            time_now = time.time()
+            stream_jev = stream.copy()  # make a physical copy of the stream, use stream of full time range to avoide too short or event specific data which may cause problem when filtering
+            pkdict_jev = {k: v.set_index('phase')['peak_time'].to_dict() for k, v in picks_jev.groupby('trace_id')}
+            magnitude, magnitude_station, magnitude_type = get_magnitude(stream=stream_jev, ev_xyz=(jsource_x[jev], jsource_y[jev], jsource_z[jev]), station=station_seis, picks=pkdict_jev, file_para=paras['event_magnitude']['file'])
+            cat_jev['magnitude'].append(magnitude)
+            cat_jev['magnitude_station'].append(magnitude_station)
+            cat_jev['magnitude_type'].append(magnitude_type)
+            cat_jev['dir'].append(jdir_event)
+            time_pre, time_now = time_now, time.time()
+            print(f"Event magnitude finished, use time: {time_now - time_pre} s.")
 
-        # write located event into catalog file
+            cat_jev['phase_station'].append(len(pkdict_jev))
+            phase_PS = 0  # number of stations that have both P and S picks
+            phase_P_only = 0  # number of stations that have only P picks
+            phase_S_only = 0  # number of stations that have only S picks
+            for stapk in pkdict_jev.keys():
+                if 'P' in pkdict_jev[stapk] and 'S' in pkdict_jev[stapk]:
+                    phase_PS += 1
+                elif 'P' in pkdict_jev[stapk]:
+                    phase_P_only += 1
+                elif 'S' in pkdict_jev[stapk]:
+                    phase_S_only += 1
+                else:
+                    raise ValueError(f"Unknown phase type for {pkdict_jev[stapk]}.")
+            cat_jev['phase_P_only'].append(phase_P_only)
+            cat_jev['phase_S_only'].append(phase_S_only)
+            cat_jev['phase_PS'].append(phase_PS)
+            cat_jev['migration_value'].append(jsource_mig[jev])
 
-
+            # write located event into catalog file
+            cat_jev_file = os.path.join(jdir_event, f"catalog_{jev}.csv")
+            dict2csv(indic=cat_jev, filename=cat_jev_file, mode='w')  # write catalog in the event folder
+            dict2csv(indic=cat_jev, filename=paras['catalog_file'], mode='auto')  # write catalog in the one global catalog file
     return
 
 

@@ -252,6 +252,12 @@ def load_check_input(file_para):
         elif not isinstance(paras['event_location']['file'], (str,)):
             raise ValueError(f"'event_location:file' should be a string!")
 
+    # check catalog parameters setting
+    if 'catalog_file' not in paras:
+        paras['catalog_file'] = './catalog.csv'
+    if not os.path.exists(paras['catalog_file']):
+        os.makedirs(os.path.dirname(paras['catalog_file']), exist_ok=True)
+
     return paras
 
 

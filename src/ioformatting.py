@@ -862,7 +862,7 @@ def csv2dict(file_csv, delimiter=','):
     
     outdic = {}
     for column in df:
-       outdic[column] = copy.deepcopy(df[column].values)
+       outdic[column] = df[column].values
     
     return outdic
 
