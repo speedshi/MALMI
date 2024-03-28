@@ -8,6 +8,7 @@ import yaml
 from xstation import read_stainv_csv
 from qm_moment import dispf2mw
 import numpy as np
+from qm_processing import remove_outliers_iqr, remove_outliers_zscore
 
 
 def xmag_input(file_para):
@@ -26,6 +27,11 @@ def xmag_input(file_para):
     # check the parameters
     if 'method' not in paras:
         paras['method'] = 'Mw'
+
+    if 'network_magnitude' not in paras:
+        paras['network_magnitude'] = {}
+        paras['network_magnitude']['remove_outlier'] = 'none'
+        paras['network_magnitude']['method'] = 'median'
 
     return paras
 
@@ -116,7 +122,25 @@ def get_magnitude(stream, ev_xyz, station, picks, file_para):
                         magnitude_station[staid_c] = mag_temp
                         magnitude_list.append(mag_temp)
         
-        magnitude = np.nanmedian(magnitude_list)
+        if (paras['network_magnitude']['remove_outlier'].lower() == 'iqr'):
+            magnitude_list = remove_outliers_iqr(data=magnitude_list, thrdr=1.5)
+        elif (paras['network_magnitude']['remove_outlier'].lower() == 'zscore'):
+            magnitude_list = remove_outliers_zscore(data=magnitude_list, threshold=3)
+        elif (paras['network_magnitude']['remove_outlier'].lower() == 'none'):
+            pass
+        else:
+            raise ValueError(f"Wrong input for network_magnitude:remove_outlier: {paras['network_magnitude']['remove_outlier']}!")
+
+        if paras['network_magnitude']['method'].lower() == 'median':
+            magnitude = np.nanmedian(magnitude_list)
+        elif paras['network_magnitude']['method'].lower() == 'mean':
+            magnitude = np.nanmean(magnitude_list)
+        elif paras['network_magnitude']['method'].lower() == 'max':
+            magnitude = np.nanmax(magnitude_list)
+        elif paras['network_magnitude']['method'].lower() == 'min':
+            magnitude = np.nanmin(magnitude_list)
+        else:
+            raise ValueError(f"Wrong input for network_magnitude:method: {paras['network_magnitude']['method']}!")
 
     else:
         raise ValueError(f"Wrong input for method: {paras['method']}!")
