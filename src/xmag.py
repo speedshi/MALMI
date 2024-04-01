@@ -5,7 +5,7 @@ Calculate the magnitude of an quake event.
 
 
 import yaml
-from xstation import read_stainv_csv
+from ioformatting import csv2dict
 from qm_moment import dispf2mw
 import numpy as np
 from qm_processing import remove_outliers_iqr, remove_outliers_zscore
@@ -46,8 +46,21 @@ def get_magnitude(stream, ev_xyz, station, picks, file_para):
     paras = xmag_input(file_para=file_para)
 
     # load station parameter file
-    station_para = read_stainv_csv(file_stainv=paras['station']['file'], outformat='dict')
-    nsta = len(station_para['station'])  # total number of stations for magnitude estimation
+    station_para = csv2dict(file_csv=paras['station']['file'])
+    station_para['location'] = np.where(np.isnan(station_para['location']), '', station_para['location'])
+        
+    stamag = {}
+    for jsta in range(len(station_para['station'])):
+        sid = f"{station_para['network'][jsta]}.{station_para['station'][jsta]}.{station_para['location'][jsta]}.{station_para['instrument'][jsta]}"
+        if sid not in stamag:
+            stamag[sid] = {}
+            stamag[sid]['scale_factor'] = {}
+            stamag[sid]['integrate'] = {}
+        stamag[sid]['scale_factor'][station_para['component'][jsta]] = station_para['scale_factor'][jsta]
+        stamag[sid]['integrate'][station_para['component'][jsta]] = station_para['integrate'][jsta]
+
+    staid_list = list(stamag.keys())
+    nsta = len(staid_list)  # total number of stations for magnitude estimation
     magnitude_station = {}  # magnitude for each station
     magnitude_list = []
 
@@ -55,18 +68,18 @@ def get_magnitude(stream, ev_xyz, station, picks, file_para):
         # moment magnitude
         magnitude_type = 'Mw'
 
-        for ii in range(nsta):  # loop over each station
-            staid = f"{station_para['network'][ii]}.{station_para['station'][ii]}.{station_para['location'][ii]}"
-            staid_c = f"{station_para['network'][ii]}.{station_para['station'][ii]}.{station_para['location'][ii]}.{station_para['instrument'][ii]}"
+        for ii in range(nsta):  # loop over each station_id
+            staid_c = staid_list[ii]
+            staid = f"{staid_c.split('.')[0]}.{staid_c.split('.')[1]}.{staid_c.split('.')[2]}"
 
             if staid in picks:  # proceed if we have picks for the station
             
-                ist = stream.select(id=staid+'*')  # select data for this station
+                ist = stream.select(id=staid_c+'*')  # select data for this station
 
                 if ist.count() >= 3:  # proceed if we have three components
                     for itr in ist:  # loop over each trace/component
                         # correct the instrument sensitivity by multiplying the scale factor
-                        itr.data = itr.data * station_para['scale_factor'][ii]
+                        itr.data = itr.data * stamag[staid_c]['scale_factor'][itr.stats.channel[-1]]
 
                     # process seismic data before magnitude estimation
                     if isinstance(paras['filter_1'], list):
@@ -83,8 +96,10 @@ def get_magnitude(stream, ev_xyz, station, picks, file_para):
                             raise ValueError(f"Invalid input for fband: {paras['filter_1']}!")
                         ist.detrend('demean')  # remove mean, i.e. removing DC component
 
-                    for _ in range(station_para['integrate'][ii]):
-                        ist.integrate()  # integrate
+                    # get displacement measurements from the recordings
+                    for itr in ist:
+                        for _ in range(stamag[staid_c]['integrate'][itr.stats.channel[-1]]):
+                            itr.integrate()  # integrate
 
                     if isinstance(paras['filter_2'], list):
                         # apply the first filter
