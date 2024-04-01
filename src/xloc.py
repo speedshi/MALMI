@@ -410,6 +410,8 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         traveltime_tt_fun = traveltime.tt_fun
         traveltime.tt_fun = None
 
+        print(f"processes: {paras['multiprocessing']['processes']}")
+        print(f"chunksize: {chunksize}")
         with Pool(processes=paras['multiprocessing']['processes']) as pool:
             # Compute migration in parallel
 
