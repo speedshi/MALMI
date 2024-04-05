@@ -60,6 +60,10 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor,
         file_prob = os.path.join(paras['dir']['phase_pick'], f"{paras['id']['results']}_prob.mseed")
         output_phasepp['prob'].write(file_prob, format='MSEED')
 
+    if len(output_phasepp['pick'])==0:
+        print("No phases and events detected!")
+        return
+
     # associate phase picks to events
     time_now = time.time()
     print(f"Event detection and association:")
@@ -128,8 +132,8 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor,
             arrvt_jev = {}
             picks_jev = None
             for jjsta in station_seis.id:  # loop over stations
-               arrvt_jev[jjsta] = {}
-               for jjph in phase_id:  # loop over phases
+                arrvt_jev[jjsta] = {}
+                for jjph in phase_id:  # loop over phases
                     # calculate the traveltimes of the located event
                     arrvt_jev[jjsta][jjph] = jsource_t0[jev] + traveltime_seis.tt_fun[jjsta][jjph](jsource_x[jev], jsource_y[jev], jsource_z[jev])
 
@@ -162,6 +166,11 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor,
                             picks_jev = jpick_sl.copy()
                         else:
                             picks_jev = pd.concat([picks_jev, jpick_sl], ignore_index=True)
+
+            # no picks are matched and extracted
+            if picks_jev is None:
+                print(f"No picks found for event: {cat_jev['id']}. Skip and move to the next event!")
+                continue
 
             # save theoretical arrivaltimes
             if paras['event_phasetime']['save_arvt']:

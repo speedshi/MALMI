@@ -12,7 +12,7 @@ import multiprocessing as mp
 from multiprocessing.pool import Pool
 
 
-# define the objective function for optimization
+# define the objective function for optimization for (x, y, z)
 def objfun(xyz, it0, cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras):
     x, y, z = xyz
     va = 0
@@ -22,6 +22,16 @@ def objfun(xyz, it0, cf_station, cf, cf_starttime_s, data_sampling_rate, travelt
 
     return -va
 
+
+# define the objective function for optimization for (t, x, y, z)
+def objfunt(txyz, cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras):
+    it0, x, y, z = txyz
+    va = 0
+    for jjsta in cf_station:
+        for jjph in paras['phase']:
+            va += cf[jjsta][jjph]((it0 + traveltime.tt_fun[jjsta][jjph](x,y,z) - cf_starttime_s[jjsta][jjph])*data_sampling_rate + 1)
+
+    return -va
 
 
 # define that calculation of migration at each origin time (it0)
@@ -115,16 +125,6 @@ def migration_ti(ii, t0_s, region, paras, traveltime, cf, cf_station, cf_startti
     mig_x = x_sub[max_indices[0]]
     mig_y = y_sub[max_indices[1]]
     mig_z = z_sub[max_indices[2]]
-
-    if paras['loc_grid']['local_opt'].lower() != 'none':
-        # apply local optimization to polish the final location results
-        bounds = [x_bound, y_bound, z_bound]
-        x0 =  np.array([mig_x, mig_y, mig_z])
-        result = minimize(fun=objfun, args=(it0, cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
-                          bounds=bounds, x0=x0, method=paras['loc_grid']['local_opt'],
-                          options={'maxiter': 500, 'xatol': 0.8, 'xtol': 0.01, 'gtol': 0.0001, 'ftol': 0.01, 'adaptive': True},)
-        mig_x, mig_y, mig_z = result.x 
-        mig_v = -result.fun
 
     return ii, mig_v, mig_x, mig_y, mig_z
 
@@ -410,8 +410,8 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         traveltime_tt_fun = traveltime.tt_fun
         traveltime.tt_fun = None
 
-        print(f"processes: {paras['multiprocessing']['processes']}")
-        print(f"chunksize: {chunksize}")
+        # print(f"processes: {paras['multiprocessing']['processes']}")
+        # print(f"chunksize: {chunksize}")
         with Pool(processes=paras['multiprocessing']['processes']) as pool:
             # Compute migration in parallel
 
@@ -458,8 +458,6 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
     else:
         raise ValueError(f"Invalid migration_engine: {paras['migration_engine']}!")
 
-    # polish over txyz using local optimization?
-
     output_t0 = np.array([t0_start+it0_s for it0_s in t0_s])  # origin times in UTCDateTime
     
     # save results  
@@ -475,9 +473,27 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         ev_y = np.array([output_y[evt0_id[0]]])  # y coordinate of the event location
         ev_z = np.array([output_z[evt0_id[0]]])  # z coordinate of the event location
         ev_t0 = np.array([output_t0[evt0_id[0]]])  # origin time of the event
+        ev_it0 = np.array([t0_s[evt0_id[0]]])  # origin time in second (relative to t0_start) of the event
         ev_mig = np.array([output_v[evt0_id]])  # migration value of the event
     else:
         raise ValueError(f"Invalid event_pick: {paras['event_pick']}")
+
+    # polish over txyz using local optimization
+    # apply local optimization to polish the final location results
+    if paras['loc_grid']['local_opt'].lower() != 'none':
+        for ll in range(len(ev_t0)):  # loop over each located event
+            rext = 3.0
+            bounds = [[ev_it0[ll]-t0_step*rext, ev_it0[ll]+t0_step*rext], 
+                      [ev_x[ll]-region.dx*paras['loc_grid']['dnx'][-1]*rext, ev_x[ll]+region.dx*paras['loc_grid']['dnx'][-1]*rext], 
+                      [ev_y[ll]-region.dy*paras['loc_grid']['dny'][-1]*rext, ev_y[ll]+region.dy*paras['loc_grid']['dny'][-1]*rext], 
+                      [ev_z[ll]-region.dz*paras['loc_grid']['dnz'][-1]*rext, ev_z[ll]+region.dz*paras['loc_grid']['dnz'][-1]*rext]]
+            x0 =  np.array([ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll]])
+            result = minimize(fun=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
+                              bounds=bounds, x0=x0, method=paras['loc_grid']['local_opt'],
+                              options={'maxiter': 100, 'xatol': 0.8, 'xtol': 0.01, 'gtol': 0.0001, 'ftol': 0.01, 'adaptive': True},)
+            ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll] = result.x 
+            ev_t0[ll] = t0_start + ev_it0[ll]
+            ev_mig[ll] = -result.fun
 
     return ev_x, ev_y, ev_z, ev_t0, ev_mig
 
