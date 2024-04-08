@@ -19,6 +19,7 @@ from obspy import Stream
 import pandas as pd
 from xmag import get_magnitude
 from ioformatting import dict2csv
+from utils_plot import seischar_plot
 
 
 fmt_datetime = "%Y%m%dT%H%M%SS%f"
@@ -184,7 +185,16 @@ def _oneflow(stream, paras: dict, station_seis, traveltime_seis, region_monitor,
             if (paras['event_phasetime']['save_pick']) and (picks_jev is not None):
                 jfile_pick = os.path.join(jdir_event, f"pick_{jev}.csv")
                 picks_jev.to_csv(jfile_pick, index=False)
-                    
+
+            # save waveform plots
+            if paras['event_phasetime']['save_plot']:
+                xthrd = min(paras['event_phasetime'][xph]['threshold'] for xph in phase_id if xph in paras['event_phasetime'])
+                seischar_plot(dir_seis=jstream.copy(), dir_char=jprob.copy(), dir_output=jdir_event, 
+                              figsize=(12, 12), comp=None, dyy=1.8, fband=None, 
+                              normv=xthrd, ppower=None, tag=f"{jev}", staname=None, 
+                              arrvtt=arrvt_jev, timerg=None, dpi=300, figfmt='png', process=None, plotthrd=0.5*xthrd, 
+                              linewd=1.5, problabel=True, yticks='auto', ampscale=1.0)
+
             # estimate event magnitude
             time_now = time.time()
             stream_jev = stream.copy()  # make a physical copy of the stream, use stream of full time range to avoide too short or event specific data which may cause problem when filtering
