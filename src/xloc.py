@@ -66,9 +66,10 @@ def migration_ti(ii, t0_s, region, paras, traveltime, cf, cf_station, cf_startti
         # find the maximum value along XYZ and its index
         max_indices = np.unravel_index(np.argmax(va, axis=None), shape=va.shape)  # index of the maximum value: (ix, iy, iz)
         va_max = va[max_indices]
+        va_min = np.nanmin(va, axis=None)
 
         # update bounds for x, y, z
-        va_thd = paras['loc_grid']['sigma'] * va_max
+        va_thd = paras['loc_grid']['sigma'] * (va_max - va_min) + va_min
         above_threshold = (va >= va_thd)
         xb1, xb2 = np.where(np.any(above_threshold, axis=(1,2)))[0][[0, -1]]
         if xb1 == xb2:  # single point scenario, extend outward of 1 point
