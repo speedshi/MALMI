@@ -58,7 +58,7 @@ class xseismic_loader:
         self.file_exclude = file_exclude
         self.write_loaded_to_exclude = write_loaded_to_exclude
 
-    def get_waveforms(self, paras):
+    def get_waveforms_bulk(self, paras):
         if self.load_type.upper() == "AIO":
             return self.load_seismic_AIO(paras)
         else:

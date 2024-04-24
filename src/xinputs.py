@@ -69,8 +69,8 @@ def load_check_input(file_para):
         if "get_data" not in paras['seismic_data']:
             raise ValueError("Parameter file should contain 'seismic_data:get_data' setting.")
         else:
-            if not paras['seismic_data']['get_data'].upper() in ['FDSN', 'AIO']:
-                raise ValueError("'seismic_data:get_data' should be either 'FDSN' or 'AIO'.")
+            if not paras['seismic_data']['get_data'].upper() in ['FDSN', 'AIO', 'SDS']:
+                raise ValueError("'seismic_data:get_data' should be either 'FDSN' or 'AIO' or 'SDS'.")
         
         if "data_source" not in paras['seismic_data']:
             raise ValueError("Parameter file should contain 'seismic_data:data_source' setting.")

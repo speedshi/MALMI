@@ -20,6 +20,7 @@ import pandas as pd
 from xmag import get_magnitude
 from ioformatting import dict2csv
 from utils_plot import seischar_plot
+from obspy.clients.filesystem.sds import Client as sdsclient
 
 
 fmt_datetime = "%Y%m%dT%H%M%SS%f"
@@ -316,7 +317,7 @@ def malmi_workflow(file_parameter: str):
         client = Client(base_url=paras_in['seismic_data']['data_source'], 
                         user=paras_in['seismic_data']['user'], 
                         password=paras_in['seismic_data']['password'])
-        setattr(client, 'get_waveforms', client.get_waveforms_bulk)
+        # setattr(client, 'get_waveforms', client.get_waveforms_bulk)
     elif paras_in['seismic_data']['get_data'].upper() == "AIO":
         # get data from local storage in one folder
         # "AIO" means "All In One folder"
@@ -325,6 +326,11 @@ def malmi_workflow(file_parameter: str):
                                  file_exclude=paras_in['seismic_data']['file_exclude'], 
                                  write_loaded_to_exclude=True)
         stream_keep = Stream()
+    elif paras_in['seismic_data']['get_data'].upper() == "SDS":
+        # get data from SDS seismic data archive
+        client = sdsclient(sds_root=paras_in['seismic_data']['data_source'])
+    else:
+        raise ValueError(f"Invalid input for paras_in['seismic_data']['get_data']: {paras_in['seismic_data']['get_data']}.")
         
     # request seismic data and process
     tt1 = paras_in['seismic_data']['starttime']  # starttime of the first time period
@@ -354,29 +360,33 @@ def malmi_workflow(file_parameter: str):
             tt2_bf = None
 
         # compile the data request info
-        if paras_in['seismic_data']['get_data'].upper() == "FDSN":
+        if paras_in['seismic_data']['get_data'].upper() in ["FDSN", "SDS"]:
             rinfo = []
             for inet, ista in zip(stations.network, stations.station):
                 rinfo.append((inet, ista, "*", "*", tt1_bf, tt2_bf))
             print("Requesting seismic data from stations: ", rinfo)
-        else:
+        elif paras_in['seismic_data']['get_data'].upper() == "AIO":
             rinfo = {}
             rinfo['load_number'] = paras_in['seismic_data']['load_number']
             rinfo['file_order'] = paras_in['seismic_data']['file_order']
+        else:
+            raise ValueError
     
         # request seismic data
         time_now = time.time()
-        stream = client.get_waveforms(rinfo)
+        stream = client.get_waveforms_bulk(rinfo)
         time_pre, time_now = time_now, time.time()
         print(f"Requesting seismic data finised, use time: {time_now - time_pre} s.")
 
-        if paras_in['seismic_data']['get_data'].upper() == "FDSN":
+        if paras_in['seismic_data']['get_data'].upper() in ["FDSN", "SDS"]:
             stream.trim(starttime=tt1_bf, endtime=tt2_bf)
-        else:
+        elif paras_in['seismic_data']['get_data'].upper() == "AIO":
             if tt2 is not None:
                 stream += stream_keep.copy()
                 stream_keep = stream.copy().trim(starttime=tt2-paras_in['seismic_data']['buffer_time'])
             stream.trim(starttime=tt1_bf, endtime=tt2_bf)
+        else:
+            raise ValueError
 
         if stream:  
             print("Data available for time period: ", tt1, " to ", tt2)
