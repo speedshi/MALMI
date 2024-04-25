@@ -35,11 +35,15 @@ class velocity:
     
     def get_vmaxmin(self):
 
-        self.vmin = np.inf
-        self.vmax = -np.inf
+        self.vmin = np.inf  # global maximum velocity
+        self.vmax = -np.inf  # glabal minimal velocity
+        self.velmax = {}  # maximum velocity of each phase 
+        self.velmin = {}  # minimal velocity of each phase
         for ikey in self.model:
             self.vmin = min(np.min(self.model[ikey]), self.vmin)
             self.vmax = max(np.max(self.model[ikey]), self.vmax)
+            self.velmax[ikey] = np.max(self.model[ikey])
+            self.velmin[ikey] = np.min(self.model[ikey])
 
         return
 

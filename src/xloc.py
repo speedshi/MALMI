@@ -60,8 +60,10 @@ def migration_ti(ii, t0_s, region, paras, traveltime, cf, cf_station, cf_startti
             for jjph in paras['phase']:
                 # loop over each phase
                 atidx_3d = ((it0-cf_starttime_s[jjsta][jjph]) + traveltime.tt_tab[jjsta][jjph][grid_indices])*data_sampling_rate + 1
-                for wwg in range(-wdps[jw], wdps[jw]+1):
-                    va += cf[jjsta][jjph](atidx_3d+wwg)
+                vtemp_3d = np.full_like(atidx_3d, -np.inf)
+                for wwg in range(-wdps[jjph][jw], wdps[jjph][jw]+1):
+                    vtemp_3d = np.maximum(cf[jjsta][jjph](atidx_3d+wwg), vtemp_3d)
+                va += vtemp_3d
 
         # find the maximum value along XYZ and its index
         max_indices = np.unravel_index(np.argmax(va, axis=None), shape=va.shape)  # index of the maximum value: (ix, iy, iz)
@@ -92,7 +94,7 @@ def migration_ti(ii, t0_s, region, paras, traveltime, cf, cf_station, cf_startti
             # trigger early stop
             # break the grid loop
 
-            if wdps[jw] != wdps[-1]:
+            if wdps[jjph][jw] != wdps[jjph][-1]:
                 # recalculate the output migration value
                 if paras['save_result']['data_dim'] == 1:
                     # only need to calculate the maxima point
@@ -103,8 +105,10 @@ def migration_ti(ii, t0_s, region, paras, traveltime, cf, cf_station, cf_startti
                         for jjph in paras['phase']:
                             # loop over each phase
                             atidx_3d = ((it0-cf_starttime_s[jjsta][jjph]) + traveltime.tt_tab[jjsta][jjph][max_indices])*data_sampling_rate + 1
-                            for wwg in range(-wdps[-1], wdps[-1]+1):
-                                va_max += cf[jjsta][jjph](atidx_3d+wwg)
+                            vtemp_3d = np.full_like(atidx_3d, -np.inf)
+                            for wwg in range(-wdps[jjph][jw], wdps[jjph][jw]+1):
+                                vtemp_3d = np.maximum(cf[jjsta][jjph](atidx_3d+wwg), vtemp_3d)
+                            va += vtemp_3d
                 else:
                     # calculate the migration value for each grid point  
                     va[:,:,:] = 0
@@ -113,8 +117,10 @@ def migration_ti(ii, t0_s, region, paras, traveltime, cf, cf_station, cf_startti
                         for jjph in paras['phase']:
                             # loop over each phase
                             atidx_3d = ((it0-cf_starttime_s[jjsta][jjph]) + traveltime.tt_tab[jjsta][jjph][grid_indices])*data_sampling_rate + 1
-                            for wwg in range(-wdps[-1], wdps[-1]+1):
-                                va += cf[jjsta][jjph](atidx_3d+wwg)
+                            vtemp_3d = np.full_like(atidx_3d, -np.inf)
+                            for wwg in range(-wdps[jjph][jw], wdps[jjph][jw]+1):
+                                vtemp_3d = np.maximum(cf[jjsta][jjph](atidx_3d+wwg), vtemp_3d)
+                            va += vtemp_3d
 
             break
     
@@ -394,10 +400,12 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         # traveltimes are expressed as tables
         # use grid search method
 
-        wdps = [max(region.dx*kx, region.dy*ky, region.dz*kz) for kx, ky, kz in 
+        wdps_d = [np.sqrt((region.dx*kx*0.5)**2 + (region.dy*ky*0.5)**2 + (region.dz*kz*0.5)**2) for kx, ky, kz in 
                 zip(paras['loc_grid']['dnx'], paras['loc_grid']['dny'], paras['loc_grid']['dnz'])]
-        wdps = np.round(np.array(wdps) * np.array(paras['loc_grid']['atscale']) * 0.5 / velocity_model.vmin * data_sampling_rate).astype(int)
-        nwdps = len(wdps)
+        wdps = {}
+        for kphs in paras['phase']:
+            wdps[kphs] = np.round((np.array(wdps_d) / velocity_model.velmin[kphs] * data_sampling_rate + 0.5*paras['origin_time']['step']) * np.array(paras['loc_grid']['atscale'])).astype(int)
+        nwdps = len(wdps_d)
         print(f"wdps: {wdps}")
 
         # Create a pool of processes
