@@ -116,6 +116,34 @@ class traveltime:
         self.tt_min = tt_min
         self.tt_max = tt_max
         return
+    
+    def get_minmaxtt_fun_staphs(self, xrange, yrange, zrange, station, phase, nx=100, ny=100, nz=100):
+        """
+        Get the minimal and the maximal traveltimes in the given region
+        for a input station and phase.
+        Traveltime are expressed in function.
+
+        xrange: list of 2 floats, i.e. [x_min, x_max];
+        yrange: list of 2 floats, i.e. [y_min, y_max];
+        zrange: list of 2 floats, i.e. [z_min, z_max];
+        """
+
+        # Create meshgrid directly using np.meshgrid
+        xxx, yyy, zzz = np.meshgrid(np.linspace(xrange[0], xrange[1], nx),
+                                    np.linspace(yrange[0], yrange[1], ny),
+                                    np.linspace(zrange[0], zrange[1], nz),
+                                    indexing='ij')
+
+        # Pre-calculate the flattened arrays
+        xxx_flat = xxx.flatten()
+        yyy_flat = yyy.flatten()
+        zzz_flat = zzz.flatten()
+
+        ttall_ = self.tt_fun[station][phase](xxx_flat, yyy_flat, zzz_flat)
+        tt_min = np.min(ttall_)  # the minimal travel time
+        tt_max = np.max(ttall_)  # the maximal travel time
+
+        return tt_min, tt_max
 
     def get_minmaxtt_tab(self):
         """
