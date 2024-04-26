@@ -12,6 +12,37 @@ import multiprocessing as mp
 from multiprocessing.pool import Pool
 
 
+def _parti(rng, num):
+    # partition the 'rng' into 'num' smaller parts
+    # rng: [min, max]
+
+    rstep = (rng[1] - rng[0]) / num
+    rpart = [[rng[0]+ir*rstep, rng[0]+(ir+1)*rstep] for ir in range(num)]
+
+    return rpart
+
+
+def _migv_point(xrange, yrange, zrange, trange, cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras, ntgrid):
+
+    # calculate the migration value for each grid point  
+    for jjsta in cf_station:
+        # loop over each station
+        for jjph in paras['phase']:
+            # loop over each phase
+
+            # calculate the minimal and maximum arrivaltime given station and phase
+            tt_min, tt_max = traveltime.get_minmaxtt_fun_staphs(xrange=xrange, 
+                                                                yrange=yrange, 
+                                                                zrange=zrange, 
+                                                                station=jjsta, 
+                                                                phase=jjph, 
+                                                                nx=ntgrid, 
+                                                                ny=ntgrid, 
+                                                                nz=ntgrid)
+
+    return v
+
+
 # define the objective function for optimization for (x, y, z)
 def objfun(xyz, it0, cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras):
     x, y, z = xyz
@@ -473,6 +504,58 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         # restore the traveltime function after the pool
         traveltime.tt_fun = traveltime_tt_fun        
 
+    elif paras['migration_engine'].lower() == 'partition':
+        # partition the grid search into multiple smaller parts
+        # similar to octree searching, if paras['partition']['number'] = 2 
+        # if xrange <= paras['partition']['x_resolution'], stop x partition;
+        # if yrange <= paras['partition']['y_resolution'], stop y partition;
+        # if zrange <= paras['partition']['z_resolution'], stop z partition;
+        # if trange <= paras['partition']['t_resolution'], stop t partition;
+        # NOTE paras['partition']['t_resolution'] in samples, NOT IN SECONDS;
+
+        ntgrid = 10  # for estimating the mininum and maximum traveltimes
+        x_res = paras['partition']['x_resolution']  # x resolution in meters
+        y_res = paras['partition']['y_resolution']  # y resolution in meters
+        z_res = paras['partition']['z_resolution']  # z resolution in meters
+        t_res = paras['partition']['t_resolution'] / data_sampling_rate  # t resolution in seconds
+
+        # range for the best event location (x, y, z, t)
+        xrange = [region.x_min, region.x_max]
+        yrange = [region.y_min, region.y_max]
+        zrange = [region.z_min, region.z_max]
+        trange = [t0_s[0], t0_s[-1]]  # searching origin time range in seconds
+        
+        xr_list = [xrange]
+        yr_list = [yrange]
+        zr_list = [zrange]
+        tr_list = [trange]
+
+
+        while (xrange[1]-xrange[0]>x_res) or (yrange[1]-yrange[0]>y_res) or (zrange[1]-zrange[0]>z_res) or (trange[1]-trange[0]>t_res):
+            # partition the grid search in x direction
+            if xrange[1]-xrange[0]>x_res:
+                xpar = _parti(rng=xrange, num=paras['partition']['number'])
+            else:
+                xpar = [xrange]
+
+            # partition the grid search in y direction
+            if yrange[1]-yrange[0]>y_res:
+                ypar = _parti(rng=yrange, num=paras['partition']['number'])
+            else:
+                ypar = [yrange]
+            
+            # partition the grid search in z direction
+            if zrange[1]-zrange[0]>z_res:
+                zpar = _parti(rng=zrange, num=paras['partition']['number'])
+            else:
+                zpar = [zrange]
+
+            # partition the grid search in t direction
+            if trange[1]-trange[0]>t_res:
+                tpar = _parti(rng=trange, num=paras['partition']['number'])
+            else:
+                tpar = [trange]
+
     else:
         raise ValueError(f"Invalid migration_engine: {paras['migration_engine']}!")
 
@@ -490,7 +573,7 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         ev_x = np.array([output_x[evt0_id[0]]])  # x coordinate of the event location
         ev_y = np.array([output_y[evt0_id[0]]])  # y coordinate of the event location
         ev_z = np.array([output_z[evt0_id[0]]])  # z coordinate of the event location
-        ev_t0 = np.array([output_t0[evt0_id[0]]])  # origin time of the event
+        ev_t0 = np.array([output_t0[evt0_id[0]]])  # origin time of the event in UTCDateTime
         ev_it0 = np.array([t0_s[evt0_id[0]]])  # origin time in second (relative to t0_start) of the event
         ev_mig = np.array([output_v[evt0_id]])  # migration value of the event
     else:
