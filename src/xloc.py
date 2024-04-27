@@ -10,6 +10,7 @@ import os
 from numba import jit
 import multiprocessing as mp
 from multiprocessing.pool import Pool
+import itertools
 
 
 def _parti(rng, num):
@@ -22,25 +23,45 @@ def _parti(rng, num):
     return rpart
 
 
-def _migv_point(xrange, yrange, zrange, trange, cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras, ntgrid):
+def _migv_point(xrange, yrange, zrange, trange, cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras, ntgrid, region):
 
+    dxr = xrange[1] - xrange[0]
+    dyr = yrange[1] - yrange[0]
+    dzr = zrange[1] - zrange[0]
+
+    if (dxr > ntgrid * region.dx) and (dyr > ntgrid * region.dy) and (dzr > ntgrid * region.dz):
+        # calculate the minimal and maximum traveltime using the traveltime table
+        ttcal_tab = 1
+        grid_indices, _, _, _ = region.mesh3D_xyz_subgrid_index(x_bound=xrange, y_bound=yrange, z_bound=zrange, 
+                                                                dnx=1, dny=1, dnz=1)
+
+    va = 0
     # calculate the migration value for each grid point  
     for jjsta in cf_station:
         # loop over each station
         for jjph in paras['phase']:
             # loop over each phase
 
-            # calculate the minimal and maximum arrivaltime given station and phase
-            tt_min, tt_max = traveltime.get_minmaxtt_fun_staphs(xrange=xrange, 
-                                                                yrange=yrange, 
-                                                                zrange=zrange, 
-                                                                station=jjsta, 
-                                                                phase=jjph, 
-                                                                nx=ntgrid, 
-                                                                ny=ntgrid, 
-                                                                nz=ntgrid)
+            # calculate the minimal and maximum traveltime for the given station and phase
+            if ttcal_tab == 1:
+                tt_min = np.min(traveltime.tt_tab[jjsta][jjph][grid_indices], axis=None)
+                tt_max = np.max(traveltime.tt_tab[jjsta][jjph][grid_indices], axis=None)
+            else:
+                tt_min, tt_max = traveltime.get_minmaxtt_fun_staphs(xrange=xrange, 
+                                                                    yrange=yrange, 
+                                                                    zrange=zrange, 
+                                                                    station=jjsta, 
+                                                                    phase=jjph, 
+                                                                    nx=ntgrid, 
+                                                                    ny=ntgrid, 
+                                                                    nz=ntgrid)
+            
+            at_min_sample = (trange[0] + tt_min - cf_starttime_s[jjsta][jjph])*data_sampling_rate + 1  # the earliest arrivaltime in sample
+            at_max_sample = (trange[1] + tt_max - cf_starttime_s[jjsta][jjph])*data_sampling_rate + 1  # the latest arrivaltime in sample
+            
+            va += np.max(cf[jjsta][jjph](np.arange(at_min_sample, at_max_sample+1)))
 
-    return v
+    return va
 
 
 # define the objective function for optimization for (x, y, z)
@@ -373,10 +394,10 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
 
     # start location
     cf_station = list(cf.keys())
-    NCFS = len(cf_station)  # number of stations that have characteristic function
-    NPHS = len(paras['phase'])  # number of seismic phases
+    # NCFS = len(cf_station)  # number of stations that have characteristic function
+    # NPHS = len(paras['phase'])  # number of seismic phases
 
-    if paras['migration_engine'].lower() != 'grid':
+    if paras['migration_engine'].lower() == 'optimize':
         # traveltimes are expressed as functions
         # use global optimization method for event location
 
@@ -435,6 +456,8 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
                 output_v[ii] = -result.fun
         else:
             raise ValueError(f"Invalid migration engine: {paras['migration_engine']}!")
+
+        output_t0 = np.array([t0_start+it0_s for it0_s in t0_s])  # origin times in UTCDateTime
 
     elif paras['migration_engine'].lower() == 'grid':
         # traveltimes are expressed as tables
@@ -502,7 +525,8 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
             #         raise ValueError("Invalid input for 'save_result:data_dim'.")
 
         # restore the traveltime function after the pool
-        traveltime.tt_fun = traveltime_tt_fun        
+        traveltime.tt_fun = traveltime_tt_fun   
+        output_t0 = np.array([t0_start+it0_s for it0_s in t0_s])  # origin times in UTCDateTime     
 
     elif paras['migration_engine'].lower() == 'partition':
         # partition the grid search into multiple smaller parts
@@ -519,47 +543,99 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         z_res = paras['partition']['z_resolution']  # z resolution in meters
         t_res = paras['partition']['t_resolution'] / data_sampling_rate  # t resolution in seconds
 
-        # range for the best event location (x, y, z, t)
-        xrange = [region.x_min, region.x_max]
-        yrange = [region.y_min, region.y_max]
-        zrange = [region.z_min, region.z_max]
-        trange = [t0_s[0], t0_s[-1]]  # searching origin time range in seconds
+        # range for the selected best event location range (x, y, z, t)
+        xrange_s = [region.x_min, region.x_max]
+        yrange_s = [region.y_min, region.y_max]
+        zrange_s = [region.z_min, region.z_max]
+        trange_s = [t0_s[0], t0_s[-1]]  # searching origin time range in seconds
         
-        xr_list = [xrange]
-        yr_list = [yrange]
-        zr_list = [zrange]
-        tr_list = [trange]
+        xr_list = [xrange_s]
+        yr_list = [yrange_s]
+        zr_list = [zrange_s]
+        tr_list = [trange_s]
+        va_list = [None]
 
+        evix = 0  # the index of current best estimate of the event in the list
 
-        while (xrange[1]-xrange[0]>x_res) or (yrange[1]-yrange[0]>y_res) or (zrange[1]-zrange[0]>z_res) or (trange[1]-trange[0]>t_res):
+        while (xrange_s[1]-xrange_s[0]>x_res) or (yrange_s[1]-yrange_s[0]>y_res) or (zrange_s[1]-zrange_s[0]>z_res) or (trange_s[1]-trange_s[0]>t_res):
+            
+            # remove the previous best estimate of the result list
+            del xr_list[evix], yr_list[evix], zr_list[evix], tr_list[evix], va_list[evix]
+
             # partition the grid search in x direction
-            if xrange[1]-xrange[0]>x_res:
-                xpar = _parti(rng=xrange, num=paras['partition']['number'])
+            if xrange_s[1]-xrange_s[0]>x_res:
+                xpar = _parti(rng=xrange_s, num=paras['partition']['number'])
             else:
-                xpar = [xrange]
+                xpar = [xrange_s]
 
             # partition the grid search in y direction
-            if yrange[1]-yrange[0]>y_res:
-                ypar = _parti(rng=yrange, num=paras['partition']['number'])
+            if yrange_s[1]-yrange_s[0]>y_res:
+                ypar = _parti(rng=yrange_s, num=paras['partition']['number'])
             else:
-                ypar = [yrange]
+                ypar = [yrange_s]
             
             # partition the grid search in z direction
-            if zrange[1]-zrange[0]>z_res:
-                zpar = _parti(rng=zrange, num=paras['partition']['number'])
+            if zrange_s[1]-zrange_s[0]>z_res:
+                zpar = _parti(rng=zrange_s, num=paras['partition']['number'])
             else:
-                zpar = [zrange]
+                zpar = [zrange_s]
 
             # partition the grid search in t direction
-            if trange[1]-trange[0]>t_res:
-                tpar = _parti(rng=trange, num=paras['partition']['number'])
+            if trange_s[1]-trange_s[0]>t_res:
+                tpar = _parti(rng=trange_s, num=paras['partition']['number'])
             else:
-                tpar = [trange]
+                tpar = [trange_s]
 
+            # Generate all combinations of xpar, ypar, zpar, and tpar
+            par_combinations = itertools.product(xpar, ypar, zpar, tpar)
+
+            # Iterate over all combinations and populate lists
+            for ixpar, iypar, izpar, itpar in par_combinations:
+                xr_list.append(ixpar)
+                yr_list.append(iypar)
+                zr_list.append(izpar)
+                tr_list.append(itpar)
+                iva = _migv_point(xrange=ixpar, yrange=iypar, zrange=izpar, trange=itpar, 
+                                  cf_station=cf_station, cf=cf, cf_starttime_s=cf_starttime_s, 
+                                  data_sampling_rate=data_sampling_rate, traveltime=traveltime, 
+                                  paras=paras, ntgrid=ntgrid, region=region)
+                va_list.append(iva)                 
+            
+            # find the current best estimate of the event location range
+            evix = np.argmax(va_list)
+            xrange_s = xr_list[evix]
+            yrange_s = yr_list[evix]
+            zrange_s = zr_list[evix]
+            trange_s = tr_list[evix]
+        
+        # determine the final event location results
+        output_x = np.array([np.mean(jxr) for jxr in xr_list])  # location in the middle of the range
+        output_y = np.array([np.mean(jyr) for jyr in yr_list])
+        output_z = np.array([np.mean(jzr) for jzr in zr_list])
+        t0_s = np.array([np.mean(jtr) for jtr in tr_list])  # rewrite t0_s
+        output_v = np.array(va_list)
+
+        # In t0_s we might have multiple same values, we need to keep only the unique values
+        # keep the one that has the maximum migration value (output_v)
+        # Sort indices based on t0_s in ascending order and output_v in descending order
+        sorted_indices = np.lexsort((-output_v, t0_s))
+
+        # Find indices of unique elements in sorted order
+        unique_indices = np.unique(t0_s[sorted_indices], return_index=True)[1]
+
+        # Use indices to extract desired elements from t0_s and output_v
+        final_indices = sorted_indices[unique_indices]
+
+        output_x = output_x[final_indices]
+        output_y = output_y[final_indices]
+        output_z = output_z[final_indices]
+        output_v = output_v[final_indices]
+        t0_s = t0_s[final_indices]
+
+        output_t0 = np.array([t0_start+it0_s for it0_s in t0_s])  # origin times in UTCDateTime
+        
     else:
         raise ValueError(f"Invalid migration_engine: {paras['migration_engine']}!")
-
-    output_t0 = np.array([t0_start+it0_s for it0_s in t0_s])  # origin times in UTCDateTime
     
     # save results  
     if paras['save_result']['save_loc']:
