@@ -34,6 +34,8 @@ def _migv_point(xrange, yrange, zrange, trange, cf_station, cf, cf_starttime_s, 
         ttcal_tab = 1
         grid_indices, _, _, _ = region.mesh3D_xyz_subgrid_index(x_bound=xrange, y_bound=yrange, z_bound=zrange, 
                                                                 dnx=1, dny=1, dnz=1)
+    else:
+        ttcal_tab = 0
 
     va = 0
     # calculate the migration value for each grid point  
