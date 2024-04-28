@@ -537,25 +537,45 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         # if trange <= paras['partition']['t_resolution'], stop t partition;
         # NOTE paras['partition']['t_resolution'] in samples, NOT IN SECONDS;
 
-        ntgrid = 10  # for estimating the mininum and maximum traveltimes
+        ntgrid = 5  # for estimating the mininum and maximum traveltimes
         x_res = paras['partition']['x_resolution']  # x resolution in meters
         y_res = paras['partition']['y_resolution']  # y resolution in meters
         z_res = paras['partition']['z_resolution']  # z resolution in meters
         t_res = paras['partition']['t_resolution'] / data_sampling_rate  # t resolution in seconds
-
-        # range for the selected best event location range (x, y, z, t)
-        xrange_s = [region.x_min, region.x_max]
-        yrange_s = [region.y_min, region.y_max]
-        zrange_s = [region.z_min, region.z_max]
-        trange_s = [t0_s[0], t0_s[-1]]  # searching origin time range in seconds
         
-        xr_list = [xrange_s]
-        yr_list = [yrange_s]
-        zr_list = [zrange_s]
-        tr_list = [trange_s]
-        va_list = [None]
+        # perform initial partition
+        xpar = _parti(rng=[region.x_min, region.x_max], num=paras['partition']['init_nx'])
+        ypar = _parti(rng=[region.y_min, region.y_max], num=paras['partition']['init_ny'])
+        zpar = _parti(rng=[region.z_min, region.z_max], num=paras['partition']['init_nz'])
+        tpar = _parti(rng=[t0_s[0], t0_s[-1]], num=paras['partition']['init_nt'])
 
-        evix = 0  # the index of current best estimate of the event in the list
+        # Generate all combinations of xpar, ypar, zpar, and tpar
+        par_combinations = itertools.product(xpar, ypar, zpar, tpar)
+
+        xr_list = []
+        yr_list = []
+        zr_list = []
+        tr_list = []
+        va_list = []
+        # Iterate over all combinations and populate lists
+        for ixpar, iypar, izpar, itpar in par_combinations:
+            xr_list.append(ixpar)
+            yr_list.append(iypar)
+            zr_list.append(izpar)
+            tr_list.append(itpar)
+            iva = _migv_point(xrange=ixpar, yrange=iypar, zrange=izpar, trange=itpar, 
+                                cf_station=cf_station, cf=cf, cf_starttime_s=cf_starttime_s, 
+                                data_sampling_rate=data_sampling_rate, traveltime=traveltime, 
+                                paras=paras, ntgrid=ntgrid, region=region)
+            va_list.append(iva)
+
+        # find the current best estimate of the event location range in the list
+        # i.e. get the range for the selected best event location range (x, y, z, t) 
+        evix = np.argmax(va_list)
+        xrange_s = xr_list[evix]  # sub x range in meters
+        yrange_s = yr_list[evix]  # sub y range in meters
+        zrange_s = zr_list[evix]  # sub z range in meters
+        trange_s = tr_list[evix]  # sub origin time range in seconds
 
         while (xrange_s[1]-xrange_s[0]>x_res) or (yrange_s[1]-yrange_s[0]>y_res) or (zrange_s[1]-zrange_s[0]>z_res) or (trange_s[1]-trange_s[0]>t_res):
             

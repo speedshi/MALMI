@@ -45,6 +45,8 @@ class velocity:
             self.velmax[ikey] = np.max(self.model[ikey])
             self.velmin[ikey] = np.min(self.model[ikey])
 
+        self.vmean = np.mean([self.vmin, self.vmax])
+
         return
 
     def __str__(self):
