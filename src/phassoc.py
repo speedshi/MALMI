@@ -27,14 +27,14 @@ def asso_input(file_para):
 
     # check required parameters for 'simple' method 
     if paras['method'].upper() == "SIMPLE":
-        if "time_span" not in paras:
-            raise ValueError("phassoc parameter file should contain 'time_span' setting for the 'simple' phassoc method.")
-        else:
-            if not isinstance(paras['time_span'], (int, float,)):
-                raise ValueError("'phassoc:time_span' should be a number.")
-            else:
-                if (paras['time_span'] <= 0):
-                    raise ValueError("'phassoc:time_span' should be a positive number.")
+        # if "time_span" not in paras:
+        #     raise ValueError("phassoc parameter file should contain 'time_span' setting for the 'simple' phassoc method.")
+        # else:
+        #     if not isinstance(paras['time_span'], (int, float,)):
+        #         raise ValueError("'phassoc:time_span' should be a number.")
+        #     else:
+        #         if (paras['time_span'] <= 0):
+        #             raise ValueError("'phassoc:time_span' should be a positive number.")
 
         if 'time_split' not in paras:
             raise ValueError("phassoc parameter file should contain 'time_split' setting for the 'simple' phassoc method.")
@@ -87,16 +87,23 @@ def asso_simple(pick: pd.DataFrame, paras):
     output['pick'] = []  # list of pick dateframe for each event
 
     npicks = len(pick)  # total number of picks
-    ii = 0
+    ii = 0  # the index of the first pick of the event
     while ii < npicks:
-        t_start = pick['peak_time'].iloc[ii]
-        t_end_est = t_start + paras['time_span']
-        ii_end_act = (pick['peak_time'] <= t_end_est)[::-1].idxmax()  
+        t_start = pick['peak_time'].iloc[ii]  # the time of the first pick of the event
 
-        # the next pick time should be at least "time_split" away from the last (end) pick
-        ii_end = np.searchsorted(pick['peak_time'], pick['peak_time'].iloc[ii_end_act] + paras['time_split'], side='left') - 1
+        # get the last pick of the event
+        ii_end = ii  # the index of the last pick of the event
+        while (ii_end<npicks-1) and (pick['peak_time'].iloc[ii_end+1]-pick['peak_time'].iloc[ii_end]<=paras["time_split"]):
+            ii_end += 1
+        t_end = pick['peak_time'].iloc[ii_end]  # the time of the last pick of the event
 
-        t_end = pick['peak_time'].iloc[ii_end]
+        # # get the last pick of the event
+        # t_end_est = t_start + paras['time_span']
+        # ii_end_act = (pick['peak_time'] <= t_end_est)[::-1].idxmax()  
+        # # the next pick time should be at least "time_split" away from the last (end) pick
+        # ii_end = np.searchsorted(pick['peak_time'], pick['peak_time'].iloc[ii_end_act] + paras['time_split'], side='left') - 1
+        # t_end = pick['peak_time'].iloc[ii_end]
+
         ev_picks = pick.iloc[ii:ii_end+1].copy().reset_index(drop=True)
         assert(((ev_picks['peak_time'] >= t_start) & (ev_picks['peak_time'] <= t_end)).all())
 
@@ -118,7 +125,7 @@ def asso_simple(pick: pd.DataFrame, paras):
             print(f"Potential events found from {t_start} to {t_end}.")
             print(f"Number of picked stations: {n_station}, P-picks: {n_pick_P}, S-picks: {n_pick_S}, all picks: {n_pick_all}.")
         else:
-            print(f"No valid events are found from {t_start} to {t_end_est}.")
+            print(f"No valid events are found from {t_start} to {t_end}.")
 
         # update index
         ii = ii_end + 1
