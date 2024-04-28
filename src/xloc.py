@@ -578,32 +578,44 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         yrange_s = yr_list[evix]  # sub y range in meters
         zrange_s = zr_list[evix]  # sub z range in meters
         trange_s = tr_list[evix]  # sub origin time range in seconds
+        dxr_s = xrange_s[1] - xrange_s[0]  # x diff in meters of the selected range
+        dyr_s = yrange_s[1] - yrange_s[0]  # y diff in meters of the selected range
+        dzr_s = zrange_s[1] - zrange_s[0]  # z diff in meters of the selected range
+        dtr_s = trange_s[1] - trange_s[0]  # origin time diff in seconds of the selected range
 
-        while (xrange_s[1]-xrange_s[0]>x_res) or (yrange_s[1]-yrange_s[0]>y_res) or (zrange_s[1]-zrange_s[0]>z_res) or (trange_s[1]-trange_s[0]>t_res):
+        while (dxr_s>x_res) or (dyr_s>y_res) or (dzr_s>z_res) or (dtr_s>t_res):
             
             # remove the previous best estimate of the result list
             del xr_list[evix], yr_list[evix], zr_list[evix], tr_list[evix], va_list[evix]
 
+            if paras['partition']['all_coord']:
+                # do partition in all directions
+                partx = party = partz = partt = True
+            else:
+                # do partition in the direction that has the largest range
+                icmax = np.argmax([dxr_s, dyr_s, dzr_s, dtr_s*velocity_model.vmean])
+                partx, party, partz, partt = [i == icmax for i in range(4)]
+                
             # partition the grid search in x direction
-            if xrange_s[1]-xrange_s[0]>x_res:
+            if (dxr_s>x_res) and (partx):
                 xpar = _parti(rng=xrange_s, num=paras['partition']['number'])
             else:
                 xpar = [xrange_s]
 
             # partition the grid search in y direction
-            if yrange_s[1]-yrange_s[0]>y_res:
+            if (dyr_s>y_res) and (party):
                 ypar = _parti(rng=yrange_s, num=paras['partition']['number'])
             else:
                 ypar = [yrange_s]
             
             # partition the grid search in z direction
-            if zrange_s[1]-zrange_s[0]>z_res:
+            if (dzr_s>z_res) and (partz):
                 zpar = _parti(rng=zrange_s, num=paras['partition']['number'])
             else:
                 zpar = [zrange_s]
 
             # partition the grid search in t direction
-            if trange_s[1]-trange_s[0]>t_res:
+            if (dtr_s>t_res) and (partt):
                 tpar = _parti(rng=trange_s, num=paras['partition']['number'])
             else:
                 tpar = [trange_s]
@@ -629,6 +641,10 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
             yrange_s = yr_list[evix]
             zrange_s = zr_list[evix]
             trange_s = tr_list[evix]
+            dxr_s = xrange_s[1] - xrange_s[0]  # x diff in meters of the selected range
+            dyr_s = yrange_s[1] - yrange_s[0]  # y diff in meters of the selected range
+            dzr_s = zrange_s[1] - zrange_s[0]  # z diff in meters of the selected range
+            dtr_s = trange_s[1] - trange_s[0]  # origin time diff in seconds of the selected range
         
         # determine the final event location results
         output_x = np.array([np.mean(jxr) for jxr in xr_list])  # location in the middle of the range
