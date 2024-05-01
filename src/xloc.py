@@ -546,10 +546,14 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         t_res = paras['partition']['t_resolution'] / data_sampling_rate  # t resolution in seconds
         
         # perform initial partition
-        xpar = _parti(rng=[region.x_min, region.x_max], num=paras['partition']['init_nx'])
-        ypar = _parti(rng=[region.y_min, region.y_max], num=paras['partition']['init_ny'])
-        zpar = _parti(rng=[region.z_min, region.z_max], num=paras['partition']['init_nz'])
-        tpar = _parti(rng=[t0_s[0], t0_s[-1]], num=paras['partition']['init_nt'])
+        init_nx = round((region.x_max - region.x_min) / paras['partition']['init_dx'])  # initial number of partition in x direction
+        init_ny = round((region.y_max - region.y_min) / paras['partition']['init_dy'])  # initial number of partition in y direction
+        init_nz = round((region.z_max - region.z_min) / paras['partition']['init_dz'])  # initial number of partition in z direction
+        init_nt = round((t0_s[-1] - t0_s[0]) * data_sampling_rate / paras['partition']['init_dt'])  # initial number of partition in t direction
+        xpar = _parti(rng=[region.x_min, region.x_max], num=init_nx)
+        ypar = _parti(rng=[region.y_min, region.y_max], num=init_ny)
+        zpar = _parti(rng=[region.z_min, region.z_max], num=init_nz)
+        tpar = _parti(rng=[t0_s[0], t0_s[-1]], num=init_nt)
 
         # Generate all combinations of xpar, ypar, zpar, and tpar
         par_combinations = itertools.product(xpar, ypar, zpar, tpar)
@@ -566,9 +570,9 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
             zr_list.append(izpar)
             tr_list.append(itpar)
             iva = _migv_point(xrange=ixpar, yrange=iypar, zrange=izpar, trange=itpar, 
-                                cf_station=cf_station, cf=cf, cf_starttime_s=cf_starttime_s, 
-                                data_sampling_rate=data_sampling_rate, traveltime=traveltime, 
-                                paras=paras, ntgrid=ntgrid, region=region)
+                              cf_station=cf_station, cf=cf, cf_starttime_s=cf_starttime_s, 
+                              data_sampling_rate=data_sampling_rate, traveltime=traveltime, 
+                              paras=paras, ntgrid=ntgrid, region=region)
             va_list.append(iva)
 
         # find the current best estimate of the event location range in the list
@@ -582,10 +586,11 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         dyr_s = yrange_s[1] - yrange_s[0]  # y diff in meters of the selected range
         dzr_s = zrange_s[1] - zrange_s[0]  # z diff in meters of the selected range
         dtr_s = trange_s[1] - trange_s[0]  # origin time diff in seconds of the selected range
+        npart = 1  # totoal number of partition that has been performed
 
         while (dxr_s>x_res) or (dyr_s>y_res) or (dzr_s>z_res) or (dtr_s>t_res):
             
-            # remove the previous best estimate of the result list
+            # remove the previous best estimate of the result list, it will be partitioned/splitted
             del xr_list[evix], yr_list[evix], zr_list[evix], tr_list[evix], va_list[evix]
 
             if paras['partition']['all_coord']:
@@ -598,25 +603,25 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
                 
             # partition the grid search in x direction
             if (dxr_s>x_res) and (partx):
-                xpar = _parti(rng=xrange_s, num=paras['partition']['number'])
+                xpar = _parti(rng=xrange_s, num=paras['partition']['pnum_x'])
             else:
                 xpar = [xrange_s]
 
             # partition the grid search in y direction
             if (dyr_s>y_res) and (party):
-                ypar = _parti(rng=yrange_s, num=paras['partition']['number'])
+                ypar = _parti(rng=yrange_s, num=paras['partition']['pnum_y'])
             else:
                 ypar = [yrange_s]
             
             # partition the grid search in z direction
             if (dzr_s>z_res) and (partz):
-                zpar = _parti(rng=zrange_s, num=paras['partition']['number'])
+                zpar = _parti(rng=zrange_s, num=paras['partition']['pnum_z'])
             else:
                 zpar = [zrange_s]
 
             # partition the grid search in t direction
             if (dtr_s>t_res) and (partt):
-                tpar = _parti(rng=trange_s, num=paras['partition']['number'])
+                tpar = _parti(rng=trange_s, num=paras['partition']['pnum_t'])
             else:
                 tpar = [trange_s]
 
@@ -645,7 +650,9 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
             dyr_s = yrange_s[1] - yrange_s[0]  # y diff in meters of the selected range
             dzr_s = zrange_s[1] - zrange_s[0]  # z diff in meters of the selected range
             dtr_s = trange_s[1] - trange_s[0]  # origin time diff in seconds of the selected range
-        
+            npart += 1
+            if npart >= paras['partition']['maxiter']: break
+
         # determine the final event location results
         output_x = np.array([np.mean(jxr) for jxr in xr_list])  # location in the middle of the range
         output_y = np.array([np.mean(jyr) for jyr in yr_list])
@@ -671,7 +678,7 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
         t0_s = t0_s[final_indices]
 
         output_t0 = np.array([t0_start+it0_s for it0_s in t0_s])  # origin times in UTCDateTime
-        
+        # print(npart)  # commont out this print line
     else:
         raise ValueError(f"Invalid migration_engine: {paras['migration_engine']}!")
     
@@ -697,7 +704,7 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
     # apply local optimization to polish the final location results
     if paras['loc_grid']['local_opt'].lower() != 'none':
         for ll in range(len(ev_t0)):  # loop over each located event
-            rext = 3.0
+            rext = 5.0
             bounds = [[ev_it0[ll]-t0_step*rext, ev_it0[ll]+t0_step*rext], 
                       [ev_x[ll]-region.dx*paras['loc_grid']['dnx'][-1]*rext, ev_x[ll]+region.dx*paras['loc_grid']['dnx'][-1]*rext], 
                       [ev_y[ll]-region.dy*paras['loc_grid']['dny'][-1]*rext, ev_y[ll]+region.dy*paras['loc_grid']['dny'][-1]*rext], 
@@ -705,10 +712,18 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
             x0 =  np.array([ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll]])
             result = minimize(fun=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
                               bounds=bounds, x0=x0, method=paras['loc_grid']['local_opt'],
-                              options={'maxiter': 100, 'xatol': 0.8, 'xtol': 0.01, 'gtol': 0.0001, 'ftol': 0.01, 'adaptive': True},)
+                              options={'maxiter': 10000, 'xatol': 0.8, 'xtol': 0.01, 'gtol': 0.0001, 'ftol': 0.0001, 'adaptive': True},)
             ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll] = result.x 
             ev_t0[ll] = t0_start + ev_it0[ll]
             ev_mig[ll] = -result.fun
+
+    # ### for testing #################
+    # tva = 0
+    # for jjsta in cf_station:
+    #     for jjph in paras['phase']:
+    #         tva += cf[jjsta][jjph]((ev_it0[0] + traveltime.tt_fun[jjsta][jjph](ev_x[0],ev_y[0],ev_z[0]) - cf_starttime_s[jjsta][jjph])*data_sampling_rate + 1)
+    # ev_mig[0] = tva
+    # #################################
 
     return ev_x, ev_y, ev_z, ev_t0, ev_mig
 
