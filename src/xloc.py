@@ -164,11 +164,11 @@ def migration_ti(ii, t0_s, region, paras, traveltime, cf, cf_station, cf_startti
                             atidx_3d = ((it0-cf_starttime_s[jjsta][jjph]) + traveltime.tt_tab[jjsta][jjph][max_indices])*data_sampling_rate + 1
                             # wwg_range = np.arange(-wdps[jjph][jw], wdps[jjph][jw]+1)
                             # vtemp_3d = np.max(np.array([cf[jjsta][jjph](atidx_3d+wwg) for wwg in wwg_range]), axis=0)
-                            # va += vtemp_3d
+                            # va_max += vtemp_3d
                             vtemp_3d = np.full_like(atidx_3d, -np.inf)
                             for wwg in range(-wdps[jjph][jw], wdps[jjph][jw]+1):
                                 vtemp_3d = np.maximum(cf[jjsta][jjph](atidx_3d+wwg), vtemp_3d)
-                            va += vtemp_3d
+                            va_max += vtemp_3d
                 else:
                     # calculate the migration value for each grid point  
                     va[:,:,:] = 0
