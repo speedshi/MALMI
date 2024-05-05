@@ -727,9 +727,21 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
                       [ev_y[ll]-yband, ev_y[ll]+yband], 
                       [ev_z[ll]-zband, ev_z[ll]+zband]]
             x0 =  np.array([ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll]])
-            result = minimize(fun=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
-                              bounds=bounds, x0=x0, method=paras['local_opt']['method'],
-                              options=paras['local_opt']['options'],)
+            if paras['local_opt']['method'].lower() == 'differential_evolution':     
+                result = differential_evolution(func=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
+                                                bounds=bounds, popsize=20, workers=1, vectorized=True, init='sobol', x0=x0,
+                                                maxiter=paras['local_opt']['options']['maxiter'], tol=1e-2, mutation=(0.5, 1.0), recombination=0.7, seed=42)
+            elif paras['local_opt']['method'].lower() == 'dual_annealing':
+                result = optimize.dual_annealing(func=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
+                                                bounds=bounds, x0=x0, maxiter=paras['local_opt']['options']['maxiter'], seed=42)
+            elif paras['local_opt']['method'].lower() == 'direct':
+                result = optimize.direct(func=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
+                                        bounds=bounds, eps=0.01, maxiter=paras['local_opt']['options']['maxiter'], len_tol=1e-2, vol_tol=1e-6)
+            else:
+                result = minimize(fun=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
+                                  bounds=bounds, x0=x0, method=paras['local_opt']['method'],
+                                  options=paras['local_opt']['options'])
+            
             ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll] = result.x 
             ev_t0[ll] = t0_start + ev_it0[ll]
             ev_mig[ll] = -result.fun
