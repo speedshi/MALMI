@@ -702,17 +702,34 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
 
     # polish over txyz using local optimization
     # apply local optimization to polish the final location results
-    if paras['loc_grid']['local_opt'].lower() != 'none':
+    if 'local_opt' in paras:
         for ll in range(len(ev_t0)):  # loop over each located event
-            rext = 5.0
-            bounds = [[ev_it0[ll]-t0_step*rext, ev_it0[ll]+t0_step*rext], 
-                      [ev_x[ll]-region.dx*paras['loc_grid']['dnx'][-1]*rext, ev_x[ll]+region.dx*paras['loc_grid']['dnx'][-1]*rext], 
-                      [ev_y[ll]-region.dy*paras['loc_grid']['dny'][-1]*rext, ev_y[ll]+region.dy*paras['loc_grid']['dny'][-1]*rext], 
-                      [ev_z[ll]-region.dz*paras['loc_grid']['dnz'][-1]*rext, ev_z[ll]+region.dz*paras['loc_grid']['dnz'][-1]*rext]]
+            rext = 40.0
+            if 'tband' in paras['local_opt']:
+                tband = paras['local_opt']['tband']
+            else:
+                tband = t0_step*rext
+            if 'xband' in paras['local_opt']:
+                xband = paras['local_opt']['xband']
+            else:
+                xband = region.dx*paras['loc_grid']['dnx'][-1]*rext
+            if 'yband' in paras['local_opt']:
+                yband = paras['local_opt']['yband']
+            else:
+                yband = region.dy*paras['loc_grid']['dny'][-1]*rext
+            if 'zband' in paras['local_opt']:
+                zband = paras['local_opt']['zband']
+            else:
+                zband = region.dz*paras['loc_grid']['dnz'][-1]*rext
+
+            bounds = [[ev_it0[ll]-tband, ev_it0[ll]+tband], 
+                      [ev_x[ll]-xband, ev_x[ll]+xband], 
+                      [ev_y[ll]-yband, ev_y[ll]+yband], 
+                      [ev_z[ll]-zband, ev_z[ll]+zband]]
             x0 =  np.array([ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll]])
             result = minimize(fun=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
-                              bounds=bounds, x0=x0, method=paras['loc_grid']['local_opt'],
-                              options={'maxiter': 10000, 'xatol': 0.8, 'xtol': 0.01, 'gtol': 0.0001, 'ftol': 0.0001, 'adaptive': True},)
+                              bounds=bounds, x0=x0, method=paras['local_opt']['method'],
+                              options={'maxiter': 10000, 'xtol': 0.01, 'gtol': 0.0001, 'ftol': 0.0001, 'adaptive': True},)
             ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll] = result.x 
             ev_t0[ll] = t0_start + ev_it0[ll]
             ev_mig[ll] = -result.fun
