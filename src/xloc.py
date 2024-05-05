@@ -729,7 +729,7 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
             x0 =  np.array([ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll]])
             result = minimize(fun=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
                               bounds=bounds, x0=x0, method=paras['local_opt']['method'],
-                              options={'maxiter': 10000, 'xtol': 0.01, 'gtol': 0.0001, 'ftol': 0.0001, 'adaptive': True},)
+                              options=paras['local_opt']['options'],)
             ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll] = result.x 
             ev_t0[ll] = t0_start + ev_it0[ll]
             ev_mig[ll] = -result.fun
