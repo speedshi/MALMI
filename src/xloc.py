@@ -727,6 +727,7 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
                       [ev_y[ll]-yband, ev_y[ll]+yband], 
                       [ev_z[ll]-zband, ev_z[ll]+zband]]
             x0 =  np.array([ev_it0[ll], ev_x[ll], ev_y[ll], ev_z[ll]])
+
             if paras['local_opt']['method'].lower() == 'differential_evolution':     
                 result = differential_evolution(func=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
                                                 bounds=bounds, popsize=20, workers=1, vectorized=True, init='sobol', x0=x0,
@@ -736,7 +737,7 @@ def xmig(data, traveltime, region, paras, dir_output, velocity_model=None):
                                                 bounds=bounds, x0=x0, maxiter=paras['local_opt']['options']['maxiter'], seed=42)
             elif paras['local_opt']['method'].lower() == 'direct':
                 result = optimize.direct(func=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
-                                        bounds=bounds, eps=0.01, maxiter=paras['local_opt']['options']['maxiter'], len_tol=1e-2, vol_tol=1e-6)
+                                        bounds=bounds, eps=0.01, maxiter=paras['local_opt']['options']['maxiter'], len_tol=1e-4, vol_tol=1e-10)
             else:
                 result = minimize(fun=objfunt, args=(cf_station, cf, cf_starttime_s, data_sampling_rate, traveltime, paras), 
                                   bounds=bounds, x0=x0, method=paras['local_opt']['method'],
