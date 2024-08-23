@@ -635,7 +635,7 @@ def seischar_plot(dir_seis, dir_char, dir_output, figsize=(12, 12), comp=['Z','N
     return
 
 
-def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap='RdBu_r', dir_output=None, figfmt='png', normrg=None, plotstyle='contourf', ctlevel=20, pdrange=None):
+def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap='RdBu_r', dir_output=None, figfmt='png', normrg=None, plotstyle='contourf', ctlevel=20, pdrange=None, plot_station=False):
     """
     This function is to visualize the migration volume, plot profiles along 
     X-, Y- and Z-directions, and display the isosurface along contour-value of 
@@ -676,6 +676,9 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
         values between 0.9*maximum_value and 1*maximum_value will be red.
         If pdrange=None, plot as usual.  
         Only valid for 'contourf' or 'contour' plot;
+    plot_station : bool, optional
+        whether to plot the station locations on the 2D XY profile plot. 
+        The default is False.
     
     Returns
     -------
@@ -688,6 +691,7 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     from skimage.measure import marching_cubes
     from mpl_toolkits.mplot3d import Axes3D
     import matplotlib.colors as mcolors
+    import loki.LatLongUTMconversion as ll
     
     # set default output directory
     if dir_output is None:
@@ -727,6 +731,18 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
     # load migration area coordinate info
     tobj = traveltimes.Traveltimes(dir_tt, hdr_filename)
     
+    if plot_station:
+        # get station locations
+        sta_x = []
+        sta_y = []
+        zone, x_orig, y_orig = ll.LLtoUTM(23, tobj.lat0, tobj.lon0)
+        for ista in tobj.stations_coordinates.keys():
+            ista_lat = tobj.stations_coordinates[ista][0]
+            ista_lon = tobj.stations_coordinates[ista][1]
+            _, x_ista, y_ista = ll.LLtoUTM(23, ista_lat, ista_lon)
+            sta_x.append((x_ista-x_orig)*0.001)  # convert to km
+            sta_y.append((y_ista-y_orig)*0.001)  # convert to km
+        assert(len(sta_x)==len(sta_y)==len(tobj.db_stations))
 
     # obtain the maximum projection along one dimension: XY
     nx, ny, nz = np.shape(corrmatrix)
@@ -782,6 +798,9 @@ def migmatrix_plot(file_corrmatrix, dir_tt, hdr_filename='header.hdr', colormap=
             plt.contour(tobj.x, tobj.y, CXY, ctlevel, colors='black', linewidths=1.0)
     elif plotstyle == 'pcolormesh':
         cs = plt.pcolormesh(tobj.x, tobj.y, CXY, cmap=cmap, shading='auto')
+    if plot_station:
+        ax.scatter(sta_x, sta_y, s=6, marker='^', facecolors='none',
+                   edgecolors='black', linewidths=0.6, alpha=0.15)
     ax.tick_params(axis='both', labelsize=16)
     ax.set_xlabel('East (km)', fontsize=16)  # fontname='Helvetica', fontweight='bold'
     ax.set_ylabel('North (km)', fontsize=16)  # fontname='Helvetica', fontweight='bold'
