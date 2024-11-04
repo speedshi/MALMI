@@ -83,7 +83,8 @@ coseismiq.format_ML_inputs()
 
 # %% Run ML models to get continuous phase probabilities
 ML = {}
-ML['model'] = '/home/peidong/xresearch/code/EQTransformer/ModelsAndSampleData/EqT_model.h5'  # path to a trained EQT model
+ML['engine'] = 'SeisBench'  
+ML['model'] = 'PhaseNet.original'  # path to a trained model
 ML['overlap'] = 0.8  # overlap rate of time window for generating probabilities. e.g. 0.6 means 60% of time window are overlapped
 coseismiq.generate_prob(ML)
 
