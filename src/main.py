@@ -432,10 +432,7 @@ class MALMI:
         ML['parallelism'] : int or None, default: 2
             Number of CPUs used for the parallel preprocessing and feeding of 
             data for prediction.
-            For original EQT ML engine, if no GPU to use, this value should not be set too large, 
-            otherwise prediction tends to be very slow.
-            I have tested using a number of 96 on a server with only cpus avaliable,
-            this makes the prediction process 20 times slower than using just 1 cpus.
+            Only used for original EQT ML engine.
 
         Returns
         -------
@@ -543,7 +540,6 @@ class MALMI:
             sbppara['dir_out'] = self.dir_prob
             sbppara['rescaling_rate'] = ML['rescaling_rate']
             sbppara['overlap'] = ML['overlap']
-            sbppara['parallelism'] = ML['parallelism']
             if self.seismic['datastru'] == 'EVS':
                 sbppara['evsegments'] = True
             else:
