@@ -748,35 +748,35 @@ def read_arrivaltimes(file_arrvt):
         ista = arvtdf['station'][ii]  # station name
         arrvtt[ista] = {}
         
-        if len(arvtdf['P'][ii]) == 26:
-            arrvtt[ista]['P'] = UTCDateTime.strptime(arvtdf['P'][ii], datetime_format_26)
-        elif len(arvtdf['P'][ii]) == 19:
-            arrvtt[ista]['P'] = UTCDateTime.strptime(arvtdf['P'][ii], datetime_format_19)
-        elif arvtdf['P'][ii] == 'None':
+        if (arvtdf['P'][ii] == 'None') or (isinstance(arvtdf['P'][ii], float) and np.isnan(arvtdf['P'][ii])):
             # no P-phase arrivaltimes
             pass
+        elif (isinstance(arvtdf['P'][ii], str)) and (len(arvtdf['P'][ii]) == 26):
+            arrvtt[ista]['P'] = UTCDateTime.strptime(arvtdf['P'][ii], datetime_format_26)
+        elif (isinstance(arvtdf['P'][ii], str)) and (len(arvtdf['P'][ii]) == 19):
+            arrvtt[ista]['P'] = UTCDateTime.strptime(arvtdf['P'][ii], datetime_format_19)
         else:
             raise ValueError('Error! Input datetime format not recoginzed!')
 
         if 'P_snr' in arvtdf:
-            if arvtdf['P_snr'][ii] == 'None':
+            if (arvtdf['P_snr'][ii] == 'None') or (isinstance(arvtdf['P_snr'][ii], float) and np.isnan(arvtdf['P_snr'][ii])):
                 # no P-pick snr
                 pass
             else:
                 arrvtt[ista]['P_snr'] = float(arvtdf['P_snr'][ii])
 
-        if len(arvtdf['S'][ii]) == 26:
-            arrvtt[ista]['S'] = UTCDateTime.strptime(arvtdf['S'][ii], datetime_format_26)
-        elif len(arvtdf['S'][ii]) == 19:
-            arrvtt[ista]['S'] = UTCDateTime.strptime(arvtdf['S'][ii], datetime_format_19)
-        elif arvtdf['S'][ii] == 'None':
+        if (arvtdf['S'][ii] == 'None') or (isinstance(arvtdf['S'][ii], float) and np.isnan(arvtdf['S'][ii])):
             # no S-phase arrivaltimes
             pass
+        elif (isinstance(arvtdf['S'][ii], str)) and (len(arvtdf['S'][ii]) == 26):
+            arrvtt[ista]['S'] = UTCDateTime.strptime(arvtdf['S'][ii], datetime_format_26)
+        elif (isinstance(arvtdf['S'][ii], str)) and (len(arvtdf['S'][ii]) == 19):
+            arrvtt[ista]['S'] = UTCDateTime.strptime(arvtdf['S'][ii], datetime_format_19)
         else:
             raise ValueError('Error! Input datetime format not recoginzed!')
     
         if 'S_snr' in arvtdf:
-            if arvtdf['S_snr'][ii] == 'None':
+            if (arvtdf['S_snr'][ii] == 'None') or (isinstance(arvtdf['S_snr'][ii], float) and np.isnan(arvtdf['S_snr'][ii])):
                 # no S-pick snr
                 pass
             else:
